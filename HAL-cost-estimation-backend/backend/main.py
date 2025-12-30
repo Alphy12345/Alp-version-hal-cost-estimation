@@ -3,7 +3,8 @@ from .db import engine
 from .models.models import Base
 from .routes import cost_estimation
 from fastapi.middleware.cors import CORSMiddleware
-
+from .routes import projects  # Add this import
+from fastapi.staticfiles import StaticFiles
 from .routes import (
     operation_type,
     machines,
@@ -13,6 +14,7 @@ from .routes import (
     machine_selection,
     mhr
 )
+import os
 
 Base.metadata.create_all(bind=engine)
 
@@ -33,6 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount uploads directory for file serving
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 app.include_router(operation_type.router)
 app.include_router(machines.router)
 app.include_router(dimensions.router)
@@ -41,6 +46,8 @@ app.include_router(materials.router)
 app.include_router(machine_selection.router)
 app.include_router(mhr.router)
 app.include_router(cost_estimation.router)
+app.include_router(projects.router)  # Add this line
+
 @app.get("/")
 def root():
     return {"status": "HAL Cost Estimation Backend Running 🚀"}

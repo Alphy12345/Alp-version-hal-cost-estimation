@@ -34,6 +34,19 @@ function Sidebar({ active, onChange }) {
         >
           <span>Cost Estimation</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => onChange("projects")}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors border
+            ${
+              active === "projects"
+                ? "bg-slate-100 text-slate-900 border-slate-300"
+                : "bg-transparent text-slate-200 border-transparent hover:bg-slate-800 hover:border-slate-700"
+            }`}
+        >
+          <span>Projects</span>
+        </button>
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-800 text-[11px] text-slate-500">

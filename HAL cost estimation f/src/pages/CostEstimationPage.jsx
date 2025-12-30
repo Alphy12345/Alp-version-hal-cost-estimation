@@ -460,58 +460,193 @@ function CostEstimationPage() {
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="px-4 md:px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between gap-3">
             <h2 className="text-sm md:text-base font-semibold text-slate-800">
-              Result
+              Cost Estimation Results
             </h2>
-            <div className="text-[11px] text-slate-500">{rows.length} fields</div>
+            {totalCost != null && (
+              <div className="text-lg font-bold text-sky-600">
+                {formatValue("total_cost", totalCost)}
+              </div>
+            )}
           </div>
 
-          <div className="p-4 md:p-5 space-y-4">
-          <div className="overflow-x-auto border border-slate-100 rounded-xl">
-            <table className="min-w-full text-xs md:text-sm">
-              <thead className="bg-slate-50 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">
-                    Field
-                  </th>
-                  <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">
-                    Value
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {totalCost != null && (
-                  <tr className="bg-gradient-to-r from-sky-50 to-white">
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-900 whitespace-nowrap font-semibold">
-                      Total Cost
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-900 font-semibold">
-                      {formatValue("total_cost", totalCost)}
-                    </td>
-                  </tr>
-                )}
-                {rows.map(([k, v]) => (
-                  <tr key={k} className="odd:bg-white even:bg-slate-50/40">
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-700 whitespace-nowrap font-medium">
-                      {k}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-700">
-                      {formatValue(k, v)}
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={2}
-                      className="px-3 py-4 text-center text-slate-400 text-xs"
-                    >
-                      No result data
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <div className="p-4 md:p-5 space-y-6">
+            {/* Summary Card */}
+            <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border border-sky-200">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Operation Details</h3>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <p><span className="font-medium">Operation:</span> {result.operation_type}</p>
+                    <p><span className="font-medium">Machine:</span> {result.selected_machine?.name}</p>
+                    <p><span className="font-medium">Material:</span> {result.material}</p>
+                    <p><span className="font-medium">Duty Category:</span> {result.duty_category}</p>
+                    <p><span className="font-medium">Shape:</span> {result.shape}</p>
+                    {result.volume && (
+                      <p><span className="font-medium">Volume:</span> {result.volume.toFixed(2)} mm³</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Cost Summary</h3>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <p><span className="font-medium">Basic Cost:</span> {formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</p>
+                    <p><span className="font-medium">Overheads:</span> {formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</p>
+                    <p><span className="font-medium">Profit:</span> {formatValue("profit", result.cost_breakdown?.profit_per_unit)}</p>
+                    <p><span className="font-medium">Packing & Forwarding:</span> {formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</p>
+                    <p className="pt-2 border-t border-slate-300"><span className="font-semibold">Total Unit Cost:</span> {formatValue("total_cost", result.cost_breakdown?.unit_cost)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Cost Breakdown */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">Detailed Cost Breakdown</h3>
+              <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                <table className="min-w-full text-xs md:text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Cost Component</th>
+                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
+                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">{result.cost_breakdown?.man_hours_per_unit}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">-</td>
+                    </tr>
+                    <tr className="bg-slate-50/40">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
+                      <td className="px-3 py-2 border-b border-slate-100">{formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per hour</td>
+                    </tr>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
+                      <td className="px-3 py-2 border-b border-slate-100">{formatValue("wage_rate", result.cost_breakdown?.wage_rate)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per hour</td>
+                    </tr>
+                    <tr className="bg-slate-50/40">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                    <tr className="bg-slate-50/40">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("profit", result.cost_breakdown?.profit_per_unit)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                    <tr className="bg-gradient-to-r from-sky-50 to-indigo-50 font-bold">
+                      <td className="px-3 py-3 border-b border-slate-100 text-slate-900">Total Unit Cost</td>
+                      <td className="px-3 py-3 border-b border-slate-100 text-sky-600 text-lg">{formatValue("total_cost", result.cost_breakdown?.unit_cost)}</td>
+                      <td className="px-3 py-3 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Calculation Steps */}
+            {result.calculation_steps && (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800 mb-3">Calculation Steps</h3>
+                <div className="space-y-3">
+                  {Object.entries(result.calculation_steps).map(([step, data]) => (
+                    <div key={step} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3 capitalize">
+                        {step.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </h4>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {data.formula && (
+                          <div>
+                            <span className="text-xs text-slate-600">Formula: </span>
+                            <span className="text-xs font-mono text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block mt-1">
+                              {data.formula}
+                            </span>
+                          </div>
+                        )}
+                        {data.calculation && (
+                          <div>
+                            <span className="text-xs text-slate-600">Calculation: </span>
+                            <span className="text-xs font-mono text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block mt-1">
+                              {data.calculation}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {data.result !== undefined && (
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <span className="text-xs text-slate-600">Result: </span>
+                          <span className="text-sm font-bold text-sky-600 bg-white px-3 py-1 rounded border border-sky-200">
+                            {formatValue(step, data.result)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Machine Details */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Machine Information</h4>
+                <div className="space-y-2 text-xs text-slate-600">
+                  <p><span className="font-medium">Machine ID:</span> {result.selected_machine?.id}</p>
+                  <p><span className="font-medium">Machine Name:</span> {result.selected_machine?.name}</p>
+                  <p><span className="font-medium">Operation Type ID:</span> {result.selected_machine?.operation_type_id}</p>
+                  <p><span className="font-medium">Machine Category:</span> {result.machine_category}</p>
+                  <p><span className="font-medium">Machine Hour Rate:</span> {formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</p>
+                  <p><span className="font-medium">Wage Rate:</span> {formatValue("wage_rate", result.cost_breakdown?.wage_rate)}</p>
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Outsourcing Information</h4>
+                <div className="space-y-2 text-xs text-slate-600">
+                  <p><span className="font-medium">Outsourcing MHR:</span> {formatValue("outsourcing_mhr", result.cost_breakdown?.outsourcing_mhr)}</p>
+                  <p><span className="font-medium">Material:</span> {result.material}</p>
+                  <p><span className="font-medium">Operation Type:</span> {result.operation_type}</p>
+                  <p><span className="font-medium">Shape:</span> {result.shape}</p>
+                  <p><span className="font-medium">Duty Category:</span> {result.duty_category}</p>
+                  {result.volume && (
+                    <p><span className="font-medium">Volume:</span> {result.volume.toFixed(2)} mm³</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Dimensions */}
+            {result.dimensions && (
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Input Dimensions</h4>
+                <div className="grid gap-2 md:grid-cols-4 text-xs text-slate-600">
+                  {result.dimensions.diameter && (
+                    <p><span className="font-medium">Diameter:</span> {result.dimensions.diameter} mm</p>
+                  )}
+                  {result.dimensions.length && (
+                    <p><span className="font-medium">Length:</span> {result.dimensions.length} mm</p>
+                  )}
+                  {result.dimensions.breadth && (
+                    <p><span className="font-medium">Breadth:</span> {result.dimensions.breadth} mm</p>
+                  )}
+                  {result.dimensions.height && (
+                    <p><span className="font-medium">Height:</span> {result.dimensions.height} mm</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}
