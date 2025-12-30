@@ -105,7 +105,17 @@ function ProjectDetailPage({ onChange, projectId }) {
   };
 
   const handleViewFile = (filePath, fileName) => {
-    const fileUrl = `http://127.0.0.1:8000/${filePath.replace(/\\/g, '/')}`;
+    const normalized = String(filePath || "").replace(/\\/g, "/");
+    const isLocalUploads = normalized.startsWith("uploads/") || normalized.startsWith("uploads");
+
+    const encodedKey = normalized
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+
+    const fileUrl = isLocalUploads
+      ? `http://127.0.0.1:8000/${normalized}`
+      : `http://127.0.0.1:8000/files/download/${encodedKey}`;
     const extension = fileName.split('.').pop().toLowerCase();
     let fileType = 'unknown';
     

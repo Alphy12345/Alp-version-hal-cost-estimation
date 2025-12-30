@@ -2,17 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-import os
-import shutil
 from ..db import get_db
 from ..models.projects import Project, ProjectDocument, ProjectPart, ProjectPartDocument
 from pydantic import BaseModel
+from backend.services.file_service import upload_file
+from backend.services.minio_client import MINIO_CLIENT, BUCKET_NAME
 
 router = APIRouter(prefix="/projects", tags=["projects"])
-
-# Configure upload directory
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ============= PYDANTIC SCHEMAS =============
 
@@ -69,21 +65,12 @@ class ProjectResponse(ProjectBase):
 # ============= HELPER FUNCTIONS =============
 
 async def save_file(file: UploadFile, folder: str) -> str:
-    """Save uploaded file and return the file path"""
+    """Save uploaded file and return the object key"""
     if not file:
         return None
-    
-    file_extension = os.path.splitext(file.filename)[1]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, folder, filename)
-    
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    return file_path
+
+    object_prefix = folder.strip("/")
+    return upload_file(file, object_prefix=object_prefix)
 
 
 # ============= PROJECT CRUD OPERATIONS =============
@@ -222,11 +209,10 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Delete associated files
-    project_folder = os.path.join(UPLOAD_DIR, f"projects/{project_id}")
-    if os.path.exists(project_folder):
-        shutil.rmtree(project_folder)
+
+    prefix = f"projects/{project_id}/"
+    for obj in MINIO_CLIENT.list_objects(BUCKET_NAME, prefix=prefix, recursive=True):
+        MINIO_CLIENT.remove_object(BUCKET_NAME, obj.object_name)
     
     db.delete(project)
     db.commit()

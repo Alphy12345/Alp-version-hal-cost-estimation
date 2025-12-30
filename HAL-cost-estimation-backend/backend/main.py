@@ -5,6 +5,10 @@ from .routes import cost_estimation
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import projects  # Add this import
 from fastapi.staticfiles import StaticFiles
+from backend.services.minio_client import ensure_bucket
+
+from backend.routes import files
+
 from .routes import (
     operation_type,
     machines,
@@ -12,7 +16,10 @@ from .routes import (
     duties,
     materials,
     machine_selection,
-    mhr
+    mhr,
+    cost_estimation,
+    projects,
+    files,
 )
 import os
 
@@ -35,8 +42,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount uploads directory for file serving
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(operation_type.router)
 app.include_router(machines.router)
@@ -47,7 +52,11 @@ app.include_router(machine_selection.router)
 app.include_router(mhr.router)
 app.include_router(cost_estimation.router)
 app.include_router(projects.router)  # Add this line
+app.include_router(files.router)
 
 @app.get("/")
 def root():
     return {"status": "HAL Cost Estimation Backend Running 🚀"}
+@app.on_event("startup")
+def startup():
+    ensure_bucket()
