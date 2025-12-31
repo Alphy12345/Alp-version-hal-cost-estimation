@@ -29,18 +29,7 @@ function MachineSelectionPage() {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-2">
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-slate-900">
-            Machine Selection
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl">
-            Map machines to dimensions, duties, materials, and sizes.
-          </p>
-        </div>
-      </header>
-
+    <div className="space-y-6 w-full">
       <CrudTable
         title="Machine Selection"
         resourcePath="/machine-selection/"
@@ -56,7 +45,7 @@ function MachineSelectionPage() {
               <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-200 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
               >
                 <option value="">Select Machine</option>
                 {machines.map((m) => (
@@ -78,7 +67,7 @@ function MachineSelectionPage() {
               <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-200 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
               >
                 <option value="">Select Dimension</option>
                 {dimensions.map((d) => (
@@ -100,7 +89,7 @@ function MachineSelectionPage() {
               <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-200 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
               >
                 <option value="">Select Duty</option>
                 {duties.map((du) => (
@@ -122,7 +111,7 @@ function MachineSelectionPage() {
               <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-200 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
               >
                 <option value="">Select Material</option>
                 {materials.map((mat) => (

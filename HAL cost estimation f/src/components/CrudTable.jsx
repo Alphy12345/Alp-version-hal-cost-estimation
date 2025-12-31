@@ -85,16 +85,16 @@ function CrudTable({
   };
 
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <h2 className="text-sm md:text-base font-semibold text-slate-800">{title}</h2>
+    <section className="bg-black rounded-xl shadow-sm border border-slate-700 p-4 md:p-5 space-y-4">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-700 pb-3">
+        <h2 className="text-sm md:text-base font-semibold text-white">{title}</h2>
         {loading && (
-          <span className="text-xs text-slate-500 animate-pulse">Loading...</span>
+          <span className="text-xs text-slate-400 animate-pulse">Loading...</span>
         )}
       </div>
 
       {error && (
-        <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+        <div className="text-xs text-red-400 bg-red-900/50 border border-red-800 rounded px-3 py-2">
           {error}
         </div>
       )}
@@ -106,7 +106,7 @@ function CrudTable({
         <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
           {columns.map((col) => (
             <div key={col.key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">
+              <label className="text-xs font-medium text-slate-300">
                 {col.label}
               </label>
               {col.renderInput ? (
@@ -121,7 +121,7 @@ function CrudTable({
                   value={form[col.key] ?? ""}
                   onChange={(e) => handleChange(col.key, e.target.value)}
                   placeholder={col.placeholder || col.label}
-                  className="px-2.5 py-1.5 rounded-md border border-slate-200 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                  className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
                 />
               )}
             </div>
@@ -133,7 +133,7 @@ function CrudTable({
             <button
               type="button"
               onClick={resetForm}
-              className="px-3 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm text-slate-700 bg-white hover:bg-slate-50"
+              className="px-3 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm text-slate-300 bg-slate-800 hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -148,19 +148,19 @@ function CrudTable({
         </div>
       </form>
 
-      <div className="overflow-x-auto border border-slate-100 rounded-lg">
+      <div className="overflow-x-auto border border-slate-700 rounded-lg">
         <table className="min-w-full text-xs md:text-sm">
-          <thead className="bg-slate-50">
+          <thead className="bg-slate-900">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-3 py-2 text-left font-semibold text-slate-600 border-b border-slate-100"
+                  className="px-3 py-2 text-left font-semibold text-slate-300 border-b border-slate-700"
                 >
                   {col.label}
                 </th>
               ))}
-              <th className="px-3 py-2 text-right font-semibold text-slate-600 border-b border-slate-100">
+              <th className="px-3 py-2 text-right font-semibold text-slate-300 border-b border-slate-700">
                 Actions
               </th>
             </tr>
@@ -170,18 +170,18 @@ function CrudTable({
               <tr>
                 <td
                   colSpan={columns.length + 1}
-                  className="px-3 py-4 text-center text-slate-400 text-xs"
+                  className="px-3 py-4 text-center text-slate-500 text-xs"
                 >
                   No data available
                 </td>
               </tr>
             )}
             {items.map((item) => (
-              <tr key={item.id} className="odd:bg-white even:bg-slate-50/40">
+              <tr key={item.id} className="odd:bg-slate-900 even:bg-slate-800">
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className="px-3 py-2 border-b border-slate-100 text-slate-700"
+                    className="px-3 py-2 border-b border-slate-700 text-slate-300"
                   >
                     {(() => {
                       const rawValue = col.getValue
@@ -195,14 +195,14 @@ function CrudTable({
                   <button
                     type="button"
                     onClick={() => handleEdit(item)}
-                    className="inline-flex items-center px-2 py-1 rounded-md border border-slate-300 text-[11px] text-slate-700 bg-white hover:bg-slate-50"
+                    className="inline-flex items-center px-2 py-1 rounded-md border border-slate-600 text-[11px] text-slate-300 bg-slate-800 hover:bg-slate-700"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(item.id)}
-                    className="inline-flex items-center px-2 py-1 rounded-md border border-red-200 text-[11px] text-red-700 bg-red-50 hover:bg-red-100"
+                    className="inline-flex items-center px-2 py-1 rounded-md border border-red-800 text-[11px] text-red-400 bg-red-900/50 hover:bg-red-900/70"
                   >
                     Delete
                   </button>
