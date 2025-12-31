@@ -6,6 +6,13 @@ import ProjectsPage from "./pages/ProjectsPage.jsx";
 import CreateProjectPage from "./pages/CreateProjectPage.jsx";
 import ProjectDetailPage from "./pages/ProjectDetailPage.jsx";
 import EditProjectPage from "./pages/EditProjectPage.jsx";
+import OperationTypesPage from "./pages/config/OperationTypesPage.jsx";
+import MachinesPage from "./pages/config/MachinesPage.jsx";
+import DimensionsPage from "./pages/config/DimensionsPage.jsx";
+import DutiesPage from "./pages/config/DutiesPage.jsx";
+import MaterialsPage from "./pages/config/MaterialsPage.jsx";
+import MachineSelectionPage from "./pages/config/MachineSelectionPage.jsx";
+import MhrPage from "./pages/config/MhrPage.jsx";
 
 function App() {
   const [activeSection, setActiveSection] = useState("configuration");
@@ -33,6 +40,13 @@ function App() {
           {activeSection === "create_project" && <CreateProjectPage onChange={handleSectionChange} onCreate={setCreatedProject} />}
           {activeSection === "project_detail" && <ProjectDetailPage onChange={handleSectionChange} projectId={currentProjectId} />}
           {activeSection === "edit_project" && <EditProjectPage onChange={handleSectionChange} projectId={editProjectId} />}
+          {activeSection === "config_operation_types" && <OperationTypesPage />}
+          {activeSection === "config_machines" && <MachinesPage />}
+          {activeSection === "config_dimensions" && <DimensionsPage />}
+          {activeSection === "config_duties" && <DutiesPage />}
+          {activeSection === "config_materials" && <MaterialsPage />}
+          {activeSection === "config_machine_selection" && <MachineSelectionPage />}
+          {activeSection === "config_mhr" && <MhrPage />}
         </main>
       </div>
     </div>
