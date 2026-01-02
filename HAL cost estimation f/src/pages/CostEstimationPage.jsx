@@ -61,6 +61,7 @@ function CostEstimationPage() {
     material: "aluminium",
     machine_name: "",
     man_hours_per_unit: 2,
+    miscellaneous_amount: 0,
   });
 
   const [machines, setMachines] = useState([]);
@@ -113,7 +114,7 @@ function CostEstimationPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  const totalCost = result?.cost_breakdown?.unit_cost;
+  const totalCost = result?.cost_breakdown?.total_unit_cost_with_misc;
 
   const filteredMachines = useMemo(() => {
     const normalize = (value) => {
@@ -265,6 +266,7 @@ function CostEstimationPage() {
       operation_type: String(form.operation_type || ""),
       machine_name: String(form.machine_name || ""),
       man_hours_per_unit: manHours,
+      miscellaneous_amount: Number(form.miscellaneous_amount || 0),
     };
 
     try {
@@ -395,6 +397,19 @@ function CostEstimationPage() {
             </div>
 
             <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-slate-600">Miscellaneous Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.miscellaneous_amount}
+                onChange={(e) => handleChange("miscellaneous_amount", e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
+                placeholder="Additional costs"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-slate-600">Length</label>
               <input
                 type="number"
@@ -493,7 +508,9 @@ function CostEstimationPage() {
                     <p><span className="font-medium">Overheads:</span> {formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</p>
                     <p><span className="font-medium">Profit:</span> {formatValue("profit", result.cost_breakdown?.profit_per_unit)}</p>
                     <p><span className="font-medium">Packing & Forwarding:</span> {formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</p>
+                    <p><span className="font-medium">Miscellaneous Amount:</span> {formatValue("miscellaneous_amount", result.cost_breakdown?.miscellaneous_amount)}</p>
                     <p className="pt-2 border-t border-slate-300"><span className="font-semibold">Total Unit Cost:</span> {formatValue("total_cost", result.cost_breakdown?.unit_cost)}</p>
+                    <p className="font-semibold text-sky-600"><span className="text-slate-700">Total with Miscellaneous:</span> {formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</p>
                   </div>
                 </div>
               </div>
@@ -547,9 +564,19 @@ function CostEstimationPage() {
                       <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</td>
                       <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
                     </tr>
+                    <tr className="bg-slate-50/40">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", result.cost_breakdown?.miscellaneous_amount)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
+                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("total_cost", result.cost_breakdown?.unit_cost)}</td>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
+                    </tr>
                     <tr className="bg-gradient-to-r from-sky-50 to-indigo-50 font-bold">
-                      <td className="px-3 py-3 border-b border-slate-100 text-slate-900">Total Unit Cost</td>
-                      <td className="px-3 py-3 border-b border-slate-100 text-sky-600 text-lg">{formatValue("total_cost", result.cost_breakdown?.unit_cost)}</td>
+                      <td className="px-3 py-3 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
+                      <td className="px-3 py-3 border-b border-slate-100 text-sky-600 text-lg">{formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</td>
                       <td className="px-3 py-3 border-b border-slate-100 text-slate-700">per unit</td>
                     </tr>
                   </tbody>

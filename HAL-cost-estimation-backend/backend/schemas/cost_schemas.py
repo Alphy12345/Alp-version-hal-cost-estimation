@@ -78,6 +78,9 @@ class CostEstimationRequest(BaseModel):
     
     # Duty (optional - will use defaults if not provided)
     duty_category: Optional[DutyCategory] = Field(None, description="Optional: light, medium, heavy")
+    
+    # Miscellaneous amount (optional - additional costs)
+    miscellaneous_amount: Optional[float] = Field(0, ge=0, description="Optional miscellaneous amount to add to total cost")
 
     @field_validator('dimensions')
     @classmethod
@@ -153,9 +156,11 @@ class CostBreakdown(BaseModel):
     
     # Final Costs
     unit_cost: float = Field(..., description="Total = D + OH + Profit + P&F")
+    total_unit_cost_with_misc: float = Field(..., description="Total unit cost including miscellaneous amount")
     
     # Additional Info
     outsourcing_mhr: float = Field(..., description="Outsourcing MHR = B + 2C")
+    miscellaneous_amount: float = Field(0, description="Miscellaneous amount added to total cost")
 
 class CostEstimationResponse(BaseModel):
     # Classification Results

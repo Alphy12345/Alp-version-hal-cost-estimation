@@ -378,7 +378,8 @@ class CostCalculationService:
         man_hours: float,
         machine_hour_rate: float,
         wage_rate: float,
-        quantity: int
+        quantity: int,
+        miscellaneous_amount: float = 0.0
     ) -> dict:
         """
         Calculate all cost components based on the formula
@@ -388,6 +389,7 @@ class CostCalculationService:
         Profit = 10% of (D + OH)
         PF = 2% of D
         Unit Cost = D + OH + Profit + PF
+        Total Unit Cost with Misc = Unit Cost + Miscellaneous Amount
         Outsourcing MHR = B + 2C
         """
         # A = man_hours, B = machine_hour_rate, C = wage_rate
@@ -407,8 +409,11 @@ class CostCalculationService:
         # Unit cost
         unit_cost = basic_cost + overheads + profit + packing_forwarding
         
+        # Total unit cost with miscellaneous amount
+        total_unit_cost_with_misc = unit_cost + miscellaneous_amount
+        
         # Total cost
-        total_cost = unit_cost * quantity
+        total_cost = total_unit_cost_with_misc * quantity
         
         # Outsourcing MHR
         outsourcing_mhr = machine_hour_rate + (2 * wage_rate)
@@ -422,6 +427,8 @@ class CostCalculationService:
             "profit_per_unit": round(profit, 2),
             "packing_forwarding_per_unit": round(packing_forwarding, 2),
             "unit_cost": round(unit_cost, 2),
+            "total_unit_cost_with_misc": round(total_unit_cost_with_misc, 2),
             "total_cost": round(total_cost, 2),
-            "outsourcing_mhr": round(outsourcing_mhr, 2)
+            "outsourcing_mhr": round(outsourcing_mhr, 2),
+            "miscellaneous_amount": round(miscellaneous_amount, 2)
         }

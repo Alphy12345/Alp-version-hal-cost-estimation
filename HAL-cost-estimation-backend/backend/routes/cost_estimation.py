@@ -157,7 +157,8 @@ def calculate_cost_estimation(
         man_hours=man_hours,
         machine_hour_rate=machine_hour_rate,
         wage_rate=wage_rate,
-        quantity=1  # Always calculate per unit
+        quantity=1,  # Always calculate per unit
+        miscellaneous_amount=request.miscellaneous_amount or 0.0
     )
     
     # Remove total_cost since we're calculating per unit
@@ -195,7 +196,17 @@ def calculate_cost_estimation(
             "calculation": f"{cost_breakdown['basic_cost_per_unit']} + {cost_breakdown['overheads_per_unit']} + {cost_breakdown['profit_per_unit']} + {cost_breakdown['packing_forwarding_per_unit']}",
             "result": cost_breakdown["unit_cost"]
         },
-        "step_7_outsourcing_mhr": {
+        "step_7_miscellaneous": {
+            "formula": "Miscellaneous Amount = User Input",
+            "calculation": f"User input: {request.miscellaneous_amount or 0.0}",
+            "result": cost_breakdown["miscellaneous_amount"]
+        },
+        "step_8_total_unit_cost_with_misc": {
+            "formula": "Total Unit Cost with Misc = Unit Cost + Miscellaneous Amount",
+            "calculation": f"{cost_breakdown['unit_cost']} + {cost_breakdown['miscellaneous_amount']}",
+            "result": cost_breakdown["total_unit_cost_with_misc"]
+        },
+        "step_9_outsourcing_mhr": {
             "formula": "Outsourcing MHR = B + 2C",
             "calculation": f"{machine_hour_rate} + (2 × {wage_rate})",
             "result": cost_breakdown["outsourcing_mhr"]

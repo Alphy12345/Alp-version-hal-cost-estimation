@@ -149,7 +149,8 @@ function ProjectDetailPage({ onChange, projectId }) {
       height: "",
       material: "steel",
       machine_name: "",
-      man_hours_per_unit: ""
+      man_hours_per_unit: "",
+      miscellaneous_amount: ""
     };
   };
 
@@ -205,6 +206,7 @@ function ProjectDetailPage({ onChange, projectId }) {
         operation_type: opType,
         machine_name: String(form.machine_name || ""),
         man_hours_per_unit: manHours,
+        miscellaneous_amount: Number(form.miscellaneous_amount || 0),
       };
 
       const res = await api.post("/cost-estimation/calculate", payload);
@@ -691,9 +693,9 @@ function ProjectDetailPage({ onChange, projectId }) {
                                 </div>
                                 {costResults[part.id] && (
                                   <div className="text-right">
-                                    <p className="text-xs text-slate-600">Unit Cost</p>
+                                    <p className="text-xs text-slate-600">Unit Cost (with Misc)</p>
                                     <p className="text-lg font-bold text-sky-600">
-                                      {formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}
+                                      {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}
                                     </p>
                                   </div>
                                 )}
@@ -754,6 +756,19 @@ function ProjectDetailPage({ onChange, projectId }) {
                                       onChange={(e) => handleCostFormChange(part.id, "man_hours_per_unit", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                       required
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-slate-700">Miscellaneous Amount</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      placeholder="Additional costs"
+                                      value={getCostForm(part.id).miscellaneous_amount}
+                                      onChange={(e) => handleCostFormChange(part.id, "miscellaneous_amount", e.target.value)}
+                                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                     />
                                   </div>
 
@@ -861,7 +876,9 @@ function ProjectDetailPage({ onChange, projectId }) {
                                           <p><span className="font-medium">Overheads:</span> {formatValue("overheads", costResults[part.id].cost_breakdown?.overheads_per_unit)}</p>
                                           <p><span className="font-medium">Profit:</span> {formatValue("profit", costResults[part.id].cost_breakdown?.profit_per_unit)}</p>
                                           <p><span className="font-medium">Packing & Forwarding:</span> {formatValue("packing", costResults[part.id].cost_breakdown?.packing_forwarding_per_unit)}</p>
+                                          <p><span className="font-medium">Miscellaneous Amount:</span> {formatValue("miscellaneous_amount", costResults[part.id].cost_breakdown?.miscellaneous_amount)}</p>
                                           <p className="pt-3 border-t border-slate-300"><span className="font-semibold text-lg">Total Unit Cost:</span> {formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}</p>
+                                          <p className="font-semibold text-sky-600"><span className="text-slate-700">Total with Miscellaneous:</span> {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -915,9 +932,19 @@ function ProjectDetailPage({ onChange, projectId }) {
                                             <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", costResults[part.id].cost_breakdown?.packing_forwarding_per_unit)}</td>
                                             <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
                                           </tr>
+                                          <tr className="bg-slate-50/40">
+                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
+                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", costResults[part.id].cost_breakdown?.miscellaneous_amount)}</td>
+                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
+                                          </tr>
+                                          <tr className="bg-white">
+                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
+                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}</td>
+                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
+                                          </tr>
                                           <tr className="bg-gradient-to-r from-sky-50 to-indigo-50 font-bold">
-                                            <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost</td>
-                                            <td className="px-4 py-4 border-b border-slate-100 text-sky-600 text-xl">{formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}</td>
+                                            <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
+                                            <td className="px-4 py-4 border-b border-slate-100 text-sky-600 text-xl">{formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}</td>
                                             <td className="px-4 py-4 border-b border-slate-100 text-slate-700">per unit</td>
                                           </tr>
                                         </tbody>
@@ -990,6 +1017,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                           profit: 0,
                           packing_forwarding: 0,
                           unit_cost: 0,
+                          total_unit_cost_with_misc: 0,
+                          miscellaneous_amount: 0,
                           machine_hour_rate: 0,
                           wage_rate: 0,
                           outsourcing_mhr: 0,
@@ -1003,6 +1032,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                           totalCosts.profit += breakdown?.profit_per_unit || 0;
                           totalCosts.packing_forwarding += breakdown?.packing_forwarding_per_unit || 0;
                           totalCosts.unit_cost += breakdown?.unit_cost || 0;
+                          totalCosts.total_unit_cost_with_misc += breakdown?.total_unit_cost_with_misc || 0;
+                          totalCosts.miscellaneous_amount += breakdown?.miscellaneous_amount || 0;
                           totalCosts.machine_hour_rate += breakdown?.machine_hour_rate || 0;
                           totalCosts.wage_rate += breakdown?.wage_rate || 0;
                           totalCosts.outsourcing_mhr += breakdown?.outsourcing_mhr || 0;
@@ -1029,7 +1060,9 @@ function ProjectDetailPage({ onChange, projectId }) {
                                     <p><span className="font-medium">Total Overheads:</span> {formatValue("overheads", totalCosts.overheads)}</p>
                                     <p><span className="font-medium">Total Profit:</span> {formatValue("profit", totalCosts.profit)}</p>
                                     <p><span className="font-medium">Total Packing & Forwarding:</span> {formatValue("packing", totalCosts.packing_forwarding)}</p>
+                                    <p><span className="font-medium">Total Miscellaneous Amount:</span> {formatValue("miscellaneous_amount", totalCosts.miscellaneous_amount)}</p>
                                     <p className="pt-3 border-t border-slate-300"><span className="font-semibold text-xl text-emerald-600">Total Project Cost:</span> {formatValue("total_cost", totalCosts.unit_cost)}</p>
+                                    <p className="font-semibold text-sky-600"><span className="text-slate-700">Total with Miscellaneous:</span> {formatValue("total_cost", totalCosts.total_unit_cost_with_misc)}</p>
                                   </div>
                                 </div>
                               </div>
@@ -1082,10 +1115,20 @@ function ProjectDetailPage({ onChange, projectId }) {
                                       <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", totalCosts.packing_forwarding)}</td>
                                       <td className="px-4 py-3 border-b border-slate-100">{formatValue("packing", totalCosts.packing_forwarding / Object.keys(costResults).length)}</td>
                                     </tr>
+                                    <tr className="bg-slate-50/40">
+                                      <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Miscellaneous Amount</td>
+                                      <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", totalCosts.miscellaneous_amount)}</td>
+                                      <td className="px-4 py-3 border-b border-slate-100">{formatValue("miscellaneous_amount", totalCosts.miscellaneous_amount / Object.keys(costResults).length)}</td>
+                                    </tr>
+                                    <tr className="bg-white">
+                                      <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Project Cost</td>
+                                      <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", totalCosts.unit_cost)}</td>
+                                      <td className="px-4 py-3 border-b border-slate-100">{formatValue("total_cost", totalCosts.unit_cost / Object.keys(costResults).length)}</td>
+                                    </tr>
                                     <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold">
-                                      <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Project Cost</td>
-                                      <td className="px-4 py-4 border-b border-slate-100 text-emerald-600 text-xl">{formatValue("total_cost", totalCosts.unit_cost)}</td>
-                                      <td className="px-4 py-4 border-b border-slate-100 text-slate-700">{formatValue("total_cost", totalCosts.unit_cost / Object.keys(costResults).length)}</td>
+                                      <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Project Cost with Misc</td>
+                                      <td className="px-4 py-4 border-b border-slate-100 text-emerald-600 text-xl">{formatValue("total_cost", totalCosts.total_unit_cost_with_misc)}</td>
+                                      <td className="px-4 py-4 border-b border-slate-100">{formatValue("total_cost", totalCosts.total_unit_cost_with_misc / Object.keys(costResults).length)}</td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -1105,9 +1148,9 @@ function ProjectDetailPage({ onChange, projectId }) {
                                           <p className="text-xs text-slate-600">{part?.part_name || 'No name'}</p>
                                         </div>
                                         <div className="text-right">
-                                          <p className="text-xs text-slate-600">Unit Cost</p>
+                                          <p className="text-xs text-slate-600">Unit Cost (with Misc)</p>
                                           <p className="text-lg font-bold text-sky-600">
-                                            {formatValue("total_cost", result.cost_breakdown?.unit_cost)}
+                                            {formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}
                                           </p>
                                         </div>
                                       </div>
