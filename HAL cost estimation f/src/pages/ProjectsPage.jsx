@@ -90,53 +90,7 @@ function ProjectsPage({ onChange }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center shadow-md">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                  <path d="M16 13H8" />
-                  <path d="M16 17H8" />
-                  <path d="M10 9H8" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-base md:text-lg font-semibold text-slate-900">View Existing Projects</h2>
-                <p className="text-xs md:text-sm text-slate-500 mt-1">Access and manage current projects</p>
-              </div>
-            </div>
-
-            <p className="text-xs md:text-sm text-slate-600 mt-4 leading-relaxed">
-              Browse through existing projects, review cost estimates, and continue working on ongoing manufacturing cost analyses.
-              Track project progress and manage deliverables.
-            </p>
-
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={scrollToTable}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
-              >
-                View Projects Below
-                <span className="text-base">↓</span>
-              </button>
-
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-50 text-slate-700 border border-slate-200">
-                {activeCount} Active Projects
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Projects Table Section */}
       </section>
 
       <section

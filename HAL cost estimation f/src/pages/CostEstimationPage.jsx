@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../api/client";
+import CompactPdfViewer from "../components/CompactPdfViewer";
 
 function flattenObject(obj, prefix = "") {
   if (obj == null) return [];
@@ -114,6 +115,9 @@ function CostEstimationPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
+  // PDF Viewer state - now just controls visibility, not modal
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+
   const totalCost = result?.cost_breakdown?.total_unit_cost_with_misc;
 
   const filteredMachines = useMemo(() => {
@@ -206,6 +210,11 @@ function CostEstimationPage() {
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // PDF Viewer functions
+  const togglePdfViewer = () => {
+    setShowPdfViewer(!showPdfViewer);
   };
 
   const handleSubmit = async (e) => {
@@ -477,11 +486,23 @@ function CostEstimationPage() {
             <h2 className="text-sm md:text-base font-semibold text-slate-800">
               Cost Estimation Results
             </h2>
-            {totalCost != null && (
-              <div className="text-lg font-bold text-sky-600">
-                {formatValue("total_cost", totalCost)}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={togglePdfViewer}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 shadow-sm"
+                title="Toggle PDF drawing viewer"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                {showPdfViewer ? 'Hide Drawing' : 'View 2D Drawing'}
+              </button>
+              {totalCost != null && (
+                <div className="text-lg font-bold text-sky-600">
+                  {formatValue("total_cost", totalCost)}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="p-4 md:p-5 space-y-6">
@@ -674,6 +695,23 @@ function CostEstimationPage() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+      )}
+      
+      {/* Embedded PDF Viewer Section */}
+      {showPdfViewer && (
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+          <div className="px-4 md:px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <h2 className="text-sm md:text-base font-semibold text-slate-800">
+              2D Drawing Viewer
+            </h2>
+          </div>
+          <div className="p-4 md:p-5">
+            <CompactPdfViewer
+              fileUrl="http://127.0.0.1:8000/files/sample-cost-estimation.pdf?inline=true"
+              fileName="Sample Cost Estimation Drawing.pdf"
+            />
           </div>
         </section>
       )}

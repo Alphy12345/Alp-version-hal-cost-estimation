@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function Sidebar({ active, onChange }) {
   const [isConfigOpen, setIsConfigOpen] = useState(
     active.startsWith("config_") || active === "configuration"
   );
+  const { user, logout } = useAuth();
 
   const configItems = [
     { key: "config_operation_types", label: "Operation Types" },
@@ -83,8 +85,23 @@ function Sidebar({ active, onChange }) {
         </div>
       </nav>
 
-      <div className="px-4 py-3 border-t border-slate-800 text-[11px] text-slate-500">
-        <p>© {new Date().getFullYear()} HAL</p>
+      <div className="px-4 py-3 border-t border-slate-800">
+        <div className="mb-3">
+          <p className="text-xs text-slate-400">Logged in as</p>
+          <p className="text-sm text-slate-200 font-medium truncate">{user?.full_name || user?.username}</p>
+        </div>
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-center px-3 py-2 text-xs font-medium text-slate-200 bg-slate-800 rounded-md hover:bg-slate-700 transition-colors"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
+        <div className="mt-3 text-[11px] text-slate-500">
+          <p>© {new Date().getFullYear()} HAL</p>
+        </div>
       </div>
     </aside>
   );

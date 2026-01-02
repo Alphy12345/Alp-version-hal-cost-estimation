@@ -52,26 +52,62 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
 
           {isPDF && (
             <div className="h-[70vh]">
+              {/* Try iframe first */}
               <iframe
-                src={fileUrl}
+                src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                 className="w-full h-full rounded-lg border border-slate-200"
                 title={fileName}
+                onLoad={() => {
+                  // PDF loaded successfully
+                  document.getElementById('pdf-error').style.display = 'none';
+                  document.getElementById('pdf-embed-fallback').style.display = 'none';
+                }}
                 onError={() => {
-                  document.getElementById('pdf-error').style.display = 'block';
+                  // Try embed tag as fallback
                   document.querySelector('iframe').style.display = 'none';
+                  document.getElementById('pdf-embed-fallback').style.display = 'block';
                 }}
               />
+              
+              {/* Fallback embed tag */}
+              <embed
+                id="pdf-embed-fallback"
+                src={fileUrl}
+                type="application/pdf"
+                className="hidden w-full h-full rounded-lg border border-slate-200"
+                onError={() => {
+                  document.getElementById('pdf-embed-fallback').style.display = 'none';
+                  document.getElementById('pdf-error').style.display = 'block';
+                }}
+              />
+              
               <div id="pdf-error" className="hidden text-center py-8">
                 <svg className="mx-auto h-12 w-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 <p className="text-slate-600 mb-2">PDF preview not available</p>
-                <button
-                  onClick={() => window.open(fileUrl, '_blank')}
-                  className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700"
-                >
-                  Download PDF
-                </button>
+                <p className="text-slate-500 text-sm mb-4">Your browser may be downloading the PDF instead of displaying it.</p>
+                <div className="space-x-2">
+                  <button
+                    onClick={() => window.open(fileUrl, '_blank')}
+                    className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700"
+                  >
+                    Open in New Tab
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = fileUrl;
+                      link.download = fileName;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+                  >
+                    Download PDF
+                  </button>
+                </div>
               </div>
             </div>
           )}

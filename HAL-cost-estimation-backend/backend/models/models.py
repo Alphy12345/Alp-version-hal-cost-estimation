@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from ..db import Base
 
 # -------------------------------------------------
@@ -107,3 +108,19 @@ class MHR(Base):
     operation_type = relationship("OperationType", back_populates="mhr")
     duty = relationship("Duty", back_populates="mhr")
     machine = relationship("Machine", back_populates="mhr")
+
+
+# -------------------------------------------------
+# USER
+# -------------------------------------------------
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .db import engine
-from .models.models import Base
+from .models.models import Base, User
 from .routes import cost_estimation
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import projects  # Add this import
@@ -20,6 +20,7 @@ from .routes import (
     cost_estimation,
     projects,
     files,
+    users,
 )
 import os
 
@@ -53,6 +54,11 @@ app.include_router(mhr.router)
 app.include_router(cost_estimation.router)
 app.include_router(projects.router)  # Add this line
 app.include_router(files.router)
+app.include_router(users.router)
+
+# Serve static files from uploads directory
+if os.path.exists("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 def root():

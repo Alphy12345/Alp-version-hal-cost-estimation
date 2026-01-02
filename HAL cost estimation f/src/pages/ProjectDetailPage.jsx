@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart } from "../api/projects";
 import AddPartModal from "../components/AddPartModal";
 import FileViewerModal from "../components/FileViewerModal";
@@ -21,6 +23,66 @@ function ProjectDetailPage({ onChange, projectId }) {
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
   const [costResults, setCostResults] = useState({}); // Store results by part ID
+
+  useEffect(() => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+  }, []);
+
+  const PdfPreview = ({ url, alt, className }) => {
+    const [dataUrl, setDataUrl] = useState("");
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      const render = async () => {
+        try {
+          setFailed(false);
+          setDataUrl("");
+
+          if (!url) {
+            setFailed(true);
+            return;
+          }
+
+          const loadingTask = pdfjsLib.getDocument({ url });
+          const pdf = await loadingTask.promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+
+          if (!context) {
+            throw new Error("Canvas context not available");
+          }
+
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          const imgData = canvas.toDataURL("image/png");
+          if (!cancelled) setDataUrl(imgData);
+        } catch (e) {
+          if (!cancelled) setFailed(true);
+        }
+      };
+
+      render();
+      return () => {
+        cancelled = true;
+      };
+    }, [url]);
+
+    if (failed) return null;
+    if (!dataUrl) {
+      return (
+        <div className="text-xs text-slate-400">Loading preview...</div>
+      );
+    }
+
+    return <img src={dataUrl} alt={alt} className={className} />;
+  };
 
   useEffect(() => {
     if (projectId) {
@@ -114,8 +176,8 @@ function ProjectDetailPage({ onChange, projectId }) {
       .join("/");
 
     const fileUrl = isLocalUploads
-      ? `http://127.0.0.1:8000/${normalized}`
-      : `http://127.0.0.1:8000/files/download/${encodedKey}`;
+      ? `http://127.0.0.1:8000/files/uploads/${normalized}?inline=true`
+      : `http://127.0.0.1:8000/files/download/${encodedKey}?inline=true`;
     const extension = fileName.split('.').pop().toLowerCase();
     let fileType = 'unknown';
     
@@ -129,10 +191,30 @@ function ProjectDetailPage({ onChange, projectId }) {
     
     setFileViewer({
       isOpen: true,
-      fileUrl,
+      fileUrl: fileUrl,
       fileName,
       fileType
     });
+  };
+
+  const getInlineFileUrl = (filePath) => {
+    const normalized = String(filePath || "").replace(/\\/g, "/");
+    if (!normalized) return "";
+
+    const isLocalUploads = normalized.startsWith("uploads/") || normalized.startsWith("uploads");
+    const encodedKey = normalized
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+
+    return isLocalUploads
+      ? `http://127.0.0.1:8000/files/uploads/${normalized}?inline=true`
+      : `http://127.0.0.1:8000/files/download/${encodedKey}?inline=true`;
+  };
+
+  const isPdfPath = (filePath) => {
+    const value = String(filePath || "").toLowerCase();
+    return value.endsWith(".pdf");
   };
 
   const closeFileViewer = () => {
@@ -269,7 +351,6 @@ function ProjectDetailPage({ onChange, projectId }) {
   const tabs = [
     { key: "documents", label: "Documents" },
     { key: "parts", label: "Parts" },
-    { key: "drawings", label: "Drawings" },
     { key: "cost_estimation", label: "Cost Estimation" },
     { key: "total_cost", label: "Total Cost" },
   ];
@@ -522,78 +603,6 @@ function ProjectDetailPage({ onChange, projectId }) {
             </div>
           )}
 
-          {activeTab === "drawings" && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900 mb-4">All 3D Models</h3>
-                {parts.filter(p => p.model_3d_path).length > 0 ? (
-                  <div className="space-y-3">
-                    {parts.filter(p => p.model_3d_path).map((part) => (
-                      <div key={`3d-${part.id}`} className="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
-                        <div className="flex items-center gap-3">
-                          <svg className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                          </svg>
-                          <div>
-                            <span className="text-xs md:text-sm text-slate-700 font-medium">
-                              {part.part_number} - 3D Model
-                            </span>
-                            <div className="text-[11px] text-slate-400">
-                              {part.model_3d_path.split('\\').pop()}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="text-xs text-sky-600 hover:text-sky-700 font-medium"
-                          onClick={() => handleViewFile(part.model_3d_path, part.model_3d_path.split('\\').pop())}
-                        >
-                          View
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs md:text-sm text-slate-400">No 3D models uploaded.</p>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-base font-semibold text-slate-900 mb-4">All 2D Drawings</h3>
-                {parts.filter(p => p.drawing_2d_path).length > 0 ? (
-                  <div className="space-y-3">
-                    {parts.filter(p => p.drawing_2d_path).map((part) => (
-                      <div key={`2d-${part.id}`} className="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
-                        <div className="flex items-center gap-3">
-                          <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <div>
-                            <span className="text-xs md:text-sm text-slate-700 font-medium">
-                              {part.part_number} - 2D Drawing
-                            </span>
-                            <div className="text-[11px] text-slate-400">
-                              {part.drawing_2d_path.split('\\').pop()}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="text-xs text-sky-600 hover:text-sky-700 font-medium"
-                          onClick={() => handleViewFile(part.drawing_2d_path, part.drawing_2d_path.split('\\').pop())}
-                        >
-                          View
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs md:text-sm text-slate-400">No 2D drawings uploaded.</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {activeTab === "cost_estimation" && (
             <div className="space-y-6">
               {/* Combined Drawings and Cost Estimation Table */}
@@ -644,30 +653,40 @@ function ProjectDetailPage({ onChange, projectId }) {
                     {/* 2D Drawings */}
                     <div>
                       <h4 className="text-xs font-medium text-slate-600 mb-2">2D Drawings</h4>
-                      {parts.filter(part => part.drawing_2d_path).length > 0 ? (
-                        <div className="space-y-2">
-                          {parts.filter(part => part.drawing_2d_path).map(part => (
-                            <div key={part.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                              <div className="flex items-center gap-3">
-                                <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                                <div>
-                                  <span className="text-xs md:text-sm text-slate-700 font-medium">{part.part_number} - 2D Drawing</span>
-                                  <div className="text-[11px] text-slate-400">
-                                    {part.drawing_2d_path.split('\\').pop()}
+                      {parts.filter((part) => part.drawing_2d_path).length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {parts
+                            .filter((part) => part.drawing_2d_path)
+                            .map((part) => {
+                              const fileName = String(part.drawing_2d_path).split("\\").pop();
+                              const imgUrl = getInlineFileUrl(part.drawing_2d_path);
+                              return (
+                                <div key={part.id} className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                                  <div className="px-3 py-2 border-b border-slate-200">
+                                    <div className="text-xs font-semibold text-slate-700">{part.part_number} - 2D Drawing</div>
+                                    <div className="text-[11px] text-slate-400 truncate">{fileName}</div>
+                                  </div>
+                                  <div className="p-3 flex justify-center bg-white">
+                                    {isPdfPath(part.drawing_2d_path) ? (
+                                      <PdfPreview
+                                        url={imgUrl}
+                                        alt={`${part.part_number} - 2D Drawing`}
+                                        className="max-h-80 w-auto object-contain rounded-md border border-slate-200"
+                                      />
+                                    ) : (
+                                      <img
+                                        src={imgUrl}
+                                        alt={`${part.part_number} - 2D Drawing`}
+                                        className="max-h-80 w-auto object-contain rounded-md border border-slate-200"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = "none";
+                                        }}
+                                      />
+                                    )}
                                   </div>
                                 </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="text-xs text-sky-600 hover:text-sky-700 font-medium"
-                                onClick={() => handleViewFile(part.drawing_2d_path, part.drawing_2d_path.split('\\').pop())}
-                              >
-                                View
-                              </button>
-                            </div>
-                          ))}
+                              );
+                            })}
                         </div>
                       ) : (
                         <p className="text-xs text-slate-400">No 2D drawings uploaded.</p>
@@ -701,6 +720,30 @@ function ProjectDetailPage({ onChange, projectId }) {
                                 )}
                               </div>
                             </div>
+                            
+                            {/* Display 2D Drawing Image Above Cost Estimation Form */}
+                            {part.drawing_2d_path && (
+                              <div className="p-4 bg-gray-50 border-b border-slate-200">
+                                <div className="flex justify-center">
+                                  {isPdfPath(part.drawing_2d_path) ? (
+                                    <PdfPreview
+                                      url={getInlineFileUrl(part.drawing_2d_path)}
+                                      alt={`${part.part_number} - 2D Drawing`}
+                                      className="max-w-md max-h-96 object-contain rounded-lg shadow-lg border border-slate-300"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={getInlineFileUrl(part.drawing_2d_path)}
+                                      alt={`${part.part_number} - 2D Drawing`}
+                                      className="max-w-md max-h-96 object-contain rounded-lg shadow-lg border border-slate-300"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = "none";
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             
                             <div className="p-4">
                               <form onSubmit={(e) => handleCostSubmit(e, part.id)} className="space-y-4">

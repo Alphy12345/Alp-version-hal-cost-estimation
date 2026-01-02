@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import ConfigurationPage from "./pages/ConfigurationPage.jsx";
 import CostEstimationPage from "./pages/CostEstimationPage.jsx";
@@ -13,12 +14,14 @@ import DutiesPage from "./pages/config/DutiesPage.jsx";
 import MaterialsPage from "./pages/config/MaterialsPage.jsx";
 import MachineSelectionPage from "./pages/config/MachineSelectionPage.jsx";
 import MhrPage from "./pages/config/MhrPage.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 
-function App() {
+function AppContent() {
   const [activeSection, setActiveSection] = useState("configuration");
   const [createdProject, setCreatedProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [editProjectId, setEditProjectId] = useState(null);
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   const handleSectionChange = (section, data) => {
     if (section === "project_detail" && data?.projectId) {
@@ -28,6 +31,21 @@ function App() {
     }
     setActiveSection(section);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden text-slate-900">
@@ -50,6 +68,14 @@ function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

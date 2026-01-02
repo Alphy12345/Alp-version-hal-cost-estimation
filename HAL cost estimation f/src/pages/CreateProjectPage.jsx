@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { createProject } from "../api/projects";
+import { createProject, addProjectPart } from "../api/projects";
 
 function CreateProjectPage({ onChange, onCreate }) {
   const [projectName, setProjectName] = useState("");
@@ -95,8 +95,39 @@ function CreateProjectPage({ onChange, onCreate }) {
       // Create the project
       const createdProject = await createProject(formData);
       
+      // Add parts to the created project
+      const validParts = parts.filter(part => 
+        part.partNumber.trim() !== '' || part.partName.trim() !== ''
+      );
+      
+      if (validParts.length > 0) {
+        for (const part of validParts) {
+          const partFormData = new FormData();
+          partFormData.append('part_number', part.partNumber || '');
+          partFormData.append('part_name', part.partName || '');
+          
+          if (part.model3D) {
+            partFormData.append('model_3d', part.model3D);
+          }
+          
+          if (part.drawing2D) {
+            partFormData.append('drawing_2d', part.drawing2D);
+          }
+          
+          try {
+            await addProjectPart(createdProject.id, partFormData);
+          } catch (partError) {
+            console.error(`Error adding part ${part.partNumber}:`, partError);
+            // Continue with other parts even if one fails
+          }
+        }
+      }
+      
       // Show success message
-      alert(`Project "${createdProject.project_name}" created successfully!`);
+      const message = validParts.length > 0 
+        ? `Project "${createdProject.project_name}" created successfully with ${validParts.length} part(s)!`
+        : `Project "${createdProject.project_name}" created successfully!`;
+      alert(message);
       
       // Call onCreate callback if provided
       if (onCreate) {
