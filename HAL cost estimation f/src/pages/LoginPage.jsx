@@ -84,7 +84,13 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed py-12 px-4 sm:px-6 lg:px-8"
+      style={{
+        backgroundImage:
+          "url('./assets/vecteezy_ai-generated-innovative-atomic-futuristic-atomic-nuclear_36748390.jpg')",
+      }}
+    >
       <div className="max-w-md w-full">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div>

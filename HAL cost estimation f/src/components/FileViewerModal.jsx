@@ -9,12 +9,12 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-black rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white text-slate-900">
           <h2 className="text-lg font-semibold truncate">{fileName}</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
             title="Close"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +23,7 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
           </button>
         </div>
 
-        <div className="p-4 overflow-auto bg-black" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+        <div className="p-4 overflow-auto bg-white" style={{ maxHeight: 'calc(90vh - 80px)' }}>
           {isImage && (
             <div className="flex justify-center">
               <img
@@ -155,8 +155,8 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
           )}
         </div>
 
-        <div className="p-4 border-t border-slate-700 bg-slate-900 flex justify-between items-center">
-          <div className="text-sm text-slate-300">
+        <div className="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
+          <div className="text-sm text-slate-600">
             {isImage && "Image Viewer"}
             {isPDF && "PDF Viewer"}
             {is3DModel && "3D Model Info"}
@@ -165,7 +165,7 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
           <div className="flex gap-2">
             <button
               onClick={() => window.open(fileUrl, '_blank')}
-              className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+              className="px-3 py-1.5 text-sm bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200"
             >
               Open in New Tab
             </button>

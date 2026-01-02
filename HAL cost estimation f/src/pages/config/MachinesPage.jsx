@@ -42,7 +42,7 @@ function MachinesPage() {
               <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
+                className="px-2.5 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
               >
                 <option value="">Select Operation Type</option>
                 {operationTypes.map((ot) => (
