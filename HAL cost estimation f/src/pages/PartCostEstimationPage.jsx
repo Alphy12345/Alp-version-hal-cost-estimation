@@ -66,12 +66,26 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     material: "steel",
     machine_name: "",
     man_hours_per_unit: "",
-    miscellaneous_amount: "",
   });
 
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
   const [costResult, setCostResult] = useState(null);
+
+  const [nonrecurringCostType, setNonrecurringCostType] = useState("");
+  const [nonrecurringCostAmount, setNonrecurringCostAmount] = useState("");
+
+  const nonrecurringCostValue = useMemo(() => {
+    if (!nonrecurringCostType) return 0;
+    const n = Number(nonrecurringCostAmount);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+  }, [nonrecurringCostAmount, nonrecurringCostType]);
+
+  const displayedTotalCost = useMemo(() => {
+    const base = Number(costResult?.cost_breakdown?.unit_cost ?? costResult?.cost_breakdown?.total_unit_cost_with_misc);
+    const baseValue = Number.isFinite(base) ? base : 0;
+    return baseValue + nonrecurringCostValue;
+  }, [costResult, nonrecurringCostValue]);
 
   const [drawingZoom, setDrawingZoom] = useState(1);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -355,9 +369,22 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
   const handleDrawingWheel = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     zoomBy(delta, e.clientX, e.clientY);
   };
+
+  useEffect(() => {
+    const viewport = drawingViewportRef.current;
+    if (!viewport) return;
+
+    // React may attach wheel handlers as passive, which prevents preventDefault()
+    // from blocking page scroll. Use a native listener with passive: false.
+    viewport.addEventListener("wheel", handleDrawingWheel, { passive: false });
+    return () => {
+      viewport.removeEventListener("wheel", handleDrawingWheel);
+    };
+  }, [handleDrawingWheel]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -400,7 +427,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         operation_type: opType,
         machine_name: String(form.machine_name || ""),
         man_hours_per_unit: manHours,
-        miscellaneous_amount: Number(form.miscellaneous_amount || 0),
+        miscellaneous_amount: 0,
       };
 
       const res = await api.post("/cost-estimation/calculate", payload);
@@ -608,8 +635,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
       ["Overheads", pdfValue("overheads", breakdown.overheads_per_unit), true],
       ["Profit (10%)", pdfValue("profit", breakdown.profit_per_unit), true],
       ["Packing & Forwarding (2%)", pdfValue("packing", breakdown.packing_forwarding_per_unit), true],
-      ["Miscellaneous Amount", pdfValue("miscellaneous_amount", breakdown.miscellaneous_amount), true],
-      ["Total Unit Cost", pdfValue("total_cost", breakdown.unit_cost), true],
+      ...(nonrecurringCostType
+        ? [[`Nonrecurring costs (${nonrecurringCostType})`, pdfValue("total_cost", nonrecurringCostValue), true]]
+        : []),
+      ["Total Unit Cost", pdfValue("total_cost", displayedTotalCost), true],
     ];
 
     const tableW = contentW;
@@ -670,7 +699,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     y += 20;
     drawSectionTitle("Total & Summary");
 
-    const finalTotal = pdfValue("total_cost", breakdown.total_unit_cost_with_misc);
+    const finalTotal = pdfValue("total_cost", displayedTotalCost);
     ensureSpace(78);
     pdf.setFillColor(236, 253, 245);
     pdf.setDrawColor(167, 243, 208);
@@ -715,7 +744,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     } finally {
       setPdfPreviewLoading(false);
     }
-  }, [costResult, part, projectData, pdfPreviewUrl]);
+  }, [costResult, displayedTotalCost, nonrecurringCostType, nonrecurringCostValue, part, projectData, pdfPreviewUrl]);
 
   if (loading) {
     return <div className="text-slate-500">Loading...</div>;
@@ -741,7 +770,14 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
       <div className="h-full w-full bg-white shadow-2xl">
         <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 text-slate-100">
           <div className="flex items-center justify-between gap-4">
-            <div>
+            <button
+              type="button"
+              onClick={() => onChange("project_detail", { projectId })}
+              className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200"
+            >
+              ← Back to Project
+            </button>
+            <div className="flex-1 text-center">
               <div className="text-lg font-semibold">Part Cost Estimation – {part.part_number}</div>
               <div className="text-xs text-slate-300 mt-0.5">{part.part_name}</div>
               <div className="text-[11px] text-slate-300 mt-2">
@@ -759,17 +795,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 <div className="text-right">
                   <div className="text-[11px] text-slate-300">Final Part Cost</div>
                   <div className="text-base font-bold text-emerald-300">
-                    {formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}
+                    {formatValue("total_cost", displayedTotalCost)}
                   </div>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => onChange("project_detail", { projectId })}
-                className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200"
-              >
-                ← Back to Project
-              </button>
               <button
                 type="button"
                 onClick={handleDownloadPdf}
@@ -853,7 +882,6 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                           onMouseMove={handleDrawingMouseMove}
                           onMouseUp={stopDrawingPan}
                           onMouseLeave={stopDrawingPan}
-                          onWheel={handleDrawingWheel}
                         >
                           <div
                             className="absolute left-0 top-0"
@@ -970,18 +998,6 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                             </div>
 
                             <div className="flex flex-col gap-1">
-                              <label className="text-sm font-medium text-slate-700">Miscellaneous Amount</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={form.miscellaneous_amount}
-                                onChange={(e) => setForm((p) => ({ ...p, miscellaneous_amount: e.target.value }))}
-                                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-                              />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium text-slate-700">Length (mm)</label>
                               <input
                                 type="number"
@@ -1067,6 +1083,53 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
+                  {costResult && (
+                    <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
+                      <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
+                      <div className="space-y-2 text-sm text-slate-600">
+                        <p><span className="font-medium">Operation:</span> {costResult.operation_type}</p>
+                        <p><span className="font-medium">Machine:</span> {costResult.selected_machine?.name}</p>
+                        <p><span className="font-medium">Material:</span> {costResult.material}</p>
+                        <p><span className="font-medium">Duty Category:</span> {costResult.duty_category}</p>
+                        <p><span className="font-medium">Shape:</span> {costResult.shape}</p>
+                        {costResult.volume && (
+                          <p><span className="font-medium">Volume:</span> {costResult.volume.toFixed(2)} mm³</p>
+                        )}
+                      </div>
+
+                      <div className="mt-5">
+                        <div className="text-xs font-semibold text-slate-600 mb-2">Nonrecurring costs</div>
+                        <div className="grid grid-cols-1 gap-2">
+                          <select
+                            value={nonrecurringCostType}
+                            onChange={(e) => setNonrecurringCostType(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
+                          >
+                            <option value="">Select Nonrecurring cost</option>
+                            <option value="Tooling cost">Tooling cost</option>
+                            <option value="Development cost">Development cost</option>
+                            <option value="CNC Programming cost">CNC Programming cost</option>
+                            <option value="Cost of Heat treat">Cost of Heat treat</option>
+                            <option value="Cost of Surface Treatment">Cost of Surface Treatment</option>
+                            <option value="Cost of Welding">Cost of Welding</option>
+                            <option value="Other costs">Other costs</option>
+                          </select>
+
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={nonrecurringCostAmount}
+                            onChange={(e) => setNonrecurringCostAmount(e.target.value)}
+                            disabled={!nonrecurringCostType}
+                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 disabled:opacity-60"
+                            placeholder="Enter amount"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-slate-200 overflow-hidden">
                     <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                       <div className="text-sm font-semibold text-slate-800">Part Cost Summary</div>
@@ -1093,34 +1156,14 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                             <span className="text-slate-600">Packing & Forwarding</span>
                             <span className="font-semibold text-slate-900">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Miscellaneous</span>
-                            <span className="font-semibold text-slate-900">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</span>
-                          </div>
                           <div className="pt-3 mt-3 border-t border-slate-200 flex items-center justify-between">
                             <span className="text-slate-700 font-semibold">Final Part Cost</span>
-                            <span className="font-bold text-emerald-700">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</span>
+                            <span className="font-bold text-emerald-700">{formatValue("total_cost", displayedTotalCost)}</span>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {costResult && (
-                    <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
-                      <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
-                      <div className="space-y-2 text-sm text-slate-600">
-                        <p><span className="font-medium">Operation:</span> {costResult.operation_type}</p>
-                        <p><span className="font-medium">Machine:</span> {costResult.selected_machine?.name}</p>
-                        <p><span className="font-medium">Material:</span> {costResult.material}</p>
-                        <p><span className="font-medium">Duty Category:</span> {costResult.duty_category}</p>
-                        <p><span className="font-medium">Shape:</span> {costResult.shape}</p>
-                        {costResult.volume && (
-                          <p><span className="font-medium">Volume:</span> {costResult.volume.toFixed(2)} mm³</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="lg:col-span-1">
@@ -1164,17 +1207,21 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                               <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
                               <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</td>
                             </tr>
-                            <tr className="bg-slate-50/40">
-                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
-                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</td>
-                            </tr>
+                            {nonrecurringCostType && (
+                              <tr className="bg-slate-50/40">
+                                <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Nonrecurring costs</td>
+                                <td className="px-4 py-3 border-b border-slate-100 font-semibold">
+                                  {nonrecurringCostType}: {formatValue("total_cost", nonrecurringCostValue)}
+                                </td>
+                              </tr>
+                            )}
                             <tr className="bg-white">
                               <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
                               <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", costResult.cost_breakdown?.unit_cost)}</td>
                             </tr>
                             <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold">
-                              <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
-                              <td className="px-4 py-4 border-b border-slate-100 text-emerald-700 text-lg">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</td>
+                              <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost</td>
+                              <td className="px-4 py-4 border-b border-slate-100 text-emerald-700 text-lg">{formatValue("total_cost", displayedTotalCost)}</td>
                             </tr>
                           </tbody>
                         </table>
