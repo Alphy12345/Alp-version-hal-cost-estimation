@@ -419,10 +419,10 @@ function ProjectDetailPage({ onChange, projectId }) {
   }, [activeCostPart, projectData?.project_name]);
 
   const tabs = [
-    { key: "documents", label: "Documents" },
     { key: "parts", label: "Parts" },
     { key: "cost_estimation", label: "Cost Estimation" },
     { key: "total_cost", label: "Total Cost" },
+    { key: "documents", label: "Documents" },
   ];
 
   return (

@@ -74,6 +74,11 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
   const [costResult, setCostResult] = useState(null);
 
   const [drawingZoom, setDrawingZoom] = useState(1);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfPreviewName, setPdfPreviewName] = useState("");
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  const [pdfPreviewError, setPdfPreviewError] = useState("");
   const pdfAreaRef = useRef(null);
   const drawingViewportRef = useRef(null);
   const drawingContentRef = useRef(null);
@@ -85,6 +90,12 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
   useEffect(() => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+    };
+  }, [pdfPreviewUrl]);
 
   const PdfPreview = ({ url, alt, className, onLoad }) => {
     const [dataUrl, setDataUrl] = useState("");
@@ -402,8 +413,31 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     }
   };
 
+  const closePdfPreview = useCallback(() => {
+    setPdfPreviewOpen(false);
+    setPdfPreviewError("");
+    setPdfPreviewLoading(false);
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl("");
+    }
+  }, [pdfPreviewUrl]);
+
+  const downloadPdfFromPreview = useCallback(() => {
+    if (!pdfPreviewUrl) return;
+    const a = document.createElement("a");
+    a.href = pdfPreviewUrl;
+    a.download = pdfPreviewName || "Cost-Estimation.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, [pdfPreviewName, pdfPreviewUrl]);
+
   const handleDownloadPdf = useCallback(async () => {
     if (!projectData || !part) return;
+    setPdfPreviewError("");
+    setPdfPreviewLoading(true);
+    setPdfPreviewOpen(true);
 
     const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -669,8 +703,19 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     drawInfoRow("Shape", costResult?.shape, sX, sY + 44, sHalfW);
     y += 112;
 
-    pdf.save(`${safeProject}-${safePart}-Cost-Estimation.pdf`);
-  }, [costResult, part, projectData]);
+    try {
+      const filename = `${safeProject}-${safePart}-Cost-Estimation.pdf`;
+      const blob = pdf.output("blob");
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      const nextUrl = URL.createObjectURL(blob);
+      setPdfPreviewName(filename);
+      setPdfPreviewUrl(nextUrl);
+    } catch (e) {
+      setPdfPreviewError("Failed to generate PDF preview");
+    } finally {
+      setPdfPreviewLoading(false);
+    }
+  }, [costResult, part, projectData, pdfPreviewUrl]);
 
   if (loading) {
     return <div className="text-slate-500">Loading...</div>;
@@ -736,93 +781,133 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
           </div>
         </div>
 
-        <div ref={pdfAreaRef} className="h-[calc(100vh-73px)]">
-          <div className="flex h-full overflow-hidden">
-            <aside className="w-[520px] xl:w-[680px] border-r border-slate-200 bg-slate-50">
-              <div className="p-4 space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-slate-800">2D Drawing</div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-[11px] text-slate-500">Zoom: {Math.round(drawingZoom * 100)}%</div>
-                        <button type="button" onClick={zoomOutDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">-10</button>
-                        <button type="button" onClick={fitDrawingToScreen} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">Fit</button>
-                        <button type="button" onClick={resetDrawingZoom} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">Reset</button>
-                        <button type="button" onClick={zoomInDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">+10</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-white">
-                    {!part.drawing_2d_path ? (
-                      <div className="text-xs text-slate-400">No drawing uploaded.</div>
-                    ) : (
-                      <div
-                        ref={drawingViewportRef}
-                        className="relative h-[76vh] overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-                        style={{ cursor: "grab", touchAction: "none" }}
-                        onMouseDown={handleDrawingMouseDown}
-                        onMouseMove={handleDrawingMouseMove}
-                        onMouseUp={stopDrawingPan}
-                        onMouseLeave={stopDrawingPan}
-                        onWheel={handleDrawingWheel}
-                      >
-                        <div
-                          className="absolute left-0 top-0"
-                          style={{
-                            transform: `translate(${drawingPan.x}px, ${drawingPan.y}px) scale(${drawingZoom})`,
-                            transformOrigin: "top left",
-                          }}
-                        >
-                          <div ref={drawingCaptureRef} className="bg-white">
-                          {isPdfPath(part.drawing_2d_path) ? (
-                            <PdfPreview
-                              url={getInlineFileUrl(part.drawing_2d_path)}
-                              alt={`${part.part_number} - 2D Drawing`}
-                              className="block max-w-none w-auto h-auto object-contain select-none"
-                              onLoad={() => {
-                                const el = drawingContentRef.current;
-                                if (el && el.getBoundingClientRect) {
-                                  const r = el.getBoundingClientRect();
-                                  drawingContentSizeRef.current = { width: r.width, height: r.height };
-                                }
-                                fitDrawingToScreen();
-                              }}
-                            />
-                          ) : (
-                            <img
-                              ref={drawingContentRef}
-                              src={getInlineFileUrl(part.drawing_2d_path)}
-                              alt={`${part.part_number} - 2D Drawing`}
-                              className="block max-w-none w-auto h-auto object-contain select-none"
-                              onLoad={() => {
-                                const el = drawingContentRef.current;
-                                if (el) {
-                                  const w = el.naturalWidth || el.width || 0;
-                                  const h = el.naturalHeight || el.height || 0;
-                                  drawingContentSizeRef.current = { width: w, height: h };
-                                }
-                                fitDrawingToScreen();
-                              }}
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          )}
-                          {isPdfPath(part.drawing_2d_path) && <div ref={drawingContentRef} className="hidden" />}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+        {pdfPreviewOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="w-[min(1100px,96vw)] h-[92vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-800 truncate">PDF Preview</div>
+                  <div className="text-xs text-slate-500 truncate">{pdfPreviewName || "Cost Estimation"}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={closePdfPreview}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadPdfFromPreview}
+                    disabled={!pdfPreviewUrl || pdfPreviewLoading}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    Download
+                  </button>
                 </div>
               </div>
-            </aside>
 
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-6">
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="lg:col-span-2">
+              <div className="flex-1 bg-white">
+                {pdfPreviewLoading && (
+                  <div className="h-full w-full flex items-center justify-center text-sm text-slate-500">Generating preview...</div>
+                )}
+                {!pdfPreviewLoading && pdfPreviewError && (
+                  <div className="h-full w-full flex items-center justify-center text-sm text-red-600">{pdfPreviewError}</div>
+                )}
+                {!pdfPreviewLoading && !pdfPreviewError && pdfPreviewUrl && (
+                  <iframe title="PDF Preview" src={pdfPreviewUrl} className="w-full h-full" />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={pdfAreaRef} className="h-[calc(100vh-73px)]">
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold text-slate-800">2D Drawing</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-[11px] text-slate-500">Zoom: {Math.round(drawingZoom * 100)}%</div>
+                          <button type="button" onClick={zoomOutDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">-10</button>
+                          <button type="button" onClick={fitDrawingToScreen} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">Fit</button>
+                          <button type="button" onClick={resetDrawingZoom} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">Reset</button>
+                          <button type="button" onClick={zoomInDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-white">+10</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-white">
+                      {!part.drawing_2d_path ? (
+                        <div className="text-xs text-slate-400">No drawing uploaded.</div>
+                      ) : (
+                        <div
+                          ref={drawingViewportRef}
+                          className="relative h-[62vh] overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                          style={{ cursor: "grab", touchAction: "none" }}
+                          onMouseDown={handleDrawingMouseDown}
+                          onMouseMove={handleDrawingMouseMove}
+                          onMouseUp={stopDrawingPan}
+                          onMouseLeave={stopDrawingPan}
+                          onWheel={handleDrawingWheel}
+                        >
+                          <div
+                            className="absolute left-0 top-0"
+                            style={{
+                              transform: `translate(${drawingPan.x}px, ${drawingPan.y}px) scale(${drawingZoom})`,
+                              transformOrigin: "top left",
+                            }}
+                          >
+                            <div ref={drawingCaptureRef} className="bg-white">
+                            {isPdfPath(part.drawing_2d_path) ? (
+                              <PdfPreview
+                                url={getInlineFileUrl(part.drawing_2d_path)}
+                                alt={`${part.part_number} - 2D Drawing`}
+                                className="block max-w-none w-auto h-auto object-contain select-none"
+                                onLoad={() => {
+                                  const el = drawingContentRef.current;
+                                  if (el && el.getBoundingClientRect) {
+                                    const r = el.getBoundingClientRect();
+                                    drawingContentSizeRef.current = { width: r.width, height: r.height };
+                                  }
+                                  fitDrawingToScreen();
+                                }}
+                              />
+                            ) : (
+                              <img
+                                ref={drawingContentRef}
+                                src={getInlineFileUrl(part.drawing_2d_path)}
+                                alt={`${part.part_number} - 2D Drawing`}
+                                className="block max-w-none w-auto h-auto object-contain select-none"
+                                onLoad={() => {
+                                  const el = drawingContentRef.current;
+                                  if (el) {
+                                    const w = el.naturalWidth || el.width || 0;
+                                    const h = el.naturalHeight || el.height || 0;
+                                    drawingContentSizeRef.current = { width: w, height: h };
+                                  }
+                                  fitDrawingToScreen();
+                                }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            )}
+                            {isPdfPath(part.drawing_2d_path) && <div ref={drawingContentRef} className="hidden" />}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-1">
+                  <div className="space-y-6">
                     <div className="rounded-xl border border-slate-200 overflow-hidden">
                       <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                         <div className="text-sm font-semibold text-slate-800">Machining Inputs</div>
@@ -830,7 +915,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                       </div>
                       <div className="p-4">
                         <form onSubmit={handleSubmit} className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-4 md:grid-cols-2">
                             <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium text-slate-700">Operation Type</label>
                               <select
@@ -909,7 +994,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                             </div>
 
                             {String(form.operation_type) === "turning" && (
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-1 md:col-span-2">
                                 <label className="text-sm font-medium text-slate-700">Diameter (mm)</label>
                                 <input
                                   type="number"
@@ -977,126 +1062,126 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                         </form>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="lg:col-span-1">
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
-                      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                        <div className="text-sm font-semibold text-slate-800">Part Cost Summary</div>
-                        <div className="text-xs text-slate-500 mt-0.5">Comprehensive cost breakdown</div>
-                      </div>
-                      <div className="p-4">
-                        {!costResult ? (
-                          <div className="text-sm text-slate-500">Calculate cost to see the breakdown.</div>
-                        ) : (
-                          <div className="space-y-3 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Basic Cost</span>
-                              <span className="font-semibold text-slate-900">{formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Overheads</span>
-                              <span className="font-semibold text-slate-900">{formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Profit</span>
-                              <span className="font-semibold text-slate-900">{formatValue("profit", costResult.cost_breakdown?.profit_per_unit)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Packing & Forwarding</span>
-                              <span className="font-semibold text-slate-900">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Miscellaneous</span>
-                              <span className="font-semibold text-slate-900">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</span>
-                            </div>
-                            <div className="pt-3 mt-3 border-t border-slate-200 flex items-center justify-between">
-                              <span className="text-slate-700 font-semibold">Final Part Cost</span>
-                              <span className="font-bold text-emerald-700">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                {costResult && (
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div>
-                          <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
-                          <div className="space-y-2 text-sm text-slate-600">
-                            <p><span className="font-medium">Operation:</span> {costResult.operation_type}</p>
-                            <p><span className="font-medium">Machine:</span> {costResult.selected_machine?.name}</p>
-                            <p><span className="font-medium">Material:</span> {costResult.material}</p>
-                            <p><span className="font-medium">Duty Category:</span> {costResult.duty_category}</p>
-                            <p><span className="font-medium">Shape:</span> {costResult.shape}</p>
-                            {costResult.volume && (
-                              <p><span className="font-medium">Volume:</span> {costResult.volume.toFixed(2)} mm³</p>
-                            )}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                      <div className="text-sm font-semibold text-slate-800">Part Cost Summary</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Comprehensive cost breakdown</div>
+                    </div>
+                    <div className="p-4">
+                      {!costResult ? (
+                        <div className="text-sm text-slate-500">Calculate cost to see the breakdown.</div>
+                      ) : (
+                        <div className="space-y-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Basic Cost</span>
+                            <span className="font-semibold text-slate-900">{formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Overheads</span>
+                            <span className="font-semibold text-slate-900">{formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Profit</span>
+                            <span className="font-semibold text-slate-900">{formatValue("profit", costResult.cost_breakdown?.profit_per_unit)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Packing & Forwarding</span>
+                            <span className="font-semibold text-slate-900">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Miscellaneous</span>
+                            <span className="font-semibold text-slate-900">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</span>
+                          </div>
+                          <div className="pt-3 mt-3 border-t border-slate-200 flex items-center justify-between">
+                            <span className="text-slate-700 font-semibold">Final Part Cost</span>
+                            <span className="font-bold text-emerald-700">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</span>
                           </div>
                         </div>
-                        <div>
-                          <h5 className="text-base font-semibold text-slate-700 mb-3">Detailed Cost Breakdown</h5>
-                          <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white">
-                            <table className="min-w-full text-sm">
-                              <thead className="bg-slate-50">
-                                <tr>
-                                  <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Component</th>
-                                  <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr className="bg-white">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{costResult.cost_breakdown?.man_hours_per_unit}</td>
-                                </tr>
-                                <tr className="bg-slate-50/40">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
-                                  <td className="px-4 py-3 border-b border-slate-100">{formatValue("machine_hour_rate", costResult.cost_breakdown?.machine_hour_rate)}</td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
-                                  <td className="px-4 py-3 border-b border-slate-100">{formatValue("wage_rate", costResult.cost_breakdown?.wage_rate)}</td>
-                                </tr>
-                                <tr className="bg-slate-50/40">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit)}</td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit)}</td>
-                                </tr>
-                                <tr className="bg-slate-50/40">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("profit", costResult.cost_breakdown?.profit_per_unit)}</td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</td>
-                                </tr>
-                                <tr className="bg-slate-50/40">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
-                                  <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", costResult.cost_breakdown?.unit_cost)}</td>
-                                </tr>
-                                <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold">
-                                  <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
-                                  <td className="px-4 py-4 border-b border-slate-100 text-emerald-700 text-lg">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {costResult && (
+                    <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
+                      <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
+                      <div className="space-y-2 text-sm text-slate-600">
+                        <p><span className="font-medium">Operation:</span> {costResult.operation_type}</p>
+                        <p><span className="font-medium">Machine:</span> {costResult.selected_machine?.name}</p>
+                        <p><span className="font-medium">Material:</span> {costResult.material}</p>
+                        <p><span className="font-medium">Duty Category:</span> {costResult.duty_category}</p>
+                        <p><span className="font-medium">Shape:</span> {costResult.shape}</p>
+                        {costResult.volume && (
+                          <p><span className="font-medium">Volume:</span> {costResult.volume.toFixed(2)} mm³</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="lg:col-span-1">
+                  {costResult && (
+                    <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
+                      <h5 className="text-base font-semibold text-slate-700 mb-3">Detailed Cost Breakdown</h5>
+                      <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-slate-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Component</th>
+                              <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="bg-white">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{costResult.cost_breakdown?.man_hours_per_unit}</td>
+                            </tr>
+                            <tr className="bg-slate-50/40">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
+                              <td className="px-4 py-3 border-b border-slate-100">{formatValue("machine_hour_rate", costResult.cost_breakdown?.machine_hour_rate)}</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
+                              <td className="px-4 py-3 border-b border-slate-100">{formatValue("wage_rate", costResult.cost_breakdown?.wage_rate)}</td>
+                            </tr>
+                            <tr className="bg-slate-50/40">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit)}</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit)}</td>
+                            </tr>
+                            <tr className="bg-slate-50/40">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("profit", costResult.cost_breakdown?.profit_per_unit)}</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</td>
+                            </tr>
+                            <tr className="bg-slate-50/40">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", costResult.cost_breakdown?.miscellaneous_amount)}</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
+                              <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", costResult.cost_breakdown?.unit_cost)}</td>
+                            </tr>
+                            <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold">
+                              <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
+                              <td className="px-4 py-4 border-b border-slate-100 text-emerald-700 text-lg">{formatValue("total_cost", costResult.cost_breakdown?.total_unit_cost_with_misc)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
