@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart } from "../api/projects";
 import AddPartModal from "../components/AddPartModal";
 import FileViewerModal from "../components/FileViewerModal";
 import api from "../api/client";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 function ProjectDetailPage({ onChange, projectId }) {
   const [projectData, setProjectData] = useState(null);
@@ -15,6 +17,7 @@ function ProjectDetailPage({ onChange, projectId }) {
   const [isAddPartModalOpen, setIsAddPartModalOpen] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
   const [fileViewer, setFileViewer] = useState({ isOpen: false, fileUrl: '', fileName: '', fileType: '' });
+  const [activeCostPartId, setActiveCostPartId] = useState(null);
   
   // Cost Estimation State
   const [costForms, setCostForms] = useState({}); // Separate form state for each part
@@ -23,6 +26,9 @@ function ProjectDetailPage({ onChange, projectId }) {
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
   const [costResults, setCostResults] = useState({}); // Store results by part ID
+
+  const [drawingZoom, setDrawingZoom] = useState(1);
+  const costModalPdfRef = useRef(null);
 
   useEffect(() => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -314,6 +320,24 @@ function ProjectDetailPage({ onChange, projectId }) {
     });
   };
 
+  const openCostModal = (partId) => {
+    setCostError("");
+    setDrawingZoom(1);
+    if (typeof onChange === "function") {
+      onChange("part_cost_estimation", { projectId, partId });
+      return;
+    }
+    setActiveCostPartId(partId);
+  };
+
+  const closeCostModal = () => {
+    setActiveCostPartId(null);
+  };
+
+  const zoomInDrawing = () => setDrawingZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100));
+  const zoomOutDrawing = () => setDrawingZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100));
+  const resetDrawingZoom = () => setDrawingZoom(1);
+
   const formatValue = (key, value) => {
     if (value == null) return "-";
     if (typeof value === "number" && Number.isFinite(value) && /(cost|rate|profit|overheads|packing|outsourcing)/i.test(key)) {
@@ -347,6 +371,52 @@ function ProjectDetailPage({ onChange, projectId }) {
       return opId == null ? "" : String(opId) === selectedOpId;
     });
   };
+
+  const activeCostPart = activeCostPartId != null ? parts.find((p) => p.id === activeCostPartId) : null;
+
+  const activeCostResult = useMemo(() => {
+    if (activeCostPartId == null) return null;
+    return costResults[activeCostPartId] || null;
+  }, [activeCostPartId, costResults]);
+
+  const handleDownloadCostPdf = useCallback(async () => {
+    if (!activeCostPart || !costModalPdfRef.current) return;
+
+    const element = costModalPdfRef.current;
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 5) {
+      position -= pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
+    const safePart = String(activeCostPart.part_number || "Part").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Part";
+    pdf.save(`${safeProject}-${safePart}-Cost-Estimation.pdf`);
+  }, [activeCostPart, projectData?.project_name]);
 
   const tabs = [
     { key: "documents", label: "Documents" },
@@ -710,49 +780,157 @@ function ProjectDetailPage({ onChange, projectId }) {
                                   <h4 className="text-sm font-semibold text-slate-800">{part.part_number}</h4>
                                   <p className="text-xs text-slate-600">{part.part_name}</p>
                                 </div>
-                                {costResults[part.id] && (
-                                  <div className="text-right">
-                                    <p className="text-xs text-slate-600">Unit Cost (with Misc)</p>
-                                    <p className="text-lg font-bold text-sky-600">
-                                      {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}
-                                    </p>
+                                <div className="flex items-center gap-3">
+                                  {costResults[part.id] && (
+                                    <div className="text-right">
+                                      <p className="text-xs text-slate-600">Unit Cost (with Misc)</p>
+                                      <p className="text-lg font-bold text-sky-600">
+                                        {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => openCostModal(part.id)}
+                                    className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sm"
+                                  >
+                                    Calculate Cost
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {costError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-600 text-sm">{costError}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {activeCostPart && (
+                <div className="fixed inset-0 z-50">
+                  <div className="absolute inset-0 bg-slate-900/60" onClick={closeCostModal} />
+                  <div className="relative h-full w-full bg-white shadow-2xl">
+                    <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 text-slate-100">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-lg font-semibold">Part Cost Estimation – {activeCostPart.part_number}</div>
+                          <div className="text-xs text-slate-300 mt-0.5">{activeCostPart.part_name}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {activeCostResult && (
+                            <div className="text-right">
+                              <div className="text-[11px] text-slate-300">Final Part Cost</div>
+                              <div className="text-base font-bold text-emerald-300">
+                                {formatValue("total_cost", activeCostResult.cost_breakdown?.total_unit_cost_with_misc)}
+                              </div>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleDownloadCostPdf}
+                            className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-900 bg-white hover:bg-slate-100"
+                          >
+                            Download PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={closeCostModal}
+                            className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div ref={costModalPdfRef} className="h-[calc(100vh-73px)]">
+                      <div className="flex h-full overflow-hidden">
+                        <aside className="w-80 xl:w-[420px] border-r border-slate-200 bg-slate-50">
+                          <div className="p-4 space-y-4">
+                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                              <div className="text-xs text-slate-500">Project</div>
+                              <div className="text-sm font-semibold text-slate-800">{projectData?.project_name || "Untitled Project"}</div>
+                              <div className="mt-2 text-xs text-slate-600">
+                                PO/Ref: {projectData?.po_reference_number || "N/A"}
+                              </div>
+                              <div className="text-xs text-slate-600">Customer: {projectData?.customer_name || "N/A"}</div>
+                              <div className="text-xs text-slate-600">Date: {projectData?.project_date || "N/A"}</div>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                              <div className="text-xs text-slate-500">Part</div>
+                              <div className="text-sm font-semibold text-slate-800">{activeCostPart.part_number}</div>
+                              <div className="text-xs text-slate-600 mt-1">{activeCostPart.part_name}</div>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                                <div className="flex items-center justify-between">
+                                  <div className="text-sm font-semibold text-slate-800">2D Drawing</div>
+                                  <div className="flex items-center gap-2">
+                                    <button type="button" onClick={zoomOutDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100">-</button>
+                                    <button type="button" onClick={resetDrawingZoom} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100">Reset</button>
+                                    <button type="button" onClick={zoomInDrawing} className="px-2 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100">+</button>
+                                  </div>
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-1">Zoom: {Math.round(drawingZoom * 100)}%</div>
+                              </div>
+                              <div className="p-3 bg-white">
+                                {!activeCostPart.drawing_2d_path ? (
+                                  <div className="text-xs text-slate-400">No drawing uploaded.</div>
+                                ) : (
+                                  <div className="h-[42vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
+                                    <div
+                                      className="w-full h-full flex items-center justify-center p-4"
+                                      style={{ transform: `scale(${drawingZoom})`, transformOrigin: "top left" }}
+                                    >
+                                      {isPdfPath(activeCostPart.drawing_2d_path) ? (
+                                        <PdfPreview
+                                          url={getInlineFileUrl(activeCostPart.drawing_2d_path)}
+                                          alt={`${activeCostPart.part_number} - 2D Drawing`}
+                                          className="max-w-none w-auto h-auto object-contain"
+                                        />
+                                      ) : (
+                                        <img
+                                          src={getInlineFileUrl(activeCostPart.drawing_2d_path)}
+                                          alt={`${activeCostPart.part_number} - 2D Drawing`}
+                                          className="max-w-none w-auto h-auto object-contain"
+                                          onError={(e) => {
+                                            e.currentTarget.style.display = "none";
+                                          }}
+                                        />
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>
                             </div>
-                            
-                            {/* Display 2D Drawing Image Above Cost Estimation Form */}
-                            {part.drawing_2d_path && (
-                              <div className="p-4 bg-gray-50 border-b border-slate-200">
-                                <div className="flex justify-center">
-                                  {isPdfPath(part.drawing_2d_path) ? (
-                                    <PdfPreview
-                                      url={getInlineFileUrl(part.drawing_2d_path)}
-                                      alt={`${part.part_number} - 2D Drawing`}
-                                      className="max-w-md max-h-96 object-contain rounded-lg shadow-lg border border-slate-300"
-                                    />
-                                  ) : (
-                                    <img
-                                      src={getInlineFileUrl(part.drawing_2d_path)}
-                                      alt={`${part.part_number} - 2D Drawing`}
-                                      className="max-w-md max-h-96 object-contain rounded-lg shadow-lg border border-slate-300"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="p-4">
-                              <form onSubmit={(e) => handleCostSubmit(e, part.id)} className="space-y-4">
+                          </div>
+                        </aside>
+
+                        <div className="flex-1 overflow-y-auto">
+                          <div className="p-6 space-y-6">
+                            <div className="grid gap-6 lg:grid-cols-3">
+                              <div className="lg:col-span-2">
+                                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                                    <div className="text-sm font-semibold text-slate-800">Machining Inputs</div>
+                                    <div className="text-xs text-slate-500 mt-0.5">Fill the values and calculate</div>
+                                  </div>
+                                  <div className="p-4">
+                                    <form onSubmit={(e) => handleCostSubmit(e, activeCostPartId)} className="space-y-4">
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                   <div className="flex flex-col gap-1">
                                     <label className="text-sm font-medium text-slate-700">Operation Type</label>
                                     <select
-                                      value={getCostForm(part.id).operation_type}
-                                      onChange={(e) => handleCostFormChange(part.id, "operation_type", e.target.value)}
+                                      value={getCostForm(activeCostPartId).operation_type}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "operation_type", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                     >
                                       <option value="turning">Turning</option>
@@ -763,8 +941,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                                   <div className="flex flex-col gap-1">
                                     <label className="text-sm font-medium text-slate-700">Material</label>
                                     <select
-                                      value={getCostForm(part.id).material}
-                                      onChange={(e) => handleCostFormChange(part.id, "material", e.target.value)}
+                                      value={getCostForm(activeCostPartId).material}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "material", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                     >
                                       <option value="steel">Steel</option>
@@ -776,12 +954,12 @@ function ProjectDetailPage({ onChange, projectId }) {
                                   <div className="flex flex-col gap-1">
                                     <label className="text-sm font-medium text-slate-700">Machine</label>
                                     <select
-                                      value={getCostForm(part.id).machine_name}
-                                      onChange={(e) => handleCostFormChange(part.id, "machine_name", e.target.value)}
+                                      value={getCostForm(activeCostPartId).machine_name}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "machine_name", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                     >
                                       <option value="">Select Machine</option>
-                                      {getFilteredMachines(part.id).map((machine) => (
+                                      {getFilteredMachines(activeCostPartId).map((machine) => (
                                         <option key={machine.id} value={machine.name}>
                                           {machine.name}
                                         </option>
@@ -795,8 +973,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                                       type="number"
                                       step="0.01"
                                       placeholder="e.g., 0.5"
-                                      value={getCostForm(part.id).man_hours_per_unit}
-                                      onChange={(e) => handleCostFormChange(part.id, "man_hours_per_unit", e.target.value)}
+                                      value={getCostForm(activeCostPartId).man_hours_per_unit}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "man_hours_per_unit", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                       required
                                     />
@@ -809,8 +987,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                                       step="0.01"
                                       min="0"
                                       placeholder="Additional costs"
-                                      value={getCostForm(part.id).miscellaneous_amount}
-                                      onChange={(e) => handleCostFormChange(part.id, "miscellaneous_amount", e.target.value)}
+                                      value={getCostForm(activeCostPartId).miscellaneous_amount}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "miscellaneous_amount", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                     />
                                   </div>
@@ -821,29 +999,29 @@ function ProjectDetailPage({ onChange, projectId }) {
                                       type="number"
                                       step="0.01"
                                       placeholder="Enter length"
-                                      value={getCostForm(part.id).length}
-                                      onChange={(e) => handleCostFormChange(part.id, "length", e.target.value)}
+                                      value={getCostForm(activeCostPartId).length}
+                                      onChange={(e) => handleCostFormChange(activeCostPartId, "length", e.target.value)}
                                       className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                       required
                                     />
                                   </div>
 
-                                  {getCostForm(part.id).operation_type === "turning" && (
+                                  {getCostForm(activeCostPartId).operation_type === "turning" && (
                                     <div className="flex flex-col gap-1">
                                       <label className="text-sm font-medium text-slate-700">Diameter (mm)</label>
                                       <input
                                         type="number"
                                         step="0.01"
                                         placeholder="Enter diameter"
-                                        value={getCostForm(part.id).diameter}
-                                        onChange={(e) => handleCostFormChange(part.id, "diameter", e.target.value)}
+                                        value={getCostForm(activeCostPartId).diameter}
+                                        onChange={(e) => handleCostFormChange(activeCostPartId, "diameter", e.target.value)}
                                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                         required
                                       />
                                     </div>
                                   )}
 
-                                  {getCostForm(part.id).operation_type === "milling" && (
+                                  {getCostForm(activeCostPartId).operation_type === "milling" && (
                                     <>
                                       <div className="flex flex-col gap-1">
                                         <label className="text-sm font-medium text-slate-700">Breadth (mm)</label>
@@ -851,8 +1029,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                                           type="number"
                                           step="0.01"
                                           placeholder="Enter breadth"
-                                          value={getCostForm(part.id).breadth}
-                                          onChange={(e) => handleCostFormChange(part.id, "breadth", e.target.value)}
+                                          value={getCostForm(activeCostPartId).breadth}
+                                          onChange={(e) => handleCostFormChange(activeCostPartId, "breadth", e.target.value)}
                                           className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                           required
                                         />
@@ -863,8 +1041,8 @@ function ProjectDetailPage({ onChange, projectId }) {
                                           type="number"
                                           step="0.01"
                                           placeholder="Enter height"
-                                          value={getCostForm(part.id).height}
-                                          onChange={(e) => handleCostFormChange(part.id, "height", e.target.value)}
+                                          value={getCostForm(activeCostPartId).height}
+                                          onChange={(e) => handleCostFormChange(activeCostPartId, "height", e.target.value)}
                                           className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
                                           required
                                         />
@@ -881,162 +1059,146 @@ function ProjectDetailPage({ onChange, projectId }) {
                                   >
                                     {costLoading ? "Calculating..." : "Calculate Cost"}
                                   </button>
-                                  {costResults[part.id] && (
+                                  {activeCostResult && (
                                     <button
                                       type="button"
-                                      onClick={() => clearPartCostResult(part.id)}
+                                      onClick={() => clearPartCostResult(activeCostPartId)}
                                       className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
                                     >
                                       Clear
                                     </button>
                                   )}
                                 </div>
-                              </form>
-
-                              {/* Cost Results for this part */}
-                              {costResults[part.id] && (
-                                <div className="mt-6 space-y-6">
-                                  {/* Summary Card */}
-                                  <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
-                                    <div className="grid gap-6 md:grid-cols-2">
-                                      <div>
-                                        <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
-                                        <div className="space-y-2 text-sm text-slate-600">
-                                          <p><span className="font-medium">Operation:</span> {costResults[part.id].operation_type}</p>
-                                          <p><span className="font-medium">Machine:</span> {costResults[part.id].selected_machine?.name}</p>
-                                          <p><span className="font-medium">Material:</span> {costResults[part.id].material}</p>
-                                          <p><span className="font-medium">Duty Category:</span> {costResults[part.id].duty_category}</p>
-                                          <p><span className="font-medium">Shape:</span> {costResults[part.id].shape}</p>
-                                          {costResults[part.id].volume && (
-                                            <p><span className="font-medium">Volume:</span> {costResults[part.id].volume.toFixed(2)} mm³</p>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <h5 className="text-base font-semibold text-slate-700 mb-3">Cost Summary</h5>
-                                        <div className="space-y-2 text-sm text-slate-600">
-                                          <p><span className="font-medium">Basic Cost:</span> {formatValue("basic_cost", costResults[part.id].cost_breakdown?.basic_cost_per_unit)}</p>
-                                          <p><span className="font-medium">Overheads:</span> {formatValue("overheads", costResults[part.id].cost_breakdown?.overheads_per_unit)}</p>
-                                          <p><span className="font-medium">Profit:</span> {formatValue("profit", costResults[part.id].cost_breakdown?.profit_per_unit)}</p>
-                                          <p><span className="font-medium">Packing & Forwarding:</span> {formatValue("packing", costResults[part.id].cost_breakdown?.packing_forwarding_per_unit)}</p>
-                                          <p><span className="font-medium">Miscellaneous Amount:</span> {formatValue("miscellaneous_amount", costResults[part.id].cost_breakdown?.miscellaneous_amount)}</p>
-                                          <p className="pt-3 border-t border-slate-300"><span className="font-semibold text-lg">Total Unit Cost:</span> {formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}</p>
-                                          <p className="font-semibold text-sky-600"><span className="text-slate-700">Total with Miscellaneous:</span> {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Detailed Cost Breakdown */}
-                                  <div>
-                                    <h5 className="text-base font-semibold text-slate-800 mb-4">Detailed Cost Breakdown</h5>
-                                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                                      <table className="min-w-full text-sm">
-                                        <thead className="bg-slate-50">
-                                          <tr>
-                                            <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Cost Component</th>
-                                            <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
-                                            <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Rate</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <tr className="bg-white">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{costResults[part.id].cost_breakdown?.man_hours_per_unit}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">-</td>
-                                          </tr>
-                                          <tr className="bg-slate-50/40">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
-                                            <td className="px-4 py-3 border-b border-slate-100">{formatValue("machine_hour_rate", costResults[part.id].cost_breakdown?.machine_hour_rate)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per hour</td>
-                                          </tr>
-                                          <tr className="bg-white">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
-                                            <td className="px-4 py-3 border-b border-slate-100">{formatValue("wage_rate", costResults[part.id].cost_breakdown?.wage_rate)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per hour</td>
-                                          </tr>
-                                          <tr className="bg-slate-50/40">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("basic_cost", costResults[part.id].cost_breakdown?.basic_cost_per_unit)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-white">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("overheads", costResults[part.id].cost_breakdown?.overheads_per_unit)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-slate-50/40">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("profit", costResults[part.id].cost_breakdown?.profit_per_unit)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-white">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", costResults[part.id].cost_breakdown?.packing_forwarding_per_unit)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-slate-50/40">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", costResults[part.id].cost_breakdown?.miscellaneous_amount)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-white">
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", costResults[part.id].cost_breakdown?.unit_cost)}</td>
-                                            <td className="px-4 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                          <tr className="bg-gradient-to-r from-sky-50 to-indigo-50 font-bold">
-                                            <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
-                                            <td className="px-4 py-4 border-b border-slate-100 text-sky-600 text-xl">{formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}</td>
-                                            <td className="px-4 py-4 border-b border-slate-100 text-slate-700">per unit</td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-
-                                  {/* Machine Details */}
-                                  <div className="grid gap-6 md:grid-cols-2">
-                                    <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-                                      <h5 className="text-base font-semibold text-slate-700 mb-4">Machine Information</h5>
-                                      <div className="space-y-3 text-sm text-slate-600">
-                                        <p><span className="font-medium">Machine ID:</span> {costResults[part.id].selected_machine?.id}</p>
-                                        <p><span className="font-medium">Machine Name:</span> {costResults[part.id].selected_machine?.name}</p>
-                                        <p><span className="font-medium">Operation Type ID:</span> {costResults[part.id].selected_machine?.operation_type_id}</p>
-                                        <p><span className="font-medium">Machine Category:</span> {costResults[part.id].machine_category}</p>
-                                        <p><span className="font-medium">Machine Hour Rate:</span> {formatValue("machine_hour_rate", costResults[part.id].cost_breakdown?.machine_hour_rate)}</p>
-                                        <p><span className="font-medium">Wage Rate:</span> {formatValue("wage_rate", costResults[part.id].cost_breakdown?.wage_rate)}</p>
-                                      </div>
-                                    </div>
-                                    <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-                                      <h5 className="text-base font-semibold text-slate-700 mb-4">Outsourcing Information</h5>
-                                      <div className="space-y-3 text-sm text-slate-600">
-                                        <p><span className="font-medium">Outsourcing MHR:</span> {formatValue("outsourcing_mhr", costResults[part.id].cost_breakdown?.outsourcing_mhr)}</p>
-                                        <p><span className="font-medium">Material:</span> {costResults[part.id].material}</p>
-                                        <p><span className="font-medium">Operation Type:</span> {costResults[part.id].operation_type}</p>
-                                        <p><span className="font-medium">Shape:</span> {costResults[part.id].shape}</p>
-                                        <p><span className="font-medium">Duty Category:</span> {costResults[part.id].duty_category}</p>
-                                        {costResults[part.id].volume && (
-                                          <p><span className="font-medium">Volume:</span> {costResults[part.id].volume.toFixed(2)} mm³</p>
-                                        )}
-                                      </div>
-                                    </div>
+                                    </form>
                                   </div>
                                 </div>
-                              )}
+                              </div>
+
+                              <div className="lg:col-span-1">
+                                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                                    <div className="text-sm font-semibold text-slate-800">Part Cost Summary</div>
+                                    <div className="text-xs text-slate-500 mt-0.5">Comprehensive cost breakdown</div>
+                                  </div>
+                                  <div className="p-4">
+                                    {!activeCostResult ? (
+                                      <div className="text-sm text-slate-500">Calculate cost to see the breakdown.</div>
+                                    ) : (
+                                      <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Basic Cost</span>
+                                          <span className="font-semibold text-slate-900">{formatValue("basic_cost", activeCostResult.cost_breakdown?.basic_cost_per_unit)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Overheads</span>
+                                          <span className="font-semibold text-slate-900">{formatValue("overheads", activeCostResult.cost_breakdown?.overheads_per_unit)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Profit</span>
+                                          <span className="font-semibold text-slate-900">{formatValue("profit", activeCostResult.cost_breakdown?.profit_per_unit)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Packing & Forwarding</span>
+                                          <span className="font-semibold text-slate-900">{formatValue("packing", activeCostResult.cost_breakdown?.packing_forwarding_per_unit)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600">Miscellaneous</span>
+                                          <span className="font-semibold text-slate-900">{formatValue("miscellaneous_amount", activeCostResult.cost_breakdown?.miscellaneous_amount)}</span>
+                                        </div>
+                                        <div className="pt-3 mt-3 border-t border-slate-200 flex items-center justify-between">
+                                          <span className="text-slate-700 font-semibold">Final Part Cost</span>
+                                          <span className="font-bold text-emerald-700">{formatValue("total_cost", activeCostResult.cost_breakdown?.total_unit_cost_with_misc)}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {activeCostResult && (
+                        <div className="space-y-6">
+                          <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-6 border border-sky-200">
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <div>
+                                <h5 className="text-base font-semibold text-slate-700 mb-3">Operation Details</h5>
+                                <div className="space-y-2 text-sm text-slate-600">
+                                  <p><span className="font-medium">Operation:</span> {activeCostResult.operation_type}</p>
+                                  <p><span className="font-medium">Machine:</span> {activeCostResult.selected_machine?.name}</p>
+                                  <p><span className="font-medium">Material:</span> {activeCostResult.material}</p>
+                                  <p><span className="font-medium">Duty Category:</span> {activeCostResult.duty_category}</p>
+                                  <p><span className="font-medium">Shape:</span> {activeCostResult.shape}</p>
+                                  {activeCostResult.volume && (
+                                    <p><span className="font-medium">Volume:</span> {activeCostResult.volume.toFixed(2)} mm³</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <h5 className="text-base font-semibold text-slate-700 mb-3">Detailed Cost Breakdown</h5>
+                                <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white">
+                                  <table className="min-w-full text-sm">
+                                    <thead className="bg-slate-50">
+                                      <tr>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Component</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr className="bg-white">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{activeCostResult.cost_breakdown?.man_hours_per_unit}</td>
+                                      </tr>
+                                      <tr className="bg-slate-50/40">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
+                                        <td className="px-4 py-3 border-b border-slate-100">{formatValue("machine_hour_rate", activeCostResult.cost_breakdown?.machine_hour_rate)}</td>
+                                      </tr>
+                                      <tr className="bg-white">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
+                                        <td className="px-4 py-3 border-b border-slate-100">{formatValue("wage_rate", activeCostResult.cost_breakdown?.wage_rate)}</td>
+                                      </tr>
+                                      <tr className="bg-slate-50/40">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("basic_cost", activeCostResult.cost_breakdown?.basic_cost_per_unit)}</td>
+                                      </tr>
+                                      <tr className="bg-white">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("overheads", activeCostResult.cost_breakdown?.overheads_per_unit)}</td>
+                                      </tr>
+                                      <tr className="bg-slate-50/40">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("profit", activeCostResult.cost_breakdown?.profit_per_unit)}</td>
+                                      </tr>
+                                      <tr className="bg-white">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("packing", activeCostResult.cost_breakdown?.packing_forwarding_per_unit)}</td>
+                                      </tr>
+                                      <tr className="bg-slate-50/40">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", activeCostResult.cost_breakdown?.miscellaneous_amount)}</td>
+                                      </tr>
+                                      <tr className="bg-white">
+                                        <td className="px-4 py-3 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
+                                        <td className="px-4 py-3 border-b border-slate-100 font-semibold">{formatValue("total_cost", activeCostResult.cost_breakdown?.unit_cost)}</td>
+                                      </tr>
+                                      <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold">
+                                        <td className="px-4 py-4 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
+                                        <td className="px-4 py-4 border-b border-slate-100 text-emerald-700 text-lg">{formatValue("total_cost", activeCostResult.cost_breakdown?.total_unit_cost_with_misc)}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  {costError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-red-600 text-sm">{costError}</p>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </section>
+              )}
             </div>
           )}
 

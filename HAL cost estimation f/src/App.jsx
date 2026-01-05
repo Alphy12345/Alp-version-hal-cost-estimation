@@ -7,6 +7,7 @@ import ProjectsPage from "./pages/ProjectsPage.jsx";
 import CreateProjectPage from "./pages/CreateProjectPage.jsx";
 import ProjectDetailPage from "./pages/ProjectDetailPage.jsx";
 import EditProjectPage from "./pages/EditProjectPage.jsx";
+import PartCostEstimationPage from "./pages/PartCostEstimationPage.jsx";
 import OperationTypesPage from "./pages/config/OperationTypesPage.jsx";
 import MachinesPage from "./pages/config/MachinesPage.jsx";
 import DimensionsPage from "./pages/config/DimensionsPage.jsx";
@@ -21,6 +22,7 @@ function AppContent() {
   const [createdProject, setCreatedProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [editProjectId, setEditProjectId] = useState(null);
+  const [currentPartId, setCurrentPartId] = useState(null);
   const { isAuthenticated, isLoading, user } = useAuth();
 
   const handleSectionChange = (section, data) => {
@@ -28,6 +30,9 @@ function AppContent() {
       setCurrentProjectId(data.projectId);
     } else if (section === "edit_project" && data?.projectId) {
       setEditProjectId(data.projectId);
+    } else if (section === "part_cost_estimation" && data?.projectId && data?.partId) {
+      setCurrentProjectId(data.projectId);
+      setCurrentPartId(data.partId);
     }
     setActiveSection(section);
   };
@@ -57,6 +62,9 @@ function AppContent() {
           {activeSection === "projects" && <ProjectsPage onChange={handleSectionChange} />}
           {activeSection === "create_project" && <CreateProjectPage onChange={handleSectionChange} onCreate={setCreatedProject} />}
           {activeSection === "project_detail" && <ProjectDetailPage onChange={handleSectionChange} projectId={currentProjectId} />}
+          {activeSection === "part_cost_estimation" && (
+            <PartCostEstimationPage onChange={handleSectionChange} projectId={currentProjectId} partId={currentPartId} />
+          )}
           {activeSection === "edit_project" && <EditProjectPage onChange={handleSectionChange} projectId={editProjectId} />}
           {activeSection === "config_operation_types" && <OperationTypesPage />}
           {activeSection === "config_machines" && <MachinesPage />}
