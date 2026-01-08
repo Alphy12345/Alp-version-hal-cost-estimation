@@ -14,38 +14,133 @@ class MHRCalculationRequest(BaseModel):
     elect_power_charges: float
     available_hrs_per_annum: float
     utilization_hrs_year: float
+    machine_type: Optional[str] = None  # "conventional" or "cnc"
+
+class PowerAndUtilizationRequest(BaseModel):
+    elect_power_rating: float
+    available_hrs_per_annum: float
+    machine_type: str  # "conventional" or "cnc"
+
+class PowerAndUtilizationResponse(BaseModel):
+    electrical_power_charges: float
+    utilization_hrs_year: float
+    calculation_breakdown: dict
 
 class MHRCalculationResponse(BaseModel):
     machine_hour_rate: float
     calculation_breakdown: dict
 
-@router.post("/calculate", response_model=MHRCalculationResponse)
-def calculate_mhr(request: MHRCalculationRequest):
+@router.post("/calculate-power-utilization", response_model=PowerAndUtilizationResponse)
+def calculate_power_and_utilization(request: PowerAndUtilizationRequest, db: Session = Depends(get_db)):
     """
-    Calculate Machine Hour Rate based on input parameters
+    Calculate Electrical Power Charges and Utilization Hours based on machine type
+    
+    Electrical Power Charges: Power Rating × 5.0
+    Utilization Hours: Available Hours - Downtime
+    Downtime: 7% for conventional machines, 15% for CNC machines
     """
     try:
-        # Create input data for the service
+        # Calculate Electrical Power Charges
+        electrical_power_charges = MHRCalculationService.calculate_electrical_power_charges(
+            request.elect_power_rating, 5.0
+        )
+        
+        # Calculate downtime based on machine type
+        machine_type_lower = request.machine_type.lower()
+        if machine_type_lower == "conventional":
+            downtime_percentage = 0.07  # 7% downtime
+        elif machine_type_lower == "cnc":
+            downtime_percentage = 0.15  # 15% downtime
+        else:
+            # Default to conventional if machine type is not recognized
+            downtime_percentage = 0.07
+        
+        # Calculate downtime hours
+        downtime_hours = request.available_hrs_per_annum * downtime_percentage
+        
+        # Calculate Utilization Hours
+        utilization_hrs_year = MHRCalculationService.calculate_utilization_hours(
+            request.available_hrs_per_annum, downtime_hours
+        )
+        
+        # Provide calculation breakdown
+        breakdown = {
+            "electrical_power_calculation": f"{request.elect_power_rating} kW × 5.0 = {electrical_power_charges}",
+            "machine_type": request.machine_type,
+            "downtime_percentage": f"{downtime_percentage * 100}%",
+            "downtime_hours": round(downtime_hours, 2),
+            "utilization_calculation": f"{request.available_hrs_per_annum} - {downtime_hours:.2f} = {utilization_hrs_year:.2f}"
+        }
+        
+        return PowerAndUtilizationResponse(
+            electrical_power_charges=electrical_power_charges,
+            utilization_hrs_year=utilization_hrs_year,
+            calculation_breakdown=breakdown
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calculation error: {str(e)}")
+
+@router.post("/calculate", response_model=MHRCalculationResponse)
+def calculate_mhr_endpoint(request: MHRCalculationRequest, db: Session = Depends(get_db)):
+    """
+    Calculate Machine Hour Rate with auto-calculation for missing values
+    """
+    try:
+        # Create input data with optional values for auto-calculation
         input_data = MHRInput(
             investment_cost=request.investment_cost,
             elect_power_rating=request.elect_power_rating,
-            elect_power_charges=request.elect_power_charges,
+            elect_power_charges=request.elect_power_charges if request.elect_power_charges > 0 else None,
             available_hrs_per_annum=request.available_hrs_per_annum,
-            utilization_hrs_year=request.utilization_hrs_year
+            utilization_hrs_year=request.utilization_hrs_year if request.utilization_hrs_year > 0 else None,
+            machine_type=request.machine_type
         )
         
-        # Calculate MHR
+        # Calculate MHR with auto-calculation
         machine_hour_rate = MHRCalculationService.calculate_mhr(input_data)
         
+        # Get the actual calculated values for breakdown
+        if input_data.elect_power_charges is None:
+            # Auto-calculated electrical power charges
+            elect_power_charges = MHRCalculationService.calculate_electrical_power_charges(request.elect_power_rating, 5.0)
+        else:
+            elect_power_charges = request.elect_power_charges
+        
+        if input_data.utilization_hrs_year is None:
+            # Auto-calculated utilization hours based on machine type
+            if request.machine_type:
+                machine_type_lower = request.machine_type.lower()
+                if machine_type_lower == "cnc":
+                    downtime_percentage = 0.15  # 15% downtime for CNC
+                else:
+                    downtime_percentage = 0.07  # 7% downtime for conventional
+            else:
+                downtime_percentage = 0.07  # Default to conventional
+            
+            downtime_hours = request.available_hrs_per_annum * downtime_percentage
+            utilization_hrs_year = MHRCalculationService.calculate_utilization_hours(request.available_hrs_per_annum, downtime_hours)
+        else:
+            utilization_hrs_year = request.utilization_hrs_year
+            downtime_percentage = None
+            downtime_hours = None
+        
         # Provide calculation breakdown for transparency
-        depreciation_cost = (request.investment_cost * 0.10) / request.utilization_hrs_year
-        machine_utilization_cost = depreciation_cost + request.elect_power_charges
+        depreciation_cost = (request.investment_cost * 0.10) / utilization_hrs_year
+        machine_utilization_cost = depreciation_cost + elect_power_charges
         
         breakdown = {
             "depreciation_cost": round(depreciation_cost, 2),
-            "electrical_power_charges": request.elect_power_charges,
+            "electrical_power_charges": elect_power_charges,
+            "utilization_hrs_year": utilization_hrs_year,
             "machine_utilization_cost": round(machine_utilization_cost, 2),
-            "final_calculation": f"{depreciation_cost:.2f} + {request.elect_power_charges} = {machine_hour_rate}"
+            "maintenance_factor": 1.05,
+            "machine_type": request.machine_type,
+            "downtime_percentage": f"{downtime_percentage * 100}%" if downtime_percentage else "Not auto-calculated",
+            "downtime_hours": round(downtime_hours, 2) if downtime_hours else None,
+            "final_calculation": f"({depreciation_cost:.2f} + {elect_power_charges}) × 1.05 = {machine_hour_rate}"
         }
         
         return MHRCalculationResponse(
@@ -60,23 +155,53 @@ def calculate_mhr(request: MHRCalculationRequest):
 
 @router.post("/", response_model=MHROut)
 def create(data: MHRCreate, db: Session = Depends(get_db)):
-    # Calculate MHR if all required values are provided
-    if (data.investment_cost is not None and 
-        data.elect_power_charges is not None and 
-        data.utilization_hrs_year is not None and
-        data.utilization_hrs_year > 0):
+    """
+    Create MHR record with auto-calculation of missing values
+    """
+    # Determine machine type from machine name if machine_id is provided
+    machine_type = None
+    if data.machine_id:
+        machine = db.query(Machine).filter(Machine.id == data.machine_id).first()
+        if machine and machine.name:
+            machine_name_lower = machine.name.lower()
+            if "cnc" in machine_name_lower:
+                machine_type = "cnc"
+            else:
+                machine_type = "conventional"
+    
+    # Always calculate MHR with auto-calculation for missing values
+    input_data = MHRInput(
+        investment_cost=data.investment_cost,
+        elect_power_rating=data.elect_power_rating or 0.0,
+        elect_power_charges=data.elect_power_charges if data.elect_power_charges and data.elect_power_charges > 0 else None,
+        available_hrs_per_annum=data.available_hrs_per_annum or 0.0,
+        utilization_hrs_year=data.utilization_hrs_year if data.utilization_hrs_year and data.utilization_hrs_year > 0 else None,
+        machine_type=machine_type
+    )
+    
+    # Calculate MHR with auto-calculation and 1.05 maintenance factor
+    calculated_mhr = MHRCalculationService.calculate_mhr(input_data)
+    # Update the data with calculated MHR
+    data.machine_hr_rate = calculated_mhr
+    
+    # Get the actual calculated values for storage
+    if input_data.elect_power_charges is None:
+        # Auto-calculated electrical power charges
+        elect_power_charges = MHRCalculationService.calculate_electrical_power_charges(data.elect_power_rating or 0.0, 5.0)
+    else:
+        elect_power_charges = data.elect_power_charges
+    
+    if input_data.utilization_hrs_year is None:
+        # Auto-calculated utilization hours based on machine type
+        if machine_type == "cnc":
+            downtime_percentage = 0.15  # 15% downtime for CNC
+        else:
+            downtime_percentage = 0.07  # 7% downtime for conventional
         
-        input_data = MHRInput(
-            investment_cost=data.investment_cost,
-            elect_power_rating=data.elect_power_rating or 0.0,
-            elect_power_charges=data.elect_power_charges,
-            available_hrs_per_annum=data.available_hrs_per_annum or 0.0,
-            utilization_hrs_year=data.utilization_hrs_year
-        )
-        
-        calculated_mhr = MHRCalculationService.calculate_mhr(input_data)
-        # Update the data with calculated MHR
-        data.machine_hr_rate = calculated_mhr
+        downtime_hours = (data.available_hrs_per_annum or 0.0) * downtime_percentage
+        utilization_hrs_year = MHRCalculationService.calculate_utilization_hours(data.available_hrs_per_annum or 0.0, downtime_hours)
+    else:
+        utilization_hrs_year = data.utilization_hrs_year
     
     # Convert float values to strings for database storage
     data_dict = data.dict()
