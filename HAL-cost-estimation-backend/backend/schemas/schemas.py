@@ -114,12 +114,12 @@ class MHRBase(BaseModel):
     op_type_id: Optional[int] = None      # ✅ CHANGED: Made optional
     duty_id: Optional[int] = None         # ✅ CHANGED: Made optional
     machine_id: Optional[int] = None      # ✅ CHANGED: Made optional
-    investment_cost: Optional[str] = None
-    elect_power_rating: Optional[str] = None
-    elect_power_charges: Optional[str] = None
-    available_hrs_per_annum: Optional[str] = None
-    utilization_hrs_year: Optional[str] = None
-    machine_hr_rate: Optional[str] = None
+    investment_cost: Optional[float] = None
+    elect_power_rating: Optional[float] = None
+    elect_power_charges: Optional[float] = None
+    available_hrs_per_annum: Optional[float] = None
+    utilization_hrs_year: Optional[float] = None
+    machine_hr_rate: Optional[float] = None
 
 class MHRCreate(MHRBase):
     pass

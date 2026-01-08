@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..db import Base
@@ -98,7 +98,7 @@ class MHR(Base):
     duty_id = Column(Integer, ForeignKey("duties.id"))
     machine_id = Column(Integer, ForeignKey("machines.id"))
 
-    investment_cost = Column(String)
+    investment_cost = Column(String)  # Keep as String for now, will be converted in service
     elect_power_rating = Column(String)
     elect_power_charges = Column(String)
     available_hrs_per_annum = Column(String)
