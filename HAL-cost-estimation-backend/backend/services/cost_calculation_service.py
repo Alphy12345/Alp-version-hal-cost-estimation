@@ -37,97 +37,68 @@ class CostCalculationService:
         """
         Determine duty category based on dimensions, material, and operation
         """
-        def _bump(d: str, steps: int) -> str:
-            order = ["light", "medium", "heavy"]
-            try:
-                idx = order.index(d)
-            except ValueError:
-                idx = 0
-            return order[min(len(order) - 1, max(0, idx + steps))]
-
-        op = (operation or "").strip().lower()
         mat = (material or "").strip().lower()
+        op = (operation or "").strip().lower()
 
-        # Deterministic thresholds by geometry.
-        # These are monotonic (bigger part => same or higher duty) to avoid surprising flips.
-        base: Optional[str] = None
+        if mat == "aluminum":
+            mat = "aluminium"
 
-        if shape == "rectangular" and all(k in dimensions for k in ("length", "breadth", "height")):
-            length = float(dimensions["length"])
-            breadth = float(dimensions["breadth"])
-            height = float(dimensions["height"])
-            max_dim = max(length, breadth, height)
-
-            # Rectangular operations (milling/grinding/surface treatment):
-            # light  : up to 750 mm
-            # medium : 751..1500 mm
-            # heavy  : > 1500 mm
-            if max_dim <= 750:
-                base = "light"
-            elif max_dim <= 1500:
-                base = "medium"
-            else:
-                base = "heavy"
-
-        elif shape == "round" and all(k in dimensions for k in ("diameter", "length")):
+        if shape == "round" and all(k in dimensions for k in ("diameter", "length")):
             diameter = float(dimensions["diameter"])
             length = float(dimensions["length"])
 
-            # Round operations (turning/boring):
-            # light  : smaller diameters/lengths
-            # medium : typical mid-range
-            # heavy  : large diameters/lengths
-            if diameter <= 100 and length <= 300:
-                base = "light"
-            elif diameter <= 300 and length <= 1200:
-                base = "medium"
-            else:
-                base = "heavy"
+            tables = {
+                "aluminium": {
+                    "light": {"dia_max": 80.0, "len_max": 500.0, "dia_min": 0.0, "len_min": 0.0},
+                    "medium": {"dia_min": 80.0, "dia_max": 150.0, "len_min": 500.0, "len_max": 1000.0},
+                    "heavy": {"dia_min": 150.0, "dia_max": 300.0, "len_min": 1000.0, "len_max": 2000.0},
+                },
+                "steel": {
+                    "light": {"dia_max": 50.0, "len_max": 200.0, "dia_min": 0.0, "len_min": 0.0},
+                    "medium": {"dia_min": 50.0, "dia_max": 100.0, "len_min": 200.0, "len_max": 500.0},
+                    "heavy": {"dia_min": 100.0, "dia_max": 150.0, "len_min": 500.0, "len_max": 1500.0},
+                },
+                "titanium": {
+                    "light": {"dia_max": 30.0, "len_max": 150.0, "dia_min": 0.0, "len_min": 0.0},
+                    "medium": {"dia_min": 30.0, "dia_max": 60.0, "len_min": 150.0, "len_max": 300.0},
+                    "heavy": {"dia_min": 60.0, "dia_max": 100.0, "len_min": 300.0, "len_max": 750.0},
+                },
+            }
 
-        if base is None:
-            # Fallback to previous volume-based heuristic for unsupported shapes/inputs.
-            if shape == "round":
-                volume = 3.14159 * (dimensions["diameter"]/2)**2 * dimensions["length"]
-            else:
-                volume = dimensions["length"] * dimensions["breadth"] * dimensions["height"]
+            t = tables.get(mat)
+            if not t:
+                raise ValueError(f"Unsupported material '{material}' for duty classification")
 
-            material_factor = {
-                "aluminium": 1.0,
-                "steel": 3.0,
-                "titanium": 1.7
-            }.get(mat, 1.0)
+            if diameter < t["medium"]["dia_min"] and length < t["medium"]["len_min"]:
+                return "light"
 
-            operation_factor = {
-                "turning": 1.0,
-                "milling": 1.5,
-                "drilling": 0.8,
-                "grinding": 1.2,
-                "boring": 1.3,
-                "heat_treatment": 2.0,
-                "welding": 1.8,
-                "surface_treatment": 1.0
-            }.get(op, 1.0)
+            if diameter >= t["heavy"]["dia_min"] or length >= t["heavy"]["len_min"]:
+                return "heavy"
 
-            score = (volume / 1000000) * material_factor * operation_factor
+            return "medium"
 
-            if score < 5:
-                base = "light"
-            elif score < 20:
-                base = "medium"
-            else:
-                base = "heavy"
+        if shape == "rectangular" and "length" in dimensions:
+            length = float(dimensions["length"])
 
-        # Material adjustment (conservative): steel/titanium should not reduce duty.
-        if mat in {"steel", "titanium"}:
-            base = _bump(base, 1 if base == "light" else 0)
-            if mat == "titanium" and base == "medium":
-                base = _bump(base, 1)
+            milling_len_tables = {
+                "aluminium": {"light_max": 1000.0, "medium_max": 2000.0},
+                "steel": {"light_max": 750.0, "medium_max": 1500.0},
+                "titanium": {"light_max": 500.0, "medium_max": 1000.0},
+            }
+            t = milling_len_tables.get(mat)
+            if not t:
+                raise ValueError(f"Unsupported material '{material}' for duty classification")
 
-        # Operation adjustment (conservative): some ops are inherently more demanding.
-        if op in {"heat_treatment", "welding"}:
-            base = _bump(base, 1)
+            if length < t["light_max"]:
+                return "light"
+            if length < t["medium_max"]:
+                return "medium"
+            return "heavy"
 
-        return base
+        raise ValueError(
+            f"Unable to determine duty category for shape '{shape}' and operation '{op}'. "
+            "Please provide valid dimensions for duty classification."
+        )
     
     def select_machine(
         self,

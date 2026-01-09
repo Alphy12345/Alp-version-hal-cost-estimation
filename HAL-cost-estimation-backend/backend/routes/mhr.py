@@ -169,38 +169,41 @@ def create(data: MHRCreate, db: Session = Depends(get_db)):
             else:
                 machine_type = "conventional"
     
-    # Always calculate MHR with auto-calculation for missing values
-    input_data = MHRInput(
-        investment_cost=data.investment_cost,
-        elect_power_rating=data.elect_power_rating or 0.0,
-        elect_power_charges=data.elect_power_charges if data.elect_power_charges and data.elect_power_charges > 0 else None,
-        available_hrs_per_annum=data.available_hrs_per_annum or 0.0,
-        utilization_hrs_year=data.utilization_hrs_year if data.utilization_hrs_year and data.utilization_hrs_year > 0 else None,
-        machine_type=machine_type
-    )
-    
-    # Calculate MHR with auto-calculation and 1.05 maintenance factor
-    calculated_mhr = MHRCalculationService.calculate_mhr(input_data)
-    # Update the data with calculated MHR
-    data.machine_hr_rate = calculated_mhr
-    
-    # Get the actual calculated values for storage
-    if input_data.elect_power_charges is None:
-        # Auto-calculated electrical power charges
-        elect_power_charges = MHRCalculationService.calculate_electrical_power_charges(data.elect_power_rating or 0.0, 5.0)
+    should_auto_calculate_mhr = data.machine_hr_rate is None or data.machine_hr_rate <= 0
+
+    # Only auto-calculate MHR when it is not explicitly provided.
+    # For this project, the MHR used in cost estimation must come from the configured
+    # reference table values (entered as machine_hr_rate).
+    if should_auto_calculate_mhr:
+        input_data = MHRInput(
+            investment_cost=data.investment_cost,
+            elect_power_rating=data.elect_power_rating or 0.0,
+            elect_power_charges=data.elect_power_charges if data.elect_power_charges and data.elect_power_charges > 0 else None,
+            available_hrs_per_annum=data.available_hrs_per_annum or 0.0,
+            utilization_hrs_year=data.utilization_hrs_year if data.utilization_hrs_year and data.utilization_hrs_year > 0 else None,
+            machine_type=machine_type
+        )
+
+        calculated_mhr = MHRCalculationService.calculate_mhr(input_data)
+        data.machine_hr_rate = calculated_mhr
+
+        if input_data.elect_power_charges is None:
+            elect_power_charges = MHRCalculationService.calculate_electrical_power_charges(data.elect_power_rating or 0.0, 5.0)
+        else:
+            elect_power_charges = data.elect_power_charges
+
+        if input_data.utilization_hrs_year is None:
+            if machine_type == "cnc":
+                downtime_percentage = 0.15  # 15% downtime for CNC
+            else:
+                downtime_percentage = 0.07  # 7% downtime for conventional
+
+            downtime_hours = (data.available_hrs_per_annum or 0.0) * downtime_percentage
+            utilization_hrs_year = MHRCalculationService.calculate_utilization_hours(data.available_hrs_per_annum or 0.0, downtime_hours)
+        else:
+            utilization_hrs_year = data.utilization_hrs_year
     else:
         elect_power_charges = data.elect_power_charges
-    
-    if input_data.utilization_hrs_year is None:
-        # Auto-calculated utilization hours based on machine type
-        if machine_type == "cnc":
-            downtime_percentage = 0.15  # 15% downtime for CNC
-        else:
-            downtime_percentage = 0.07  # 7% downtime for conventional
-        
-        downtime_hours = (data.available_hrs_per_annum or 0.0) * downtime_percentage
-        utilization_hrs_year = MHRCalculationService.calculate_utilization_hours(data.available_hrs_per_annum or 0.0, downtime_hours)
-    else:
         utilization_hrs_year = data.utilization_hrs_year
     
     # Convert float values to strings for database storage
@@ -273,12 +276,15 @@ def update(id: int, data: MHRCreate, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(404, "MHR not found")
     
-    # Calculate MHR if all required values are provided
-    if (data.investment_cost is not None and 
-        data.elect_power_charges is not None and 
-        data.utilization_hrs_year is not None and
-        data.utilization_hrs_year > 0):
-        
+    # Only auto-calculate MHR if the caller did not provide machine_hr_rate.
+    should_auto_calculate_mhr = data.machine_hr_rate is None or data.machine_hr_rate <= 0
+    if (
+        should_auto_calculate_mhr
+        and data.investment_cost is not None
+        and data.elect_power_charges is not None
+        and data.utilization_hrs_year is not None
+        and data.utilization_hrs_year > 0
+    ):
         input_data = MHRInput(
             investment_cost=data.investment_cost,
             elect_power_rating=data.elect_power_rating or 0.0,
@@ -286,9 +292,8 @@ def update(id: int, data: MHRCreate, db: Session = Depends(get_db)):
             available_hrs_per_annum=data.available_hrs_per_annum or 0.0,
             utilization_hrs_year=data.utilization_hrs_year
         )
-        
+
         calculated_mhr = MHRCalculationService.calculate_mhr(input_data)
-        # Update the data with calculated MHR
         data.machine_hr_rate = calculated_mhr
     
     # Convert float values to strings for database storage

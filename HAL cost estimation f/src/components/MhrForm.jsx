@@ -101,89 +101,6 @@ function MhrForm({
     }
   }, [form.available_hrs_per_annum, form.machine_id, machines, autoCalculated.utilization_hrs_year]);
 
-  // Calculate MHR whenever relevant fields change
-  useEffect(() => {
-    const calculateMHR = async () => {
-      const {
-        investment_cost,
-        elect_power_rating,
-        elect_power_charges,
-        available_hrs_per_annum,
-        utilization_hrs_year,
-        machine_id
-      } = form;
-
-      // Check if investment cost is available (minimum required field)
-      if (!investment_cost) {
-        setCalculatedMHR("");
-        return;
-      }
-
-      try {
-        // Get machine type from selected machine
-        let machineType = "conventional"; // default
-        if (machine_id && machines) {
-          const selectedMachine = machines.find(m => m.id === parseInt(machine_id));
-          if (selectedMachine && selectedMachine.name) {
-            machineType = selectedMachine.name.toLowerCase().includes("cnc") ? "cnc" : "conventional";
-          }
-        }
-
-        // Send to backend with auto-calculation for missing values
-        const response = await api.post("/mhr/calculate", {
-          investment_cost: parseFloat(investment_cost) || 0,
-          elect_power_rating: parseFloat(elect_power_rating) || 0,
-          // If auto-calculated, always send 0 so backend recalculates (prevents partial-input locking)
-          elect_power_charges: autoCalculated.elect_power_charges
-            ? 0
-            : (elect_power_charges ? parseFloat(elect_power_charges) : 0),
-          available_hrs_per_annum: parseFloat(available_hrs_per_annum) || 0,
-          // If auto-calculated, always send 0 so backend recalculates (prevents partial-input locking)
-          utilization_hrs_year: autoCalculated.utilization_hrs_year
-            ? 0
-            : (utilization_hrs_year ? parseFloat(utilization_hrs_year) : 0),
-          machine_type: machineType
-        });
-        
-        const finalMHR = response.data.machine_hour_rate;
-        const breakdown = response.data.calculation_breakdown;
-        
-        setCalculatedMHR(finalMHR.toString());
-        
-        // Update form with calculated values - only if user hasn't manually overridden
-        setForm(prev => {
-          const updatedForm = { ...prev, machine_hr_rate: finalMHR.toString() };
-          
-          if (autoCalculated.elect_power_charges) {
-            updatedForm.elect_power_charges = breakdown.electrical_power_charges.toString();
-          }
-          
-          if (autoCalculated.utilization_hrs_year) {
-            updatedForm.utilization_hrs_year = breakdown.utilization_hrs_year.toString();
-          }
-          
-          return updatedForm;
-        });
-      } catch (err) {
-        console.error("Failed to calculate MHR", err);
-        setCalculatedMHR("");
-      }
-    };
-
-    // Trigger calculation when any relevant field changes
-    const relevantFields = [
-      'investment_cost',
-      'elect_power_rating', 
-      'available_hrs_per_annum',
-      'machine_id'
-    ];
-
-    const hasRelevantValues = relevantFields.some(field => form[field]);
-    if (hasRelevantValues) {
-      calculateMHR();
-    }
-  }, [form.investment_cost, form.elect_power_rating, form.elect_power_charges, form.available_hrs_per_annum, form.utilization_hrs_year, form.machine_id, machines]);
-
   const handleChange = (key, value) => {
     if (key === "elect_power_charges") {
       setAutoCalculated(prev => ({ ...prev, elect_power_charges: false }));
@@ -196,9 +113,7 @@ function MhrForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Ensure the calculated MHR is included in the submission
-    const submissionData = { ...form, machine_hr_rate: calculatedMHR || form.machine_hr_rate };
-    onSubmit(submissionData);
+    onSubmit(form);
   };
 
   const handleReset = () => {
@@ -380,20 +295,17 @@ function MhrForm({
           })()}
         </div>
 
-        {/* Machine Hour Rate (Auto-calculated) */}
+        {/* Machine Hour Rate */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-slate-700">Machine Hour Rate</label>
           <input
-            type="text"
-            value={calculatedMHR || form.machine_hr_rate || ""}
-            readOnly
-            placeholder="Auto-calculated"
-            className="px-2.5 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm bg-slate-100 text-slate-600 cursor-not-allowed"
-            title="Machine Hour Rate is automatically calculated based on input values"
+            type="number"
+            step="0.01"
+            value={form.machine_hr_rate || ""}
+            onChange={(e) => handleChange("machine_hr_rate", e.target.value)}
+            placeholder="Enter reference MHR"
+            className="px-2.5 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
           />
-          {calculatedMHR && (
-            <span className="text-xs text-green-600">✓ Auto-calculated</span>
-          )}
         </div>
       </div>
 
