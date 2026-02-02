@@ -1,8 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
-# 🔹 Update these with your actual DB credentials
-DATABASE_URL = "postgresql://postgres:post@localhost:5432/hal_cost_estimation"
+# Update these with your actual DB credentials
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@127.0.0.1:5432/hal_cost_estimation",
+)
 
 engine = create_engine(DATABASE_URL)
 
