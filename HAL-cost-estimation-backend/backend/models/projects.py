@@ -17,6 +17,19 @@ class Project(Base):
     # Relationships
     documents = relationship("ProjectDocument", back_populates="project", cascade="all, delete-orphan")
     parts = relationship("ProjectPart", back_populates="project", cascade="all, delete-orphan")
+    custom_fields = relationship("ProjectCustomField", back_populates="project", cascade="all, delete-orphan")
+
+
+class ProjectCustomField(Base):
+    __tablename__ = "project_custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    label = Column(String, nullable=False)
+    value = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="custom_fields")
 
 
 class ProjectDocument(Base):

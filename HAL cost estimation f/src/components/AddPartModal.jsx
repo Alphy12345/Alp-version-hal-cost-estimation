@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { updatePart, addProjectPart } from '../api/projects';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Grid,
+  Box,
+  Typography,
+  Alert,
+  Stack,
+} from "@mui/material";
 
 function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onPartUpdated }) {
   const [partNumber, setPartNumber] = useState("");
@@ -34,11 +47,11 @@ function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onP
       const formData = new FormData();
       formData.append('part_number', partNumber);
       formData.append('part_name', partName);
-      
+
       if (model3d) {
         formData.append('model_3d', model3d);
       }
-      
+
       if (drawing2d) {
         formData.append('drawing_2d', drawing2d);
       }
@@ -71,123 +84,161 @@ function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onP
     setter(null);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-200">
-          <h2 className="text-xl font-semibold text-slate-900">
-            {partToEdit ? "Edit Part" : "Add New Part"}
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">
-            {partToEdit ? "Update part information and files" : "Enter part details and upload files"}
-          </p>
-        </div>
+    <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Typography variant="h6" fontWeight={600}>
+          {partToEdit ? "Edit Part" : "Add New Part"}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {partToEdit ? "Update part information and files" : "Enter part details and upload files"}
+        </Typography>
+      </DialogTitle>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogContent>
+          <Stack spacing={3}>
+            {error && (
+              <Alert severity="error">{error}</Alert>
+            )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Part Number *</label>
-              <input
-                type="text"
-                placeholder="e.g., PART-001"
-                value={partNumber}
-                onChange={(e) => setPartNumber(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Part Name *</label>
-              <input
-                type="text"
-                placeholder="e.g., Main Assembly"
-                value={partName}
-                onChange={(e) => setPartName(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-                required
-              />
-            </div>
-          </div>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Part Number"
+                  placeholder="e.g., PART-001"
+                  value={partNumber}
+                  onChange={(e) => setPartNumber(e.target.value)}
+                  fullWidth
+                  required
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Part Name"
+                  placeholder="e.g., Main Assembly"
+                  value={partName}
+                  onChange={(e) => setPartName(e.target.value)}
+                  fullWidth
+                  required
+                  size="small"
+                />
+              </Grid>
+            </Grid>
 
-          <div className="space-y-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">3D Model File</label>
-              <input
-                type="file"
-                onChange={handleFileChange(setModel3d)}
-                className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
-                accept=".step,.stp,.iges,.igs,.stl,.obj,.ply"
-              />
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
+                3D Model File
+              </Typography>
+              <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
+                Choose File
+                <input
+                  type="file"
+                  hidden
+                  onChange={handleFileChange(setModel3d)}
+                  accept=".step,.stp,.iges,.igs,.stl,.obj,.ply"
+                />
+              </Button>
               {model3d && (
-                <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                  <span className="text-sm text-slate-700 truncate">{model3d.name}</span>
-                  <button
-                    type="button"
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    bgcolor: "grey.50",
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor: "divider",
+                    mt: 1,
+                  }}
+                >
+                  <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
+                    {model3d.name}
+                  </Typography>
+                  <Button
+                    size="small"
+                    color="error"
                     onClick={() => removeFile(setModel3d)}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
                   >
                     Remove
-                  </button>
-                </div>
+                  </Button>
+                </Box>
               )}
               {!model3d && partToEdit?.model_3d_path && (
-                <p className="text-xs text-slate-400">Current file: {partToEdit.model_3d_path.split('\\').pop()}</p>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  Current file: {partToEdit.model_3d_path.split('\\').pop()}
+                </Typography>
               )}
-            </div>
+            </Box>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">2D Drawing File</label>
-              <input
-                type="file"
-                onChange={handleFileChange(setDrawing2d)}
-                className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
-                accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png"
-              />
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
+                2D Drawing File
+              </Typography>
+              <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
+                Choose File
+                <input
+                  type="file"
+                  hidden
+                  onChange={handleFileChange(setDrawing2d)}
+                  accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png"
+                />
+              </Button>
               {drawing2d && (
-                <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                  <span className="text-sm text-slate-700 truncate">{drawing2d.name}</span>
-                  <button
-                    type="button"
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    bgcolor: "grey.50",
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor: "divider",
+                    mt: 1,
+                  }}
+                >
+                  <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
+                    {drawing2d.name}
+                  </Typography>
+                  <Button
+                    size="small"
+                    color="error"
                     onClick={() => removeFile(setDrawing2d)}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
                   >
                     Remove
-                  </button>
-                </div>
+                  </Button>
+                </Box>
               )}
               {!drawing2d && partToEdit?.drawing_2d_path && (
-                <p className="text-xs text-slate-400">Current file: {partToEdit.drawing_2d_path.split('\\').pop()}</p>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  Current file: {partToEdit.drawing_2d_path.split('\\').pop()}
+                </Typography>
               )}
-            </div>
-          </div>
+            </Box>
+          </Stack>
+        </DialogContent>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (partToEdit ? "Updating..." : "Adding...") : (partToEdit ? "Update Part" : "Add Part")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? (partToEdit ? "Updating..." : "Adding...") : (partToEdit ? "Update Part" : "Add Part")}
+          </Button>
+        </DialogActions>
+      </Box>
+    </Dialog>
   );
 }
 

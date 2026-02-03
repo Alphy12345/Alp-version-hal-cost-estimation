@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import CrudTable from "../../components/CrudTable";
 import api from "../../api/client";
+import { Box, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 
 function MachinesPage() {
   const [operationTypes, setOperationTypes] = useState([]);
@@ -18,7 +19,7 @@ function MachinesPage() {
   }, []);
 
   return (
-    <div className="space-y-6 w-full">
+    <Box sx={{ width: "100%" }}>
       <CrudTable
         title="Machines"
         resourcePath="/machines/"
@@ -39,24 +40,27 @@ function MachinesPage() {
               );
             },
             renderInput: ({ value, onChange }) => (
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-              >
-                <option value="">Select Operation Type</option>
-                {operationTypes.map((ot) => (
-                  <option key={ot.id} value={ot.id}>
-                    {ot.operation_name}
-                  </option>
-                ))}
-              </select>
+              <FormControl fullWidth size="small">
+                <InputLabel>Operation Type</InputLabel>
+                <Select
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  label="Operation Type"
+                >
+                  <MenuItem value="">Select Operation Type</MenuItem>
+                  {operationTypes.map((ot) => (
+                    <MenuItem key={ot.id} value={ot.id}>
+                      {ot.operation_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             ),
           },
         ]}
         initialFormState={{ name: "", op_id: "" }}
       />
-    </div>
+    </Box>
   );
 }
 

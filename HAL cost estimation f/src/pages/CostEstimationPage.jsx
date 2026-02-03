@@ -1,29 +1,48 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Container,
+  Paper,
+  Typography,
+  Grid,
+  TextField,
+  MenuItem,
+  CircularProgress,
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Stack,
+  Divider,
+  Chip,
+  Card,
+  CardContent,
+  CardHeader
+} from "@mui/material";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import api from "../api/client";
 import CompactPdfViewer from "../components/CompactPdfViewer";
+import { calculateCostEstimation } from "../api/costEstimation";
 
+// --- Helpers ---
 function flattenObject(obj, prefix = "") {
   if (obj == null) return [];
-
-  if (typeof obj !== "object") {
-    return [[prefix, obj]];
-  }
-
+  if (typeof obj !== "object") return [[prefix, obj]];
   if (Array.isArray(obj)) {
     if (obj.length === 0) return [[prefix, "[]"]];
-    return obj.flatMap((item, idx) =>
-      flattenObject(item, prefix ? `${prefix}[${idx}]` : `[${idx}]`)
-    );
+    return obj.flatMap((item, idx) => flattenObject(item, prefix ? `${prefix}[${idx}]` : `[${idx}]`));
   }
-
   const entries = Object.entries(obj);
   if (entries.length === 0) return [[prefix, "{}"]];
-
   return entries.flatMap(([k, v]) => {
     const nextPrefix = prefix ? `${prefix}.${k}` : k;
-    if (v != null && typeof v === "object") {
-      return flattenObject(v, nextPrefix);
-    }
+    if (v != null && typeof v === "object") return flattenObject(v, nextPrefix);
     return [[nextPrefix, v]];
   });
 }
@@ -31,13 +50,11 @@ function flattenObject(obj, prefix = "") {
 function isMoneyFieldKey(key) {
   if (!key) return false;
   if (key.includes("man_hours")) return false;
-
   return /(cost|rate|profit|overheads|packing|outsourcing)/i.test(key);
 }
 
 function formatValue(key, value) {
   if (value == null) return "-";
-
   if (typeof value === "number" && Number.isFinite(value) && isMoneyFieldKey(key)) {
     const hasDecimals = Math.abs(value - Math.trunc(value)) > Number.EPSILON;
     return new Intl.NumberFormat("en-IN", {
@@ -46,7 +63,6 @@ function formatValue(key, value) {
       maximumFractionDigits: hasDecimals ? 2 : 0,
     }).format(value);
   }
-
   if (typeof value === "string") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString("en-IN");
   return JSON.stringify(value);
@@ -79,16 +95,13 @@ function CostEstimationPage() {
         setMachinesLoading(true);
         setMachinesError("");
         const res = await api.get("/machines/");
-        const list = Array.isArray(res.data) ? res.data : [];
-        setMachines(list);
+        setMachines(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
         setMachinesError("Failed to load machines");
       } finally {
         setMachinesLoading(false);
       }
     };
-
     fetchMachines();
   }, []);
 
@@ -98,73 +111,51 @@ function CostEstimationPage() {
         setOperationTypesLoading(true);
         setOperationTypesError("");
         const res = await api.get("/operation-type/");
-        const list = Array.isArray(res.data) ? res.data : [];
-        setOperationTypes(list);
+        setOperationTypes(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
         setOperationTypesError("Failed to load operation types");
       } finally {
         setOperationTypesLoading(false);
       }
     };
-
     fetchOperationTypes();
   }, []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
-
-  // PDF Viewer state - now just controls visibility, not modal
   const [showPdfViewer, setShowPdfViewer] = useState(false);
 
   const totalCost = result?.cost_breakdown?.total_unit_cost_with_misc;
 
-  const filteredMachines = useMemo(() => {
-    const normalize = (value) => {
-      if (value == null) return "";
-      return String(value)
-        .trim()
-        .toLowerCase()
-        .replace(/[_-]/g, " ")
-        .replace(/\s+/g, " ");
-    };
+  const normalize = (value) => {
+    if (value == null) return "";
+    return String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+  };
 
+  const filteredMachines = useMemo(() => {
     const opType = normalize(form.operation_type);
     if (!opType) return machines;
 
-    const selectedOp = operationTypes.find(
-      (ot) => normalize(ot?.operation_name) === opType
-    );
+    const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === opType);
     const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
 
+    const getMachineOpId = (m) => {
+      const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
+      return opId == null ? "" : String(opId);
+    };
+
     const getMachineOpName = (m) => {
-      const fromNested =
-        m?.operation_type?.operation_name ?? m?.operation_types?.operation_name;
+      const fromNested = m?.operation_type?.operation_name ?? m?.operation_types?.operation_name;
       if (fromNested) return normalize(fromNested);
-      const opId =
-        m?.op_id ??
-        m?.operation_type_id ??
-        m?.operation_type?.id ??
-        m?.operation_types?.id;
-      if (opId == null) return "";
+      const opId = getMachineOpId(m);
+      if (!opId) return "";
       const lookup = operationTypes.find((ot) => String(ot.id) === String(opId));
       return normalize(lookup?.operation_name);
     };
 
-    const getMachineOpId = (m) => {
-      const opId =
-        m?.op_id ??
-        m?.operation_type_id ??
-        m?.operation_type?.id ??
-        m?.operation_types?.id;
-      return opId == null ? "" : String(opId);
-    };
-
     return machines.filter((m) => {
-      if (selectedOpId) {
-        return getMachineOpId(m) === selectedOpId;
-      }
+      if (selectedOpId) return getMachineOpId(m) === selectedOpId;
       return getMachineOpName(m) === opType;
     });
   }, [form.operation_type, machines, operationTypes]);
@@ -174,47 +165,15 @@ function CostEstimationPage() {
       if (!filteredMachines || filteredMachines.length === 0) {
         return prev.machine_name ? { ...prev, machine_name: "" } : prev;
       }
-
       const stillValid = filteredMachines.some((m) => m.name === prev.machine_name);
       if (stillValid) return prev;
-
       const nextName = filteredMachines[0]?.name;
       return nextName ? { ...prev, machine_name: nextName } : prev;
     });
   }, [filteredMachines]);
 
-  const rows = useMemo(() => {
-    if (!result) return [];
-    return flattenObject(result).filter(([k]) => {
-      if (!k) return false;
-      if (k === "calculation_steps" || k.startsWith("calculation_steps.")) {
-        return false;
-      }
-
-      if (
-        k === "shape" ||
-        k === "volume" ||
-        k === "material" ||
-        k === "operation_type" ||
-        k === "selected_machine.id" ||
-        k === "selected_machine.operation_type_id" ||
-        k === "dimensions.length" ||
-        k === "dimensions.breadth" ||
-        k === "dimensions.height"
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [result]);
-
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // PDF Viewer functions
-  const togglePdfViewer = () => {
-    setShowPdfViewer(!showPdfViewer);
   };
 
   const handleSubmit = async (e) => {
@@ -227,43 +186,16 @@ function CostEstimationPage() {
     const height = Number(form.height);
     const manHours = Number(form.man_hours_per_unit);
 
-    if (!opType) {
-      setError("Operation Type is required");
-      return;
+    if (!opType) return setError("Operation Type is required");
+    if (!Number.isFinite(length) || length <= 0) return setError("Length must be a positive number");
+    if (opType === "turning" && (!Number.isFinite(diameter) || diameter <= 0)) return setError("Diameter must be positive");
+    if (opType === "milling" && ((!Number.isFinite(breadth) || breadth <= 0) || (!Number.isFinite(height) || height <= 0))) {
+      return setError("Breadth and Height must be positive");
     }
-
-    if (!Number.isFinite(length) || length <= 0) {
-      setError("Length must be a positive number");
-      return;
-    }
-
-    if (opType === "turning") {
-      if (!Number.isFinite(diameter) || diameter <= 0) {
-        setError("Diameter must be a positive number");
-        return;
-      }
-    }
-
-    if (opType === "milling") {
-      if (!Number.isFinite(breadth) || breadth <= 0) {
-        setError("Breadth must be a positive number");
-        return;
-      }
-      if (!Number.isFinite(height) || height <= 0) {
-        setError("Height must be a positive number");
-        return;
-      }
-    }
-
-    if (!Number.isFinite(manHours) || manHours < 0) {
-      setError("Man Hours / Unit must be a valid number");
-      return;
-    }
+    if (!Number.isFinite(manHours) || manHours < 0) return setError("Man Hours must be valid");
 
     const dimensions = { length };
-    if (opType === "turning") {
-      dimensions.diameter = diameter;
-    }
+    if (opType === "turning") dimensions.diameter = diameter;
     if (opType === "milling") {
       dimensions.breadth = breadth;
       dimensions.height = height;
@@ -281,441 +213,373 @@ function CostEstimationPage() {
     try {
       setLoading(true);
       setError("");
-      const res = await api.post("/cost-estimation/calculate", payload);
+      const res = await calculateCostEstimation(payload);
       setResult(res.data);
     } catch (err) {
-      console.error(err);
-      const serverMessage =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to calculate cost";
-      setError(String(serverMessage));
+      const msg = err?.response?.data?.detail || err?.message || "Failed to calculate cost";
+      setError(String(msg));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <header className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50 p-5 md:p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-semibold text-slate-900">
-              Cost Estimation
-            </h1>
-            <p className="text-xs md:text-sm text-slate-600 mt-1 max-w-2xl">
-              Enter inputs and calculate the unit cost.
-            </p>
-          </div>
+    <Box sx={{ maxWidth: 1200, mx: "auto", py: 4, px: 2 }}>
+      {/* Header */}
+      <Paper elevation={0} sx={{ p: 4, mb: 4, bgcolor: "linear-gradient(to right, #ffffff, #f8fafc)", border: 1, borderColor: "divider", borderRadius: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems="center" spacing={2}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>Cost Estimation</Typography>
+            <Typography variant="body2" color="text.secondary">Enter inputs and calculate the unit cost.</Typography>
+          </Box>
+          {loading && <CircularProgress size={24} />}
+        </Stack>
+      </Paper>
 
-          <div className="flex items-center gap-3">
-            {loading && (
-              <span className="text-xs text-slate-500 animate-pulse">Calculating...</span>
-            )}
-          </div>
-        </div>
-      </header>
+      <Card variant="outlined" sx={{ mb: 4 }}>
+        <CardHeader
+          title="Calculate"
+          action={
+            <Stack direction="row" spacing={1}>
+              <Chip label={form.operation_type || "-"} size="small" color="primary" variant="outlined" />
+              <Chip label={form.material || "-"} size="small" variant="outlined" />
+            </Stack>
+          }
+          sx={{ bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}
+        />
+        <CardContent sx={{ p: 3 }}>
+          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-4 md:px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between gap-3">
-          <h2 className="text-sm md:text-base font-semibold text-slate-800">
-            Calculate
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] px-2 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100">
-              {String(form.operation_type || "").toLowerCase() || "-"}
-            </span>
-            <span className="text-[11px] px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-              {String(form.material || "").toLowerCase() || "-"}
-            </span>
-          </div>
-        </div>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  label="Operation Type"
+                  value={form.operation_type}
+                  onChange={(e) => handleChange("operation_type", e.target.value)}
+                  fullWidth
+                  size="small"
+                >
+                  <MenuItem value="milling">milling</MenuItem>
+                  <MenuItem value="turning">turning</MenuItem>
+                </TextField>
+              </Grid>
 
-        <div className="p-4 md:p-5 space-y-4">
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  label="Material Type"
+                  value={form.material}
+                  onChange={(e) => handleChange("material", e.target.value)}
+                  fullWidth
+                  size="small"
+                >
+                  <MenuItem value="steel">steel</MenuItem>
+                  <MenuItem value="aluminium">aluminium</MenuItem>
+                  <MenuItem value="titanium">titanium</MenuItem>
+                </TextField>
+              </Grid>
 
-        {error && (
-          <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
-            {error}
-          </div>
-        )}
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  select
+                  label="Machine Name"
+                  value={form.machine_name}
+                  onChange={(e) => handleChange("machine_name", e.target.value)}
+                  fullWidth
+                  size="small"
+                  disabled={machinesLoading || operationTypesLoading || filteredMachines.length === 0}
+                  helperText={filteredMachines.length === 0 ? "No machines for this operation" : `${filteredMachines.length} available`}
+                >
+                  {filteredMachines.map((m) => (
+                    <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Operation Type</label>
-              <select
-                value={form.operation_type}
-                onChange={(e) => handleChange("operation_type", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              >
-                <option value="milling">milling</option>
-                <option value="turning">turning</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Material Type</label>
-              <select
-                value={form.material}
-                onChange={(e) => handleChange("material", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              >
-                <option value="steel">steel</option>
-                <option value="aluminium">aluminium</option>
-                <option value="titanium">titanium</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Machine Name</label>
-              <select
-                value={form.machine_name}
-                onChange={(e) => handleChange("machine_name", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                disabled={machinesLoading || operationTypesLoading || filteredMachines.length === 0}
-              >
-                {filteredMachines.length === 0 && (
-                  <option value="">
-                    {machinesLoading || operationTypesLoading ? "Loading..." : "No machines for this operation"}
-                  </option>
-                )}
-                {filteredMachines.map((m) => (
-                  <option key={m.id ?? m.name} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              {machinesError && (
-                <span className="text-[11px] text-red-600">{machinesError}</span>
-              )}
-              {operationTypesError && (
-                <span className="text-[11px] text-red-600">{operationTypesError}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Man Hours / Unit</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.man_hours_per_unit}
-                onChange={(e) => handleChange("man_hours_per_unit", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Miscellaneous Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.miscellaneous_amount}
-                onChange={(e) => handleChange("miscellaneous_amount", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                placeholder="Additional costs"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Length</label>
-              <input
-                type="number"
-                value={form.length}
-                onChange={(e) => handleChange("length", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              />
-            </div>
-
-            {String(form.operation_type || "").toLowerCase() === "turning" && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Diameter</label>
-                <input
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Man Hours / Unit"
                   type="number"
-                  value={form.diameter}
-                  onChange={(e) => handleChange("diameter", e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
+                  inputProps={{ step: "0.01" }}
+                  value={form.man_hours_per_unit}
+                  onChange={(e) => handleChange("man_hours_per_unit", e.target.value)}
+                  fullWidth
+                  size="small"
                 />
-              </div>
-            )}
+              </Grid>
 
-            {String(form.operation_type || "").toLowerCase() === "milling" && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600">Breadth</label>
-                  <input
-                    type="number"
-                    value={form.breadth}
-                    onChange={(e) => handleChange("breadth", e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600">Height</label>
-                  <input
-                    type="number"
-                    value={form.height}
-                    onChange={(e) => handleChange("height", e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                  />
-                </div>
-              </>
-            )}
-          </div>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Miscellaneous Amount"
+                  type="number"
+                  inputProps={{ step: "0.01", min: "0" }}
+                  value={form.miscellaneous_amount}
+                  onChange={(e) => handleChange("miscellaneous_amount", e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="Additional costs"
+                />
+              </Grid>
 
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <div className="text-[11px] text-slate-500">
-              Machine list: {filteredMachines.length} available
-            </div>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              Calculate
-            </button>
-          </div>
-        </form>
-        </div>
-      </section>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Length (mm)"
+                  type="number"
+                  value={form.length}
+                  onChange={(e) => handleChange("length", e.target.value)}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+
+              {form.operation_type === "turning" && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    label="Diameter (mm)"
+                    type="number"
+                    value={form.diameter}
+                    onChange={(e) => handleChange("diameter", e.target.value)}
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+              )}
+
+              {form.operation_type === "milling" && (
+                <>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      label="Breadth (mm)"
+                      type="number"
+                      value={form.breadth}
+                      onChange={(e) => handleChange("breadth", e.target.value)}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      label="Height (mm)"
+                      type="number"
+                      value={form.height}
+                      onChange={(e) => handleChange("height", e.target.value)}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                </>
+              )}
+
+              <Grid item xs={12}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  startIcon={<CalculateIcon />}
+                >
+                  Calculate
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
+        </CardContent>
+      </Card>
 
       {result && (
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-4 md:px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between gap-3">
-            <h2 className="text-sm md:text-base font-semibold text-slate-800">
-              Cost Estimation Results
-            </h2>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={togglePdfViewer}
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 shadow-sm"
-                title="Toggle PDF drawing viewer"
+        <Card variant="outlined" sx={{ overflow: "hidden" }}>
+          <Box sx={{ p: 2, bgcolor: "grey.50", borderBottom: 1, borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="h6">Cost Estimation Results</Typography>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Button
+                variant={showPdfViewer ? "outlined" : "contained"}
+                color={showPdfViewer ? "primary" : "secondary"}
+                onClick={() => setShowPdfViewer(!showPdfViewer)}
+                startIcon={showPdfViewer ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                size="small"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
                 {showPdfViewer ? 'Hide Drawing' : 'View 2D Drawing'}
-              </button>
+              </Button>
               {totalCost != null && (
-                <div className="text-lg font-bold text-sky-600">
+                <Typography variant="h6" color="primary.main" fontWeight="bold">
                   {formatValue("total_cost", totalCost)}
-                </div>
+                </Typography>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Box>
 
-          <div className="p-4 md:p-5 space-y-6">
-            {/* Summary Card */}
-            <div className="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border border-sky-200">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Operation Details</h3>
-                  <div className="space-y-1 text-xs text-slate-600">
-                    <p><span className="font-medium">Operation:</span> {result.operation_type}</p>
-                    <p><span className="font-medium">Machine:</span> {result.selected_machine?.name}</p>
-                    <p><span className="font-medium">Material:</span> {result.material}</p>
-                    <p><span className="font-medium">Duty Category:</span> {result.duty_category}</p>
-                    <p><span className="font-medium">Shape:</span> {result.shape}</p>
-                    {result.volume && (
-                      <p><span className="font-medium">Volume:</span> {result.volume.toFixed(2)} mm³</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Cost Summary</h3>
-                  <div className="space-y-1 text-xs text-slate-600">
-                    <p><span className="font-medium">Basic Cost:</span> {formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</p>
-                    <p><span className="font-medium">Overheads:</span> {formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</p>
-                    <p><span className="font-medium">Profit:</span> {formatValue("profit", result.cost_breakdown?.profit_per_unit)}</p>
-                    <p><span className="font-medium">Packing & Forwarding:</span> {formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</p>
-                    <p><span className="font-medium">Miscellaneous Amount:</span> {formatValue("miscellaneous_amount", result.cost_breakdown?.miscellaneous_amount)}</p>
-                    <p className="pt-2 border-t border-slate-300"><span className="font-semibold">Total Unit Cost:</span> {formatValue("total_cost", result.cost_breakdown?.unit_cost)}</p>
-                    <p className="font-semibold text-sky-600"><span className="text-slate-700">Total with Miscellaneous:</span> {formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <CardContent sx={{ p: 4 }}>
+            <Grid container spacing={4}>
+              {/* Summary Cards */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: "primary.50", borderColor: "primary.100" }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" gutterBottom>Operation Details</Typography>
+                      <Stack spacing={1}>
+                        <Typography variant="caption" display="block">Operation: {result.operation_type}</Typography>
+                        <Typography variant="caption" display="block">Machine: {result.selected_machine?.name}</Typography>
+                        <Typography variant="caption" display="block">Material: {result.material}</Typography>
+                        {result.volume && <Typography variant="caption" display="block">Volume: {result.volume.toFixed(2)} mm³</Typography>}
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" gutterBottom>Cost Summary</Typography>
+                      <Stack spacing={1}>
+                        <Typography variant="body2" sx={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Basic Cost:</span> <b>{formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</b>
+                        </Typography>
+                        <Typography variant="body2" sx={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Total Unit Cost:</span> <b>{formatValue("total_cost", result.cost_breakdown?.unit_cost)}</b>
+                        </Typography>
+                        <Typography variant="subtitle1" color="primary.main" sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+                          <span>Total with Misc:</span> <b>{formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</b>
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
 
-            {/* Detailed Cost Breakdown */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">Detailed Cost Breakdown</h3>
-              <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                <table className="min-w-full text-xs md:text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Cost Component</th>
-                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Value</th>
-                      <th className="px-3 py-2.5 text-left font-semibold text-slate-700 border-b border-slate-100">Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-white">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Man Hours per Unit</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">{result.cost_breakdown?.man_hours_per_unit}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">-</td>
-                    </tr>
-                    <tr className="bg-slate-50/40">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Machine Hour Rate</td>
-                      <td className="px-3 py-2 border-b border-slate-100">{formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per hour</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Wage Rate</td>
-                      <td className="px-3 py-2 border-b border-slate-100">{formatValue("wage_rate", result.cost_breakdown?.wage_rate)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per hour</td>
-                    </tr>
-                    <tr className="bg-slate-50/40">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Basic Cost</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Overheads</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-slate-50/40">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Profit (10%)</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("profit", result.cost_breakdown?.profit_per_unit)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Packing & Forwarding (2%)</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-slate-50/40">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Miscellaneous Amount</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("miscellaneous_amount", result.cost_breakdown?.miscellaneous_amount)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700 font-medium">Total Unit Cost</td>
-                      <td className="px-3 py-2 border-b border-slate-100 font-semibold">{formatValue("total_cost", result.cost_breakdown?.unit_cost)}</td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                    <tr className="bg-gradient-to-r from-sky-50 to-indigo-50 font-bold">
-                      <td className="px-3 py-3 border-b border-slate-100 text-slate-900">Total Unit Cost with Misc</td>
-                      <td className="px-3 py-3 border-b border-slate-100 text-sky-600 text-lg">{formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</td>
-                      <td className="px-3 py-3 border-b border-slate-100 text-slate-700">per unit</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+              {/* Breakdown Table */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>Detailed Cost Breakdown</Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "grey.50" }}>
+                        <TableCell>Cost Component</TableCell>
+                        <TableCell>Value</TableCell>
+                        <TableCell>Rate</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Man Hours per Unit</TableCell>
+                        <TableCell>{result.cost_breakdown?.man_hours_per_unit}</TableCell>
+                        <TableCell>-</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Machine Hour Rate</TableCell>
+                        <TableCell>{formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</TableCell>
+                        <TableCell>per hour</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Wage Rate</TableCell>
+                        <TableCell>{formatValue("wage_rate", result.cost_breakdown?.wage_rate)}</TableCell>
+                        <TableCell>per hour</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Basic Cost</TableCell>
+                        <TableCell fontWeight="bold">{formatValue("basic_cost", result.cost_breakdown?.basic_cost_per_unit)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Overheads</TableCell>
+                        <TableCell fontWeight="bold">{formatValue("overheads", result.cost_breakdown?.overheads_per_unit)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Profit (10%)</TableCell>
+                        <TableCell fontWeight="bold">{formatValue("profit", result.cost_breakdown?.profit_per_unit)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Packing & Fwd (2%)</TableCell>
+                        <TableCell fontWeight="bold">{formatValue("packing", result.cost_breakdown?.packing_forwarding_per_unit)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Miscellaneous</TableCell>
+                        <TableCell fontWeight="bold">{formatValue("miscellaneous_amount", result.cost_breakdown?.miscellaneous_amount)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                      <TableRow sx={{ bgcolor: "success.50" }}>
+                        <TableCell sx={{ fontWeight: "bold" }}>Total Unit Cost with Misc</TableCell>
+                        <TableCell sx={{ fontWeight: "bold", color: "success.main" }}>{formatValue("total_cost", result.cost_breakdown?.total_unit_cost_with_misc)}</TableCell>
+                        <TableCell>per unit</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
 
-            {/* Calculation Steps */}
-            {result.calculation_steps && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-800 mb-3">Calculation Steps</h3>
-                <div className="space-y-3">
-                  {Object.entries(result.calculation_steps).map(([step, data]) => (
-                    <div key={step} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3 capitalize">
-                        {step.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </h4>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {data.formula && (
-                          <div>
-                            <span className="text-xs text-slate-600">Formula: </span>
-                            <span className="text-xs font-mono text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block mt-1">
-                              {data.formula}
-                            </span>
-                          </div>
-                        )}
-                        {data.calculation && (
-                          <div>
-                            <span className="text-xs text-slate-600">Calculation: </span>
-                            <span className="text-xs font-mono text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block mt-1">
-                              {data.calculation}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {data.result !== undefined && (
-                        <div className="mt-3 pt-3 border-t border-slate-200">
-                          <span className="text-xs text-slate-600">Result: </span>
-                          <span className="text-sm font-bold text-sky-600 bg-white px-3 py-1 rounded border border-sky-200">
-                            {formatValue(step, data.result)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              {/* Calculation Steps */}
+              {result.calculation_steps && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>Calculation Steps</Typography>
+                  <Stack spacing={2}>
+                    {Object.entries(result.calculation_steps).map(([step, data]) => (
+                      <Paper key={step} variant="outlined" sx={{ p: 2, bgcolor: "grey.50" }}>
+                        <Typography variant="subtitle2" sx={{ textTransform: "capitalize", mb: 1 }}>{step.replace(/_/g, ' ')}</Typography>
+                        <Grid container spacing={2}>
+                          {data.formula && (
+                            <Grid item xs={12} md={6}>
+                              <Typography variant="caption" color="text.secondary">Formula</Typography>
+                              <Paper sx={{ p: 1, fontFamily: "monospace", fontSize: "0.75rem" }}>{data.formula}</Paper>
+                            </Grid>
+                          )}
+                          {data.calculation && (
+                            <Grid item xs={12} md={6}>
+                              <Typography variant="caption" color="text.secondary">Calculation</Typography>
+                              <Paper sx={{ p: 1, fontFamily: "monospace", fontSize: "0.75rem" }}>{data.calculation}</Paper>
+                            </Grid>
+                          )}
+                          {data.result !== undefined && (
+                            <Grid item xs={12}>
+                              <Divider sx={{ my: 1 }} />
+                              <Typography variant="body2" fontWeight="bold" color="primary">Result: {formatValue(step, data.result)}</Typography>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Grid>
+              )}
 
-            {/* Machine Details */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">Machine Information</h4>
-                <div className="space-y-2 text-xs text-slate-600">
-                  <p><span className="font-medium">Machine ID:</span> {result.selected_machine?.id}</p>
-                  <p><span className="font-medium">Machine Name:</span> {result.selected_machine?.name}</p>
-                  <p><span className="font-medium">Operation Type ID:</span> {result.selected_machine?.operation_type_id}</p>
-                  <p><span className="font-medium">Machine Category:</span> {result.machine_category}</p>
-                  <p><span className="font-medium">Machine Hour Rate:</span> {formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</p>
-                  <p><span className="font-medium">Wage Rate:</span> {formatValue("wage_rate", result.cost_breakdown?.wage_rate)}</p>
-                </div>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">Outsourcing Information</h4>
-                <div className="space-y-2 text-xs text-slate-600">
-                  <p><span className="font-medium">Outsourcing MHR:</span> {formatValue("outsourcing_mhr", result.cost_breakdown?.outsourcing_mhr)}</p>
-                  <p><span className="font-medium">Material:</span> {result.material}</p>
-                  <p><span className="font-medium">Operation Type:</span> {result.operation_type}</p>
-                  <p><span className="font-medium">Shape:</span> {result.shape}</p>
-                  <p><span className="font-medium">Duty Category:</span> {result.duty_category}</p>
-                  {result.volume && (
-                    <p><span className="font-medium">Volume:</span> {result.volume.toFixed(2)} mm³</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Dimensions */}
-            {result.dimensions && (
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">Input Dimensions</h4>
-                <div className="grid gap-2 md:grid-cols-4 text-xs text-slate-600">
-                  {result.dimensions.diameter && (
-                    <p><span className="font-medium">Diameter:</span> {result.dimensions.diameter} mm</p>
-                  )}
-                  {result.dimensions.length && (
-                    <p><span className="font-medium">Length:</span> {result.dimensions.length} mm</p>
-                  )}
-                  {result.dimensions.breadth && (
-                    <p><span className="font-medium">Breadth:</span> {result.dimensions.breadth} mm</p>
-                  )}
-                  {result.dimensions.height && (
-                    <p><span className="font-medium">Height:</span> {result.dimensions.height} mm</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+              {/* Machine Info & Outsourcing */}
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>Machine Information</Typography>
+                  <Stack spacing={0.5}>
+                    <Typography variant="caption">ID: {result.selected_machine?.id}</Typography>
+                    <Typography variant="caption">Name: {result.selected_machine?.name}</Typography>
+                    <Typography variant="caption">Cat: {result.machine_category}</Typography>
+                    <Typography variant="caption">MHR: {formatValue("machine_hour_rate", result.cost_breakdown?.machine_hour_rate)}</Typography>
+                  </Stack>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>Outsourcing Information</Typography>
+                  <Stack spacing={0.5}>
+                    <Typography variant="caption">Outsourcing MHR: {formatValue("outsourcing_mhr", result.cost_breakdown?.outsourcing_mhr)}</Typography>
+                    <Typography variant="caption">Material: {result.material}</Typography>
+                    <Typography variant="caption">Shape: {result.shape}</Typography>
+                  </Stack>
+                </Paper>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
       )}
-      
-      {/* Embedded PDF Viewer Section */}
+
       {showPdfViewer && (
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-          <div className="px-4 md:px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-            <h2 className="text-sm md:text-base font-semibold text-slate-800">
-              2D Drawing Viewer
-            </h2>
-          </div>
-          <div className="p-4 md:p-5">
+        <Paper variant="outlined" sx={{ mt: 4, overflow: "hidden" }}>
+          <Box sx={{ p: 2, bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+            <Typography variant="subtitle2">2D Drawing Viewer</Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <CompactPdfViewer
               fileUrl="http://127.0.0.1:8000/files/sample-cost-estimation.pdf?inline=true"
               fileName="Sample Cost Estimation Drawing.pdf"
             />
-          </div>
-        </section>
+          </Box>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 }
 

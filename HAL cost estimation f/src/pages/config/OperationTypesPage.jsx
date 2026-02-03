@@ -1,10 +1,11 @@
 import React from "react";
 import CrudTable from "../../components/CrudTable";
 import api from "../../api/client";
+import { Box } from "@mui/material";
 
 function OperationTypesPage() {
   return (
-    <div className="space-y-6 w-full">
+    <Box sx={{ width: "100%" }}>
       <CrudTable
         title="Operation Type"
         resourcePath="/operation-type/"
@@ -13,7 +14,7 @@ function OperationTypesPage() {
         ]}
         initialFormState={{ operation_name: "" }}
       />
-    </div>
+    </Box>
   );
 }
 

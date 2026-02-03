@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import ConfigurationPage from "./pages/ConfigurationPage.jsx";
 import CostEstimationPage from "./pages/CostEstimationPage.jsx";
 import ProjectsPage from "./pages/ProjectsPage.jsx";
@@ -39,12 +40,22 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "background.default",
+        }}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress size={44} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Loading...
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 
@@ -53,10 +64,18 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden text-slate-900">
-      <div className="flex h-full">
+    <Box sx={{ height: "100vh", width: "100vw", overflow: "hidden" }}>
+      <Box sx={{ display: "flex", height: "100%" }}>
         <Sidebar active={activeSection} onChange={handleSectionChange} />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white/1 backdrop-blur-sm">
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            p: { xs: 2.5, md: 3.5 },
+            bgcolor: "background.default",
+          }}
+        >
           {activeSection === "configuration" && <ConfigurationPage />}
           {activeSection === "cost_estimation" && <CostEstimationPage />}
           {activeSection === "projects" && <ProjectsPage onChange={handleSectionChange} />}
@@ -73,9 +92,9 @@ function AppContent() {
           {activeSection === "config_materials" && <MaterialsPage />}
           {activeSection === "config_machine_selection" && <MachineSelectionPage />}
           {activeSection === "config_mhr" && <MhrPage />}
-        </main>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

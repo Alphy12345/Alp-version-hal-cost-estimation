@@ -1,5 +1,22 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/client";
+import {
+  Box,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  Alert,
+  CircularProgress,
+  Stack,
+  Grid,
+} from "@mui/material";
 
 function CrudTable({
   title,
@@ -85,134 +102,169 @@ function CrudTable({
   };
 
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <h2 className="text-sm md:text-base font-semibold text-slate-900">{title}</h2>
-        {loading && (
-          <span className="text-xs text-slate-500 animate-pulse">Loading...</span>
-        )}
-      </div>
-
-      {error && (
-        <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-          {error}
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-3 md:gap-4 md:grid-cols-[minmax(0,3fr)_auto] items-end"
-      >
-        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-          {columns.map((col) => (
-            <div key={col.key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-700">
-                {col.label}
-              </label>
-              {col.renderInput ? (
-                col.renderInput({
-                  value: form[col.key] ?? "",
-                  onChange: (value) => handleChange(col.key, value),
-                  form,
-                })
-              ) : (
-                <input
-                  type="text"
-                  value={form[col.key] ?? ""}
-                  onChange={(e) => handleChange(col.key, e.target.value)}
-                  placeholder={col.placeholder || col.label}
-                  className="px-2.5 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 justify-end">
-          {editingId != null && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-3 py-1.5 rounded-md border border-slate-300 text-xs md:text-sm text-slate-700 bg-white hover:bg-slate-50"
-            >
-              Cancel
-            </button>
+    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 3 }}>
+      <Stack spacing={2}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
+          <Typography variant="h6" fontWeight={600}>
+            {title}
+          </Typography>
+          {loading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={16} />
+              <Typography variant="caption" color="text.secondary">
+                Loading...
+              </Typography>
+            </Box>
           )}
-          <button
-            type="submit"
-            className="px-3 py-1.5 rounded-md text-xs md:text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={loading}
-          >
-            {editingId != null ? "Update" : "Add"}
-          </button>
-        </div>
-      </form>
+        </Box>
 
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-        <table className="min-w-full text-xs md:text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200"
-                >
-                  {col.label}
-                </th>
-              ))}
-              <th className="px-3 py-2 text-right font-semibold text-slate-700 border-b border-slate-200">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 && (
-              <tr>
-                <td
-                  colSpan={columns.length + 1}
-                  className="px-3 py-4 text-center text-slate-500 text-xs"
-                >
-                  No data available
-                </td>
-              </tr>
-            )}
-            {items.map((item) => (
-              <tr key={item.id} className="odd:bg-white even:bg-slate-50">
+        {error && (
+          <Alert severity="error" sx={{ fontSize: "0.875rem" }}>
+            {error}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={2} alignItems="flex-end">
+            <Grid item xs={12} md={9}>
+              <Grid container spacing={2}>
                 {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className="px-3 py-2 border-b border-slate-200 text-slate-700"
-                  >
-                    {(() => {
-                      const rawValue = col.getValue
-                        ? col.getValue(item)
-                        : item[col.key];
-                      return rawValue != null ? String(rawValue) : "-";
-                    })()}
-                  </td>
+                  <Grid item xs={12} sm={6} lg={4} key={col.key}>
+                    {col.renderInput ? (
+                      col.renderInput({
+                        value: form[col.key] ?? "",
+                        onChange: (value) => handleChange(col.key, value),
+                        form,
+                      })
+                    ) : (
+                      <TextField
+                        label={col.label}
+                        value={form[col.key] ?? ""}
+                        onChange={(e) => handleChange(col.key, e.target.value)}
+                        placeholder={col.placeholder || col.label}
+                        fullWidth
+                        size="small"
+                      />
+                    )}
+                  </Grid>
                 ))}
-                <td className="px-3 py-2 border-b border-slate-200 text-right space-x-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    className="inline-flex items-center px-2 py-1 rounded-md border border-slate-300 text-[11px] text-slate-700 bg-white hover:bg-slate-50"
+              </Grid>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                {editingId != null && (
+                  <Button
+                    variant="outlined"
+                    onClick={resetForm}
+                    size="small"
+                    sx={{ textTransform: "none" }}
                   >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id)}
-                    className="inline-flex items-center px-2 py-1 rounded-md border border-red-300 text-[11px] text-red-700 bg-red-50 hover:bg-red-100"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  size="small"
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  {editingId != null ? "Update" : "Add"}
+                </Button>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
+
+        <TableContainer>
+          <Table
+            size="small"
+            sx={{
+              borderCollapse: "separate",
+              borderSpacing: "0px 8px",
+              px: 1,
+            }}
+          >
+            <TableHead>
+              <TableRow
+                sx={{
+                  "& th": {
+                    bgcolor: "rgba(56,189,248,0.12)",
+                    color: "primary.light",
+                  },
+                  "& th:first-of-type": { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
+                  "& th:last-of-type": { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
+                }}
+              >
+                {columns.map((col) => (
+                  <TableCell key={col.key} sx={{ fontWeight: 600 }}>
+                    {col.label}
+                  </TableCell>
+                ))}
+                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 3 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      No data available
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {items.map((item, index) => (
+                <TableRow
+                  key={item.id}
+                  sx={{
+                    "& td": {
+                      bgcolor: "background.paper",
+                    },
+                    "& td:first-of-type": { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
+                    "& td:last-of-type": { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
+                  }}
+                >
+                  {columns.map((col) => (
+                    <TableCell key={col.key}>
+                      {(() => {
+                        const rawValue = col.getValue
+                          ? col.getValue(item)
+                          : item[col.key];
+                        return rawValue != null ? String(rawValue) : "-";
+                      })()}
+                    </TableCell>
+                  ))}
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleEdit(item)}
+                        sx={{ minWidth: "auto", px: 1.5, fontSize: "0.7rem" }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleDelete(item.id)}
+                        sx={{ minWidth: "auto", px: 1.5, fontSize: "0.7rem" }}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Stack>
+    </Paper>
   );
 }
 

@@ -1,5 +1,32 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { getProjects, deleteProject } from "../api/projects";
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  IconButton,
+  CircularProgress,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+} from "@mui/material";
+import {
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  ArrowForward as ArrowForwardIcon,
+} from "@mui/icons-material";
 
 function ProjectsPage({ onChange }) {
   const [projects, setProjects] = useState([]);
@@ -45,209 +72,257 @@ function ProjectsPage({ onChange }) {
     [projects]
   );
 
-  const scrollToTable = () => {
-    const el = document.getElementById("existing-projects");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <header className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-slate-100 p-6 shadow-sm">
-        <h1 className="text-xl md:text-2xl font-semibold tracking-wide">Cost Estimation Software</h1>
-      </header>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-sky-600 to-indigo-600 flex items-center justify-center shadow-md cursor-pointer hover:from-sky-700 hover:to-indigo-700 transition-colors"
-              onClick={() => onChange("create_project")}
-              role="button"
-              aria-label="Create New Project">
-                <span className="text-white text-xl leading-none">+</span>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-base md:text-lg font-semibold text-slate-900">Create New Project</h2>
-                <p className="text-xs md:text-sm text-slate-500 mt-1">
-                  Start a new cost estimation project
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs md:text-sm text-slate-600 mt-4 leading-relaxed">
-              Initialize a new project with parts, drawings, and specifications for comprehensive cost analysis and estimation.
-              Upload technical documents and manage project details efficiently.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => onChange("create_project")}
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-sky-700 hover:text-sky-800"
-            >
-              Get Started
-              <span className="text-base">›</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Projects Table Section */}
-      </section>
-
-      <section
-        id="existing-projects"
-        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+    <Box sx={{ maxWidth: 1400, mx: "auto" }}>
+      <Paper
+        sx={{
+          borderRadius: 3,
+          background: "linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)",
+          color: "white",
+          p: 3,
+          mb: 3,
+        }}
       >
-        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 text-slate-100 border-b border-slate-700">
-          <h3 className="text-base font-semibold">Existing Projects</h3>
-          <p className="text-xs text-slate-300 mt-1">Manage and track your cost estimation projects</p>
-        </div>
+        <Typography variant="h4" fontWeight={600} sx={{ letterSpacing: 0.5 }}>
+          Cost Estimation Software
+        </Typography>
+      </Paper>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs md:text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left font-semibold text-slate-600 tracking-wider">PROJECT NAME</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-600 tracking-wider">CUSTOMER NAME</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-600 tracking-wider">CREATED DATE</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-600 tracking-wider">NUMBER OF PARTS</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-600 tracking-wider">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ borderRadius: 3, height: "100%" }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      transform: "scale(1.05)",
+                      boxShadow: 3,
+                    },
+                  }}
+                  onClick={() => onChange("create_project")}
+                  role="button"
+                  aria-label="Create New Project"
+                >
+                  <AddIcon sx={{ color: "white", fontSize: 28 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Create New Project
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Start a new cost estimation project
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+                Initialize a new project with parts, drawings, and specifications for comprehensive cost analysis and estimation.
+                Upload technical documents and manage project details efficiently.
+              </Typography>
+
+              <Button
+                onClick={() => onChange("create_project")}
+                endIcon={<ArrowForwardIcon />}
+                sx={{ fontWeight: 600 }}
+              >
+                Get Started
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            background: "linear-gradient(90deg, #1e293b 0%, #334155 50%, #475569 100%)",
+            color: "white",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h6" fontWeight={600}>
+            Existing Projects
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.9 }}>
+            Manage and track your cost estimation projects
+          </Typography>
+        </Box>
+
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: "grey.50" }}>
+                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                  Project Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                  Customer Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                  Created Date
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                  Number of Parts
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
-                    Loading projects...
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    <CircularProgress size={32} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Loading projects...
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : error ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-red-500">
-                    {error}
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    <Alert severity="error">{error}</Alert>
+                  </TableCell>
+                </TableRow>
               ) : projects.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
-                    No projects found. Create your first project to get started.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No projects found. Create your first project to get started.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : (
                 projects.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-100">
-                    <td className="px-6 py-4">
-                      <div className="flex items-start gap-3">
-                        <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                        <div>
-                          <div className="font-semibold text-slate-900">{p.project_name}</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">ID: {p.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-slate-900 font-medium">{p.customer_name}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Customer</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-slate-900 font-medium">{formatDate(p.created_at)}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Creation Date</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-semibold text-[11px]">
-                        {p.parts?.length || 0} Parts
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
+                  <TableRow key={p.id} hover>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            bgcolor: "success.main",
+                            mt: 0.75,
+                          }}
+                        />
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            {p.project_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            ID: {p.id}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={500}>
+                        {p.customer_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Customer
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={500}>
+                        {formatDate(p.created_at)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Creation Date
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={`${p.parts?.length || 0} Parts`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontWeight: 600, fontSize: "0.7rem" }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<VisibilityIcon />}
                           onClick={() => onChange("project_detail", { projectId: p.id })}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sm"
+                          sx={{
+                            background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
+                            textTransform: "none",
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                          }}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M14 3h7v7" />
-                            <path d="M10 14L21 3" />
-                            <path d="M21 14v7h-7" />
-                            <path d="M3 10V3h7" />
-                            <path d="M3 21h7v-7" />
-                          </svg>
                           Open
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          startIcon={<EditIcon />}
                           onClick={() => onChange("edit_project", { projectId: p.id })}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200"
-                          title="Edit Project"
+                          sx={{ textTransform: "none", fontWeight: 600, fontSize: "0.75rem" }}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
                           Edit
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <IconButton
+                          size="small"
+                          color="error"
                           onClick={() => handleDeleteProject(p.id)}
-                          className="inline-flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200"
                           title="Delete Project"
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M3 6h18" />
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="text-[11px] text-slate-400">Showing {projects.length} projects</div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="px-3 py-1.5 rounded-md text-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            >
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: 1,
+            borderColor: "divider",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Showing {projects.length} projects
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button size="small" variant="outlined">
               Previous
-            </button>
-            <button
-              type="button"
-              className="px-3 py-1.5 rounded-md text-xs border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            >
+            </Button>
+            <Button size="small" variant="outlined">
               Next
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+    </Box>
   );
 }
 

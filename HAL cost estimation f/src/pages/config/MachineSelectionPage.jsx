@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import CrudTable from "../../components/CrudTable";
 import api from "../../api/client";
+import { Box, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 
 function MachineSelectionPage() {
   const [machines, setMachines] = useState([]);
@@ -29,7 +30,7 @@ function MachineSelectionPage() {
   }, []);
 
   return (
-    <div className="space-y-6 w-full">
+    <Box sx={{ width: "100%" }}>
       <CrudTable
         title="Machine Selection"
         resourcePath="/machine-selection/"
@@ -42,18 +43,21 @@ function MachineSelectionPage() {
               return m?.name ?? item.machine_id ?? "-";
             },
             renderInput: ({ value, onChange }) => (
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
-              >
-                <option value="">Select Machine</option>
-                {machines.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              <FormControl fullWidth size="small">
+                <InputLabel>Machine</InputLabel>
+                <Select
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  label="Machine"
+                >
+                  <MenuItem value="">Select Machine</MenuItem>
+                  {machines.map((m) => (
+                    <MenuItem key={m.id} value={m.id}>
+                      {m.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             ),
           },
           {
@@ -64,18 +68,21 @@ function MachineSelectionPage() {
               return d?.name ?? item.dimension_id ?? "-";
             },
             renderInput: ({ value, onChange }) => (
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
-              >
-                <option value="">Select Dimension</option>
-                {dimensions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              <FormControl fullWidth size="small">
+                <InputLabel>Dimension</InputLabel>
+                <Select
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  label="Dimension"
+                >
+                  <MenuItem value="">Select Dimension</MenuItem>
+                  {dimensions.map((d) => (
+                    <MenuItem key={d.id} value={d.id}>
+                      {d.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             ),
           },
           {
@@ -86,18 +93,21 @@ function MachineSelectionPage() {
               return du?.name ?? item.duty_id ?? "-";
             },
             renderInput: ({ value, onChange }) => (
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
-              >
-                <option value="">Select Duty</option>
-                {duties.map((du) => (
-                  <option key={du.id} value={du.id}>
-                    {du.name}
-                  </option>
-                ))}
-              </select>
+              <FormControl fullWidth size="small">
+                <InputLabel>Duty</InputLabel>
+                <Select
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  label="Duty"
+                >
+                  <MenuItem value="">Select Duty</MenuItem>
+                  {duties.map((du) => (
+                    <MenuItem key={du.id} value={du.id}>
+                      {du.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             ),
           },
           {
@@ -108,18 +118,21 @@ function MachineSelectionPage() {
               return mat?.name ?? item.material_id ?? "-";
             },
             renderInput: ({ value, onChange }) => (
-              <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="px-2.5 py-1.5 rounded-md border border-slate-600 text-xs md:text-sm bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"
-              >
-                <option value="">Select Material</option>
-                {materials.map((mat) => (
-                  <option key={mat.id} value={mat.id}>
-                    {mat.name}
-                  </option>
-                ))}
-              </select>
+              <FormControl fullWidth size="small">
+                <InputLabel>Material</InputLabel>
+                <Select
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  label="Material"
+                >
+                  <MenuItem value="">Select Material</MenuItem>
+                  {materials.map((mat) => (
+                    <MenuItem key={mat.id} value={mat.id}>
+                      {mat.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             ),
           },
           { key: "size", label: "Size" },
@@ -132,7 +145,7 @@ function MachineSelectionPage() {
           size: "",
         }}
       />
-    </div>
+    </Box>
   );
 }
 

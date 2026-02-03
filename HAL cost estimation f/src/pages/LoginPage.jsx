@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  Alert,
+  CircularProgress,
+  Link,
+} from '@mui/material';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -84,167 +94,156 @@ const LoginPage = () => {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed py-12 px-4 sm:px-6 lg:px-8"
-      style={{
-        backgroundImage:
-          "url('./assets/vecteezy_ai-generated-innovative-atomic-futuristic-atomic-nuclear_36748390.jpg')",
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundImage: "url('./assets/vecteezy_ai-generated-innovative-atomic-futuristic-atomic-nuclear_36748390.jpg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        py: { xs: 6, sm: 12 },
+        px: { xs: 2, sm: 3, lg: 4 },
       }}
     >
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div>
-            <h2 className="text-center text-2xl font-bold text-gray-900">
+      <Box sx={{ maxWidth: 448, width: '100%' }}>
+        <Paper elevation={3} sx={{ borderRadius: 2, p: 4 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h5" align="center" fontWeight="bold" gutterBottom>
               {isLogin ? 'Sign in to your account' : 'Create your account'}
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
+            </Typography>
+            <Typography variant="body2" align="center" color="text.secondary">
               {isLogin ? 'Or' : 'Already have an account?'}{' '}
-              <button
+              <Link
+                component="button"
                 type="button"
                 onClick={toggleMode}
-                className="font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:underline transition ease-in-out duration-150"
+                sx={{ fontWeight: 500, cursor: 'pointer' }}
               >
                 {isLogin ? 'create a new account' : 'sign in to your account'}
-              </button>
-            </p>
-          </div>
+              </Link>
+            </Typography>
+          </Box>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            {isLogin ? (
-              <>
-                <div>
-                  <label htmlFor="username" className="sr-only">
-                    Username
-                  </label>
-                  <input
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {isLogin ? (
+                <>
+                  <TextField
                     id="username"
                     name="username"
+                    label="Username"
                     type="text"
                     required
+                    fullWidth
                     value={formData.username}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Username"
+                    variant="outlined"
                   />
-                </div>
-                <div>
-                  <label htmlFor="password" className="sr-only">
-                    Password
-                  </label>
-                  <input
+                  <TextField
                     id="password"
                     name="password"
+                    label="Password"
                     type="password"
                     required
+                    fullWidth
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Password"
+                    variant="outlined"
                   />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label htmlFor="username" className="sr-only">
-                    Username
-                  </label>
-                  <input
+                </>
+              ) : (
+                <>
+                  <TextField
                     id="username"
                     name="username"
+                    label="Username"
                     type="text"
                     required
+                    fullWidth
                     value={formData.username}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Username"
+                    variant="outlined"
                   />
-                </div>
-                <div>
-                  <label htmlFor="email" className="sr-only">
-                    Email
-                  </label>
-                  <input
+                  <TextField
                     id="email"
                     name="email"
+                    label="Email address"
                     type="email"
                     required
+                    fullWidth
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Email address"
+                    variant="outlined"
                   />
-                </div>
-                <div>
-                  <label htmlFor="fullName" className="sr-only">
-                    Full Name
-                  </label>
-                  <input
+                  <TextField
                     id="fullName"
                     name="fullName"
+                    label="Full name"
                     type="text"
                     required
+                    fullWidth
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Full name"
+                    variant="outlined"
                   />
-                </div>
-                <div>
-                  <label htmlFor="password" className="sr-only">
-                    Password
-                  </label>
-                  <input
+                  <TextField
                     id="password"
                     name="password"
+                    label="Password"
                     type="password"
                     required
+                    fullWidth
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Password"
+                    variant="outlined"
                   />
-                </div>
-              </>
+                </>
+              )}
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
             )}
-          </div>
 
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
-          )}
+            {success && (
+              <Alert
+                severity="info"
+                sx={{
+                  mt: 2,
+                  border: "1px solid rgba(56,189,248,0.25)",
+                  bgcolor: "rgba(56,189,248,0.08)",
+                  color: "text.primary",
+                }}
+              >
+                {success}
+              </Alert>
+            )}
 
-          {success && (
-            <div className="rounded-md bg-green-50 p-4">
-              <div className="text-sm text-green-700">{success}</div>
-            </div>
-          )}
-
-          <div>
-            <button
+            <Button
               type="submit"
+              fullWidth
+              variant="contained"
               disabled={isLoading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+              sx={{ mt: 3, py: 1.5 }}
             >
               {isLoading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <CircularProgress size={20} color="inherit" />
                   Processing...
-                </span>
+                </Box>
               ) : (
                 <span>{isLogin ? 'Sign in' : 'Create account'}</span>
               )}
-            </button>
-          </div>
-        </form>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    </Box>
   );
 };
 

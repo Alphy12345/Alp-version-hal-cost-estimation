@@ -1,16 +1,52 @@
 import React, { useState, useEffect } from "react";
 import { getProject, updateProject } from "../api/projects";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CircularProgress,
+  Divider,
+  Grid,
+  IconButton,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+  Alert,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 function EditProjectPage({ onChange, projectId }) {
   const [projectName, setProjectName] = useState("");
   const [poNumber, setPoNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [projectDate, setProjectDate] = useState("");
+  const [customFields, setCustomFields] = useState([]);
   const [requirementDocs, setRequirementDocs] = useState([]);
   const [otherDocs, setOtherDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const addCustomField = () => {
+    setCustomFields((p) => [...p, { label: "", value: "" }]);
+  };
+
+  const updateCustomField = (idx, key, value) => {
+    setCustomFields((p) => {
+      const next = [...p];
+      const row = next[idx] || { label: "", value: "" };
+      next[idx] = { ...row, [key]: value };
+      return next;
+    });
+  };
+
+  const removeCustomField = (idx) => {
+    setCustomFields((p) => p.filter((_, i) => i !== idx));
+  };
 
   useEffect(() => {
     if (projectId) {
@@ -26,6 +62,15 @@ function EditProjectPage({ onChange, projectId }) {
       setCustomerName(project.customer_name || "");
       setPoNumber(project.po_reference_number || "");
       setProjectDate(project.project_date || "");
+      const incomingCustomFields = Array.isArray(project.custom_fields)
+        ? project.custom_fields
+            .map((f) => ({
+              label: String(f?.label || "").trim(),
+              value: String(f?.value || "").trim(),
+            }))
+            .filter((f) => f.label)
+        : [];
+      setCustomFields(incomingCustomFields);
       setError(null);
     } catch (err) {
       setError("Failed to fetch project data");
@@ -61,12 +106,21 @@ function EditProjectPage({ onChange, projectId }) {
       formData.append('customer_name', customerName);
       formData.append('po_reference_number', poNumber);
       formData.append('project_date', projectDate);
-      
+
+      const cleanedCustomFields = (customFields || [])
+        .map((f) => ({
+          label: String(f?.label || "").trim(),
+          value: String(f?.value || "").trim(),
+        }))
+        .filter((f) => f.label);
+
+      formData.append("custom_fields", JSON.stringify(cleanedCustomFields));
+
       // Add requirement docs (take first one if multiple)
       if (requirementDocs.length > 0) {
         formData.append('requirement_docs', requirementDocs[0]);
       }
-      
+
       // Add other docs (take first one if multiple)
       if (otherDocs.length > 0) {
         formData.append('other_docs', otherDocs[0]);
@@ -74,10 +128,10 @@ function EditProjectPage({ onChange, projectId }) {
 
       // Update the project
       await updateProject(projectId, formData);
-      
+
       // Show success message
       alert(`Project "${projectName}" updated successfully!`);
-      
+
       // Navigate back to projects list
       onChange("projects");
     } catch (err) {
@@ -90,151 +144,269 @@ function EditProjectPage({ onChange, projectId }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-slate-500">Loading project data...</div>
-      </div>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 6 }}>
+        <Stack spacing={2} alignItems="center">
+          <CircularProgress />
+          <Typography variant="body2" color="text.secondary">
+            Loading project data...
+          </Typography>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <header className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-slate-100 p-6 shadow-sm">
-        <h1 className="text-xl md:text-2xl font-semibold tracking-wide">Edit Project</h1>
-      </header>
+    <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+      <Stack spacing={3}>
+        <Paper
+          sx={{
+            borderRadius: 3,
+            background: "linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)",
+            color: "white",
+            p: 3,
+          }}
+        >
+          <Typography variant="h4" fontWeight={600} sx={{ letterSpacing: 0.5 }}>
+            Edit Project
+          </Typography>
+        </Paper>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
-        )}
+        <Box component="form" onSubmit={handleSubmit}>
+          <Stack spacing={3}>
+            {error && <Alert severity="error">{error}</Alert>}
 
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-            <h2 className="text-base font-semibold text-slate-800">Project Information</h2>
-          </div>
-          <div className="p-6 grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Project Name</label>
-              <input
-                type="text"
-                placeholder="Enter project name"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">PO / Reference Number</label>
-              <input
-                type="text"
-                placeholder="Enter PO or reference number"
-                value={poNumber}
-                onChange={(e) => setPoNumber(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Customer Name</label>
-              <input
-                type="text"
-                placeholder="Enter customer name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Project Date</label>
-              <input
-                type="date"
-                value={projectDate}
-                onChange={(e) => setProjectDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-xs md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 shadow-sm"
-              />
-            </div>
-          </div>
-        </section>
+            <Card variant="outlined">
+              <CardHeader title="Project Information" />
+              <Divider />
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      label="Project Name"
+                      placeholder="Enter project name"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      fullWidth
+                      size="small"
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      label="PO / Reference Number"
+                      placeholder="Enter PO or reference number"
+                      value={poNumber}
+                      onChange={(e) => setPoNumber(e.target.value)}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      label="Customer Name"
+                      placeholder="Enter customer name"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      fullWidth
+                      size="small"
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      label="Project Date"
+                      type="date"
+                      value={projectDate}
+                      onChange={(e) => setProjectDate(e.target.value)}
+                      fullWidth
+                      size="small"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
 
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-            <h2 className="text-base font-semibold text-slate-800">Add Additional Documents</h2>
-            <p className="text-xs text-slate-500 mt-1">Upload new documents to add to this project</p>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Additional Requirement Documents</label>
-              <input
-                type="file"
-                multiple
-                onChange={handleFileChange(setRequirementDocs, true)}
-                className="text-xs md:text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+            <Card variant="outlined">
+              <CardHeader
+                title="Additional Fields"
+                subheader="Add any extra project fields you want"
+                action={
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={addCustomField}
+                    sx={{ textTransform: "none", fontWeight: 700 }}
+                  >
+                    Add Field
+                  </Button>
+                }
               />
-              {requirementDocs.length > 0 && (
-                <ul className="text-xs text-slate-600 mt-1 space-y-1">
-                  {requirementDocs.map((f, i) => (
-                    <li key={i} className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                      <span className="truncate mr-2">{f.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(setRequirementDocs, i)}
-                        className="text-xs text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Additional Other Documents</label>
-              <input
-                type="file"
-                multiple
-                onChange={handleFileChange(setOtherDocs, true)}
-                className="text-xs md:text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
-              />
-              {otherDocs.length > 0 && (
-                <ul className="text-xs text-slate-600 mt-1 space-y-1">
-                  {otherDocs.map((f, i) => (
-                    <li key={i} className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                      <span className="truncate mr-2">{f.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(setOtherDocs, i)}
-                        className="text-xs text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
+              <Divider />
+              <CardContent>
+                {customFields.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No additional fields.
+                  </Typography>
+                ) : (
+                  <Stack spacing={1.5}>
+                    {customFields.map((row, idx) => (
+                      <Grid container spacing={1.5} alignItems="center" key={idx}>
+                        <Grid item xs={12} md={5}>
+                          <TextField
+                            label="Field name"
+                            value={row.label}
+                            onChange={(e) => updateCustomField(idx, "label", e.target.value)}
+                            fullWidth
+                            size="small"
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Value"
+                            value={row.value}
+                            onChange={(e) => updateCustomField(idx, "value", e.target.value)}
+                            fullWidth
+                            size="small"
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={1}>
+                          <IconButton aria-label="remove" onClick={() => removeCustomField(idx)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
+                    ))}
+                  </Stack>
+                )}
+              </CardContent>
+            </Card>
 
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => onChange("projects")}
-            className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200"
-          >
-            ← Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? "Updating Project..." : "Update Project"}
-          </button>
-        </div>
-      </form>
-    </div>
+            <Card variant="outlined">
+              <CardHeader
+                title="Add Additional Documents"
+                subheader="Upload new documents to add to this project"
+              />
+              <Divider />
+              <CardContent>
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
+                      Additional Requirement Documents
+                    </Typography>
+                    <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
+                      Choose Files
+                      <input
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={handleFileChange(setRequirementDocs, true)}
+                      />
+                    </Button>
+                    {requirementDocs.length > 0 && (
+                      <Stack spacing={0.5} sx={{ mt: 1 }}>
+                        {requirementDocs.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              bgcolor: "grey.50",
+                              px: 1.5,
+                              py: 0.75,
+                              borderRadius: 1,
+                              border: 1,
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
+                              {f.name}
+                            </Typography>
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => removeFile(setRequirementDocs, i)}
+                              sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
+                            >
+                              Remove
+                            </Button>
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
+                      Additional Other Documents
+                    </Typography>
+                    <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
+                      Choose Files
+                      <input
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={handleFileChange(setOtherDocs, true)}
+                      />
+                    </Button>
+                    {otherDocs.length > 0 && (
+                      <Stack spacing={0.5} sx={{ mt: 1 }}>
+                        {otherDocs.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              bgcolor: "grey.50",
+                              px: 1.5,
+                              py: 0.75,
+                              borderRadius: 1,
+                              border: 1,
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
+                              {f.name}
+                            </Typography>
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => removeFile(setOtherDocs, i)}
+                              sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
+                            >
+                              Remove
+                            </Button>
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Stack direction="row" spacing={2} justifyContent="space-between">
+              <Button
+                variant="outlined"
+                onClick={() => onChange("projects")}
+                sx={{ textTransform: "none", fontWeight: 700 }}
+              >
+                ← Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="warning"
+                disabled={saving}
+                sx={{ textTransform: "none", fontWeight: 700 }}
+              >
+                {saving ? "Updating Project..." : "Update Project"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Stack>
+    </Box>
   );
 }
 

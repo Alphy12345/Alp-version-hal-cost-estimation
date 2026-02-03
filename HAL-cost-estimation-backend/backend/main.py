@@ -21,6 +21,7 @@ from .routes import (
     projects,
     files,
     users,
+    man_hours,
 )
 import os
 
@@ -52,6 +53,7 @@ app.include_router(duties.router)
 app.include_router(materials.router)
 app.include_router(machine_selection.router)
 app.include_router(mhr.router)
+app.include_router(man_hours.router)
 app.include_router(cost_estimation.router)
 app.include_router(projects.router)  # Add this line
 app.include_router(files.router)

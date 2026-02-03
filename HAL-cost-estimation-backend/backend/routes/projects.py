@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+import json
+
 from ..db import get_db
-from ..models.projects import Project, ProjectDocument, ProjectPart, ProjectPartDocument
+from ..models.projects import Project, ProjectCustomField, ProjectDocument, ProjectPart, ProjectPartDocument
 from pydantic import BaseModel
 from backend.services.file_service import upload_file
 from backend.services.minio_client import MINIO_CLIENT, BUCKET_NAME
@@ -33,6 +35,17 @@ class ProjectBase(BaseModel):
     po_reference_number: Optional[str] = None
     project_date: Optional[str] = None
 
+class ProjectCustomFieldBase(BaseModel):
+    label: str
+    value: Optional[str] = None
+
+class ProjectCustomFieldResponse(ProjectCustomFieldBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class ProjectCreate(ProjectBase):
     pass
 
@@ -57,6 +70,7 @@ class ProjectResponse(ProjectBase):
     created_at: datetime
     parts: List[PartResponse] = []
     documents: List[DocumentResponse] = []
+    custom_fields: List[ProjectCustomFieldResponse] = []
 
     class Config:
         from_attributes = True
@@ -81,6 +95,7 @@ async def create_project(
     customer_name: str = Form(...),
     po_reference_number: Optional[str] = Form(None),
     project_date: Optional[str] = Form(None),
+    custom_fields: Optional[str] = Form(None),
     requirement_docs: List[UploadFile] = File(None),
     other_docs: List[UploadFile] = File(None),
     db: Session = Depends(get_db)
@@ -97,6 +112,22 @@ async def create_project(
     db.add(project)
     db.commit()
     db.refresh(project)
+
+    if custom_fields:
+        try:
+            parsed = json.loads(custom_fields)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if not isinstance(item, dict):
+                        continue
+                    label = str(item.get("label") or "").strip()
+                    if not label:
+                        continue
+                    value = item.get("value")
+                    value_str = None if value is None else str(value)
+                    db.add(ProjectCustomField(project_id=project.id, label=label, value=value_str))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid custom_fields JSON")
     
     # Save requirement documents
     if requirement_docs:
@@ -126,7 +157,6 @@ async def create_project(
     
     db.commit()
     db.refresh(project)
-    
     return project
 
 
@@ -153,6 +183,7 @@ async def update_project(
     customer_name: Optional[str] = Form(None),
     po_reference_number: Optional[str] = Form(None),
     project_date: Optional[str] = Form(None),
+    custom_fields: Optional[str] = Form(None),
     requirement_docs: List[UploadFile] = File(None),
     other_docs: List[UploadFile] = File(None),
     db: Session = Depends(get_db)
@@ -171,6 +202,30 @@ async def update_project(
         project.po_reference_number = po_reference_number
     if project_date is not None:
         project.project_date = project_date
+
+    if custom_fields is not None:
+        try:
+            parsed = json.loads(custom_fields) if custom_fields else []
+            if not isinstance(parsed, list):
+                raise ValueError("custom_fields not a list")
+
+            for existing in list(project.custom_fields or []):
+                db.delete(existing)
+            db.flush()
+
+            for item in parsed:
+                if not isinstance(item, dict):
+                    continue
+                label = str(item.get("label") or "").strip()
+                if not label:
+                    continue
+                value = item.get("value")
+                value_str = None if value is None else str(value)
+                db.add(ProjectCustomField(project_id=project.id, label=label, value=value_str))
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid custom_fields JSON")
     
     # Add new requirement documents
     if requirement_docs:
