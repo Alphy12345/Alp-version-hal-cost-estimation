@@ -25,6 +25,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -86,7 +88,20 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     material: "steel",
     machine_name: "",
     man_hours_per_unit: "",
+    miscellaneous_items: [{ description: "", amount: "" }],
   });
+
+  const miscItems = useMemo(() => {
+    const items = form?.miscellaneous_items;
+    return Array.isArray(items) && items.length > 0 ? items : [{ description: "", amount: "" }];
+  }, [form?.miscellaneous_items]);
+
+  const miscTotal = useMemo(() => {
+    return miscItems.reduce((sum, it) => {
+      const n = Number(it?.amount);
+      return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+    }, 0);
+  }, [miscItems]);
 
   const [manHoursUploadLoading, setManHoursUploadLoading] = useState(false);
   const [manHoursUploadError, setManHoursUploadError] = useState("");
@@ -161,6 +176,15 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     });
   }, [form.operation_type, machines, operationTypes]);
 
+  useEffect(() => {
+    const current = String(form.machine_name || "").trim();
+    if (!current) return;
+    const exists = filteredMachines.some((m) => String(m?.name || "").trim() === current);
+    if (!exists) {
+      setForm((p) => ({ ...p, machine_name: "" }));
+    }
+  }, [filteredMachines, form.machine_name]);
+
   // --- Handlers ---
   const handleManHoursUploadClick = () => {
     setManHoursUploadError("");
@@ -206,6 +230,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
       const breadth = Number(form.breadth);
       const height = Number(form.height);
       const manHours = Number(form.man_hours_per_unit);
+      const miscAmount = miscTotal;
 
       if (!machineName) {
         throw new Error("Please select a machine");
@@ -217,6 +242,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
       if (!Number.isFinite(length) || length <= 0) {
         throw new Error("Please enter a valid Length");
+      }
+
+      if (!Number.isFinite(miscAmount) || miscAmount < 0) {
+        throw new Error("Please enter a valid Miscellaneous Amount");
       }
 
       const dimensions = { length };
@@ -244,7 +273,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         operation_type: opType,
         machine_name: machineName,
         man_hours_per_unit: manHours,
-        miscellaneous_amount: 0,
+        miscellaneous_amount: miscAmount,
       };
 
       const res = await calculateCostEstimation(payload);
@@ -363,6 +392,75 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                   </Grid>
                   {manHoursUploadError && <Typography variant="caption" color="error">{manHoursUploadError}</Typography>}
                 </Box>
+
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                    <Typography variant="subtitle2">Miscellaneous Costs</Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<AddCircleOutlineIcon />}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                      onClick={() => setForm((p) => ({
+                        ...p,
+                        miscellaneous_items: [...miscItems, { description: "", amount: "" }],
+                      }))}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+
+                  <Stack spacing={1.25}>
+                    {miscItems.map((item, idx) => (
+                      <Grid container spacing={1} key={idx} alignItems="center">
+                        <Grid item xs={12} sm={7}>
+                          <TextField
+                            label="Description"
+                            size="small"
+                            fullWidth
+                            value={item?.description || ""}
+                            onChange={(e) => {
+                              const next = miscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
+                              setForm((p) => ({ ...p, miscellaneous_items: next }));
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={10} sm={4}>
+                          <TextField
+                            label="Amount"
+                            type="number"
+                            size="small"
+                            fullWidth
+                            inputProps={{ step: "0.01", min: "0" }}
+                            value={item?.amount ?? ""}
+                            onChange={(e) => {
+                              const next = miscItems.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
+                              setForm((p) => ({ ...p, miscellaneous_items: next }));
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={2} sm={1} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                          <IconButton
+                            title="Remove"
+                            onClick={() => {
+                              const next = miscItems.filter((_, i) => i !== idx);
+                              setForm((p) => ({ ...p, miscellaneous_items: next.length ? next : [{ description: "", amount: "" }] }));
+                            }}
+                          >
+                            <DeleteOutlineIcon fontSize="small" />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
+                    ))}
+                  </Stack>
+
+                  <Box sx={{ mt: 1.5, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <Typography variant="caption" color="text.secondary">Total</Typography>
+                    <Typography variant="body2" fontWeight={800} color="primary.main">
+                      {miscTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
+                </Paper>
 
                 <Divider />
                 <Typography variant="caption" fontWeight={600}>Dimensions (mm)</Typography>

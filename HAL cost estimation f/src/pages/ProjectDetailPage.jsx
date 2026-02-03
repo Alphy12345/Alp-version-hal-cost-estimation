@@ -255,7 +255,16 @@ function ProjectDetailPage({ onChange, projectId }) {
 
       const manHours = Number(formData.man_hours_per_unit);
       const miscAmountRaw = formData.miscellaneous_amount;
-      const miscAmount = miscAmountRaw === "" || miscAmountRaw == null ? 0 : Number(miscAmountRaw);
+      const miscItems = formData.miscellaneous_items;
+      const miscAmountFromItems = Array.isArray(miscItems)
+        ? miscItems.reduce((sum, it) => {
+            const n = Number(it?.amount);
+            return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+          }, 0)
+        : null;
+      const miscAmount = typeof miscAmountFromItems === "number"
+        ? miscAmountFromItems
+        : (miscAmountRaw === "" || miscAmountRaw == null ? 0 : Number(miscAmountRaw));
       const length = Number(formData.length);
       const diameter = Number(formData.diameter);
       const breadth = Number(formData.breadth);

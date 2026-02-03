@@ -21,7 +21,13 @@ export async function calculateCostEstimation(payload) {
       lastErrorByEndpoint[endpoint] = err;
 
       const status = err?.response?.status;
-      if (status === 404) return null;
+      if (status === 404) {
+        const detail = err?.response?.data?.detail;
+        // Only fall back when FastAPI router returns its generic 404 for a missing route.
+        if (detail === "Not Found") return null;
+        // Otherwise it's a real domain-level 404 (e.g. machine not found), so surface it.
+        throw err;
+      }
 
       // For non-404 errors, the endpoint exists but request failed (validation, etc.)
       throw err;
