@@ -4,7 +4,9 @@ from ..db import get_db
 from ..schemas.cost_schemas import (
     CostEstimationRequest, 
     CostEstimationResponse,
-    CostBreakdown
+    CostBreakdown,
+    CostEstimationBatchRequest,
+    CostEstimationBatchResponse,
 )
 from ..services.cost_calculation_service import CostCalculationService
 
@@ -83,24 +85,22 @@ def calculate_cost_estimation(
     - Step-by-step calculation explanation
     """
     
-    # Initialize service
+    return _calculate_one(request, db)
+
+
+def _calculate_one(request: CostEstimationRequest, db: Session) -> CostEstimationResponse:
     service = CostCalculationService(db)
-    
-    # Step 1: Get machine details from database by name
+
     try:
         machine_details = service.get_machine_details(request.machine_name, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    
+
     machine_name = machine_details["name"]
-    
-    # Step 2: Determine machine category from name
     machine_category = service.determine_machine_category(machine_name)
-    
-    # Detect shape and prepare dimensions dict
+
     dims = request.dimensions
     if dims.diameter is not None:
-        # Round part
         shape = "round"
         dimensions_dict = {
             "diameter": dims.diameter,
@@ -108,7 +108,6 @@ def calculate_cost_estimation(
         }
         volume = 3.14159 * (dims.diameter/2)**2 * dims.length
     elif dims.breadth is not None and dims.height is not None:
-        # Rectangular part
         shape = "rectangular"
         dimensions_dict = {
             "length": dims.length,
@@ -121,8 +120,7 @@ def calculate_cost_estimation(
             status_code=400,
             detail="Invalid dimensions. Provide either (diameter + length) for round parts OR (length + breadth + height) for rectangular parts"
         )
-    
-    # Step 3: Determine duty category
+
     if request.duty_category:
         duty = request.duty_category.value
     else:
@@ -132,8 +130,7 @@ def calculate_cost_estimation(
             material=request.material.value,
             operation=request.operation_type.value
         )
-    
-    # Step 4: Get Machine Hour Rate (B)
+
     try:
         machine_hour_rate = service.get_machine_hour_rate(
             operation=request.operation_type.value,
@@ -145,26 +142,19 @@ def calculate_cost_estimation(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-    # Step 5: Get Wage Rate (C)
+
     wage_rate = service.get_wage_rate(machine_name)
-    
-    # Step 6: Get Man-hours (A) from input
     man_hours = request.man_hours_per_unit
-    
-    # Step 7: Calculate all costs
+
     cost_breakdown = service.calculate_costs(
         man_hours=man_hours,
         machine_hour_rate=machine_hour_rate,
         wage_rate=wage_rate,
-        quantity=1,  # Always calculate per unit
+        quantity=1,
         miscellaneous_amount=request.miscellaneous_amount or 0.0
     )
-    
-    # Remove total_cost since we're calculating per unit
     cost_breakdown.pop('total_cost', None)
-    
-    # Step 8: Create calculation explanation
+
     calculation_steps = {
         "step_1_inputs": {
             "A_man_hours": man_hours,
@@ -212,9 +202,8 @@ def calculate_cost_estimation(
             "result": cost_breakdown["outsourcing_mhr"]
         }
     }
-    
-    # Prepare response
-    response = CostEstimationResponse(
+
+    return CostEstimationResponse(
         duty_category=duty,
         selected_machine=machine_details,
         machine_category=machine_category,
@@ -226,8 +215,26 @@ def calculate_cost_estimation(
         operation_type=request.operation_type,
         calculation_steps=calculation_steps
     )
-    
-    return response
+
+
+@router.post("/calculate-batch", response_model=CostEstimationBatchResponse)
+def calculate_cost_estimation_batch(
+    request: CostEstimationBatchRequest,
+    db: Session = Depends(get_db)
+):
+    results = []
+    for op in request.operations:
+        results.append(_calculate_one(op, db))
+
+    combined = 0.0
+    for r in results:
+        n = getattr(r.cost_breakdown, "total_unit_cost_with_misc", None)
+        combined += float(n) if n is not None else 0.0
+
+    return CostEstimationBatchResponse(
+        operations=results,
+        combined_total_unit_cost_with_misc=round(combined, 2)
+    )
 
 
 @router.post("/quick-estimate", response_model=dict)

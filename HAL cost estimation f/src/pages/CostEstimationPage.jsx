@@ -48,13 +48,24 @@ export default function CostEstimationPage() {
     shape: "round",
   });
 
+  const opTypeNormalized = useMemo(() => {
+    return String(form.operation_type || "").trim().toLowerCase();
+  }, [form.operation_type]);
+
+  const roundOnlyOps = useMemo(() => new Set(["turning", "boring"]), []);
+  const rectangularOnlyOps = useMemo(() => new Set(["milling", "grinding", "surface_treatment"]), []);
+  const flexibleOps = useMemo(() => new Set(["drilling", "heat_treatment", "welding"]), []);
+
+  const isFlexibleOp = flexibleOps.has(opTypeNormalized);
+  const isRoundDims = roundOnlyOps.has(opTypeNormalized) || (isFlexibleOp && String(form.shape || "round").trim().toLowerCase() !== "rectangular");
+
   const dimensions = useMemo(() => {
     const n = (v) => {
       const num = Number(v);
       return Number.isFinite(num) ? num : NaN;
     };
 
-    if (form.shape === "round") {
+    if (isRoundDims) {
       return {
         diameter: n(form.diameter),
         length: n(form.length),
@@ -66,7 +77,7 @@ export default function CostEstimationPage() {
       breadth: n(form.breadth),
       height: n(form.height),
     };
-  }, [form]);
+  }, [form, isRoundDims]);
 
   const handleChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -79,16 +90,31 @@ export default function CostEstimationPage() {
     const manHours = Number(form.man_hours_per_unit);
     if (!Number.isFinite(manHours) || manHours <= 0) return "Man Hours / Unit must be a valid number";
 
-    if (form.shape === "round") {
+    if (!Number.isFinite(dimensions.length) || dimensions.length <= 0) return "Length must be a valid number";
+
+    if (roundOnlyOps.has(opTypeNormalized)) {
       if (!Number.isFinite(dimensions.diameter) || dimensions.diameter <= 0) return "Diameter must be a valid number";
-      if (!Number.isFinite(dimensions.length) || dimensions.length <= 0) return "Length must be a valid number";
-    } else {
-      if (!Number.isFinite(dimensions.length) || dimensions.length <= 0) return "Length must be a valid number";
-      if (!Number.isFinite(dimensions.breadth) || dimensions.breadth <= 0) return "Breadth must be a valid number";
-      if (!Number.isFinite(dimensions.height) || dimensions.height <= 0) return "Height must be a valid number";
+      return "";
     }
 
-    return "";
+    if (rectangularOnlyOps.has(opTypeNormalized)) {
+      if (!Number.isFinite(dimensions.breadth) || dimensions.breadth <= 0) return "Breadth must be a valid number";
+      if (!Number.isFinite(dimensions.height) || dimensions.height <= 0) return "Height must be a valid number";
+      return "";
+    }
+
+    if (flexibleOps.has(opTypeNormalized)) {
+      const shape = String(form.shape || "round").trim().toLowerCase();
+      if (shape === "rectangular") {
+        if (!Number.isFinite(dimensions.breadth) || dimensions.breadth <= 0) return "Breadth must be a valid number";
+        if (!Number.isFinite(dimensions.height) || dimensions.height <= 0) return "Height must be a valid number";
+        return "";
+      }
+      if (!Number.isFinite(dimensions.diameter) || dimensions.diameter <= 0) return "Diameter must be a valid number";
+      return "";
+    }
+
+    return "Invalid operation type";
   };
 
   const handleSubmit = async () => {
@@ -168,8 +194,29 @@ export default function CostEstimationPage() {
                     >
                       <MenuItem value="turning">Turning</MenuItem>
                       <MenuItem value="milling">Milling</MenuItem>
+                      <MenuItem value="drilling">Drilling</MenuItem>
+                      <MenuItem value="grinding">Grinding</MenuItem>
+                      <MenuItem value="boring">Boring</MenuItem>
+                      <MenuItem value="heat_treatment">Heat Treatment</MenuItem>
+                      <MenuItem value="welding">Welding</MenuItem>
+                      <MenuItem value="surface_treatment">Surface Treatment</MenuItem>
                     </TextField>
                   </Grid>
+
+                  {isFlexibleOp && (
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Shape"
+                        value={String(form.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round"}
+                        onChange={handleChange("shape")}
+                      >
+                        <MenuItem value="round">Round</MenuItem>
+                        <MenuItem value="rectangular">Rectangular</MenuItem>
+                      </TextField>
+                    </Grid>
+                  )}
                   <Grid item xs={12} sm={6}>
                     <TextField
                       select

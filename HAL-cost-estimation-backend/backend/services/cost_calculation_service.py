@@ -232,6 +232,16 @@ class CostCalculationService:
                 out = out[: -len(" duty")]
             return out
 
+        def _norm_sql(col):
+            # Mirror _norm() behavior in SQL for robust joins/filters.
+            # NOTE: we do not collapse repeated spaces in SQL; we compensate by
+            # removing spaces on both sides for equality checks.
+            return func.lower(func.trim(func.replace(func.replace(col, "_", " "), "-", " ")))
+
+        def _compact(s: str) -> str:
+            # Compact spaces for comparisons where SQL can't easily collapse whitespace.
+            return "".join(_norm(s).split())
+
         def _resolve_duty_id(d: str) -> Optional[int]:
             d_norm = _norm(d)
             if not d_norm:
@@ -249,9 +259,10 @@ class CostCalculationService:
         try:
             op_id = op_type_id
             if op_id is None and operation:
+                op_compact = _compact(operation)
                 op_row = (
                     db.query(OperationTypeModel)
-                    .filter(func.lower(func.trim(OperationTypeModel.operation_name)) == operation.strip().lower())
+                    .filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "") == op_compact)
                     .first()
                 )
                 op_id = op_row.id if op_row else None
@@ -288,7 +299,7 @@ class CostCalculationService:
                 .join(OperationTypeModel, MHR.op_type_id == OperationTypeModel.id)
                 .join(Duty, MHR.duty_id == Duty.id)
                 .join(Machine, MHR.machine_id == Machine.id)
-                .filter(func.lower(func.trim(OperationTypeModel.operation_name)) == operation.strip().lower())
+                .filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "") == _compact(operation))
                 .all()
             )
 

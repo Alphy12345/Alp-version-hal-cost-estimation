@@ -21,7 +21,7 @@ import CostEstimationTab from "../components/project-details/CostEstimationTab";
 import TotalCostTab from "../components/project-details/TotalCostTab";
 import PdfPreview from "../components/PdfPreview"; // Helper for potential usage, though mostly passed down or used in sub-components
 import api from "../api/client";
-import { calculateCostEstimation } from "../api/costEstimation";
+import { calculateCostEstimation, calculateCostEstimationBatch } from "../api/costEstimation";
 
 function ProjectDetailPage({ onChange, projectId }) {
   const [projectData, setProjectData] = useState(null);
@@ -41,7 +41,7 @@ function ProjectDetailPage({ onChange, projectId }) {
   const [operationTypes, setOperationTypes] = useState([]);
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
-  const [costResults, setCostResults] = useState({}); // { partId: resultData }
+  const [costResults, setCostResults] = useState({}); // { partId: { operations: [resultData|null], combined_total_unit_cost_with_misc: number } }
 
   // --- Initial Data Fetching ---
   useEffect(() => {
@@ -61,17 +61,24 @@ function ProjectDetailPage({ onChange, projectId }) {
 
           // Initialize cost forms for parts
           const initialForms = {};
-          partsData?.forEach(p => {
+          const defaultOperation = {
+            operation_type: "turning",
+            shape: "round",
+            material: "steel",
+            machine_name: "",
+            man_hours_per_unit: "",
+            miscellaneous_amount: "",
+            miscellaneous_items: [{ description: "", amount: "" }],
+            length: "",
+            diameter: "", // for turning
+            breadth: "", // for milling
+            height: "", // for milling
+          };
+
+          partsData?.forEach((p) => {
             initialForms[p.id] = {
-              operation_type: "turning",
-              material: "steel",
-              machine_name: "",
-              man_hours_per_unit: "",
-              miscellaneous_amount: "",
-              length: "",
-              diameter: "", // for turning
-              breadth: "", // for milling
-              height: "", // for milling
+              activeOperationIndex: 0,
+              operations: [{ ...defaultOperation }],
             };
           });
           setCostForms(prev => ({ ...initialForms, ...prev })); // Merge to keep existing edits if any re-fetch happens
@@ -168,15 +175,22 @@ function ProjectDetailPage({ onChange, projectId }) {
     setCostForms(prev => ({
       ...prev,
       [newPart.id]: {
-        operation_type: "turning",
-        material: "steel",
-        machine_name: "",
-        man_hours_per_unit: "",
-        miscellaneous_amount: "",
-        length: "",
-        diameter: "",
-        breadth: "",
-        height: "",
+        activeOperationIndex: 0,
+        operations: [
+          {
+            operation_type: "turning",
+            shape: "round",
+            material: "steel",
+            machine_name: "",
+            man_hours_per_unit: "",
+            miscellaneous_amount: "",
+            miscellaneous_items: [{ description: "", amount: "" }],
+            length: "",
+            diameter: "",
+            breadth: "",
+            height: "",
+          },
+        ],
       }
     }));
   };
@@ -205,6 +219,86 @@ function ProjectDetailPage({ onChange, projectId }) {
     }
   };
 
+  const handleCostSubmitAll = async (partId) => {
+    setCostLoading(true);
+    setCostError("");
+    try {
+      const partForm = costForms?.[partId];
+      const ops = Array.isArray(partForm?.operations) ? partForm.operations : [];
+      if (!ops.length) throw new Error("No operations found");
+
+      // Prefer the new batch endpoint (single request). If it's missing, fall back to sequential.
+      try {
+        const operationsPayload = ops.map((_, idx) => buildOperationPayload(partId, idx));
+        const res = await calculateCostEstimationBatch({ operations: operationsPayload });
+        const data = res?.data;
+
+        const nextOps = Array.isArray(data?.operations) ? data.operations : [];
+        const combined = Number(data?.combined_total_unit_cost_with_misc);
+
+        setCostResults((prev) => {
+          const current = prev?.[partId] || { operations: [] };
+          const combinedValue = Number.isFinite(combined)
+            ? combined
+            : nextOps.reduce((sum, r) => {
+                const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
+                return sum + (Number.isFinite(n) ? n : 0);
+              }, 0);
+
+          return {
+            ...prev,
+            [partId]: {
+              ...current,
+              operations: nextOps,
+              combined_total_unit_cost_with_misc: combinedValue,
+            },
+          };
+        });
+
+        return;
+      } catch (err) {
+        const status = err?.response?.status;
+        const detail = err?.response?.data?.detail;
+        const isMissing = status === 404 && (detail === "Not Found" || detail === "Not Found.");
+        if (!isMissing) throw err;
+      }
+
+      for (let i = 0; i < ops.length; i += 1) {
+        const { res, operationsLength } = await calculateSingleOperation(partId, i);
+        setCostResults((prev) => {
+          const current = prev?.[partId] || { operations: [] };
+          const existingOps = Array.isArray(current.operations) ? current.operations : [];
+          const nextOps = existingOps.slice();
+          while (nextOps.length < operationsLength) nextOps.push(null);
+          nextOps[i] = res.data;
+
+          const combined = nextOps.reduce((sum, r) => {
+            const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
+            return sum + (Number.isFinite(n) ? n : 0);
+          }, 0);
+
+          return {
+            ...prev,
+            [partId]: {
+              ...current,
+              operations: nextOps,
+              combined_total_unit_cost_with_misc: combined,
+            },
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Cost calculation failed:", err);
+      setCostError(
+        err.response?.data?.detail ||
+        err.message ||
+        "Failed to calculate cost. Please check inputs."
+      );
+    } finally {
+      setCostLoading(false);
+    }
+  };
+
   // --- File Viewer Logic ---
   const handleViewFile = (filePath, fileName) => {
     if (!filePath) return;
@@ -221,90 +315,93 @@ function ProjectDetailPage({ onChange, projectId }) {
     });
   };
 
-  const closeFileViewer = () => {
-    setFileViewer({ ...fileViewer, isOpen: false });
+  const calculateSingleOperation = async (partId, opIndex) => {
+    const partForm = costForms[partId];
+    const operations = Array.isArray(partForm?.operations) ? partForm.operations : [];
+    const payload = buildOperationPayload(partId, opIndex);
+    const res = await calculateCostEstimation(payload);
+    return { res, operationsLength: operations.length };
   };
 
-  // --- Cost Estimation Logic ---
-  const handleCostFormChange = (partId, field, value) => {
-    setCostForms(prev => ({
-      ...prev,
-      [partId]: {
-        ...prev[partId],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleCostSubmit = async (e, partId) => {
-    e.preventDefault();
-    setCostLoading(true);
-    setCostError("");
-
-    const formData = costForms[partId];
-    if (!formData) {
-      setCostError("Form data not found");
-      setCostLoading(false);
-      return;
+  const buildOperationPayload = (partId, opIndex) => {
+    const partForm = costForms[partId];
+    const operations = Array.isArray(partForm?.operations) ? partForm.operations : [];
+    const formData = operations[opIndex];
+    if (!partForm || !formData) {
+      throw new Error("Form data not found");
     }
 
-    try {
-      const opType = String(formData.operation_type || "").trim().toLowerCase();
-      const material = String(formData.material || "").trim().toLowerCase();
-      const machineName = String(formData.machine_name || "").trim();
+    const opType = String(formData.operation_type || "").trim().toLowerCase();
+    const material = String(formData.material || "").trim().toLowerCase();
+    const machineName = String(formData.machine_name || "").trim();
 
-      const normalize = (value) => {
-        return value == null ? "" : String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
-      };
+    const normalize = (value) => {
+      return value == null ? "" : String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+    };
 
-      const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
-      const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
-      const machineRecord = machines.find((m) => String(m?.name || "").trim() === machineName);
-      if (!machineRecord) {
-        throw new Error("Selected machine is not available. Please re-select the machine.");
+    const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
+    const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
+    const machineRecord = machines.find((m) => String(m?.name || "").trim() === machineName);
+    if (!machineRecord) {
+      throw new Error("Selected machine is not available. Please re-select the machine.");
+    }
+    const machineOpId = machineRecord?.op_id ?? machineRecord?.operation_type_id ?? machineRecord?.operation_type?.id ?? machineRecord?.operation_types?.id;
+    const machineIsCompatible = machineOpId == null ? true : String(machineOpId) === selectedOpId;
+    if (!machineIsCompatible) {
+      throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
+    }
+
+    const manHours = Number(formData.man_hours_per_unit);
+    const miscAmountRaw = formData.miscellaneous_amount;
+    const miscItems = formData.miscellaneous_items;
+    const miscAmountFromItems = Array.isArray(miscItems)
+      ? miscItems.reduce((sum, it) => {
+          const n = Number(it?.amount);
+          return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+        }, 0)
+      : null;
+    const miscAmount = typeof miscAmountFromItems === "number"
+      ? miscAmountFromItems
+      : (miscAmountRaw === "" || miscAmountRaw == null ? 0 : Number(miscAmountRaw));
+    const length = Number(formData.length);
+    const diameter = Number(formData.diameter);
+    const breadth = Number(formData.breadth);
+    const height = Number(formData.height);
+
+    if (!machineName) {
+      throw new Error("Please select a machine");
+    }
+
+    if (!Number.isFinite(manHours) || manHours <= 0) {
+      throw new Error("Please enter a valid Man Hours / Unit");
+    }
+
+    if (!Number.isFinite(length) || length <= 0) {
+      throw new Error("Please enter a valid Length");
+    }
+
+    const roundOnlyOps = new Set(["turning", "boring"]);
+    const rectangularOnlyOps = new Set(["milling", "grinding", "surface_treatment"]);
+    const flexibleOps = new Set(["drilling", "heat_treatment", "welding"]);
+
+    const dimensions = { length };
+    if (roundOnlyOps.has(opType)) {
+      if (!Number.isFinite(diameter) || diameter <= 0) {
+        throw new Error("Please enter a valid Diameter");
       }
-      const machineOpId = machineRecord?.op_id ?? machineRecord?.operation_type_id ?? machineRecord?.operation_type?.id ?? machineRecord?.operation_types?.id;
-      const machineIsCompatible = machineOpId == null ? true : String(machineOpId) === selectedOpId;
-      if (!machineIsCompatible) {
-        throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
+      dimensions.diameter = diameter;
+    } else if (rectangularOnlyOps.has(opType)) {
+      if (!Number.isFinite(breadth) || breadth <= 0) {
+        throw new Error("Please enter a valid Breadth");
       }
-
-      const manHours = Number(formData.man_hours_per_unit);
-      const miscAmountRaw = formData.miscellaneous_amount;
-      const miscItems = formData.miscellaneous_items;
-      const miscAmountFromItems = Array.isArray(miscItems)
-        ? miscItems.reduce((sum, it) => {
-            const n = Number(it?.amount);
-            return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
-          }, 0)
-        : null;
-      const miscAmount = typeof miscAmountFromItems === "number"
-        ? miscAmountFromItems
-        : (miscAmountRaw === "" || miscAmountRaw == null ? 0 : Number(miscAmountRaw));
-      const length = Number(formData.length);
-      const diameter = Number(formData.diameter);
-      const breadth = Number(formData.breadth);
-      const height = Number(formData.height);
-
-      if (!machineName) {
-        throw new Error("Please select a machine");
+      if (!Number.isFinite(height) || height <= 0) {
+        throw new Error("Please enter a valid Height");
       }
-
-      if (!Number.isFinite(manHours) || manHours <= 0) {
-        throw new Error("Please enter a valid Man Hours / Unit");
-      }
-
-      if (!Number.isFinite(length) || length <= 0) {
-        throw new Error("Please enter a valid Length");
-      }
-
-      const dimensions = { length };
-      if (opType === "turning") {
-        if (!Number.isFinite(diameter) || diameter <= 0) {
-          throw new Error("Please enter a valid Diameter");
-        }
-        dimensions.diameter = diameter;
-      } else if (opType === "milling") {
+      dimensions.breadth = breadth;
+      dimensions.height = height;
+    } else if (flexibleOps.has(opType)) {
+      const shape = String(formData.shape || "round").trim().toLowerCase();
+      if (shape === "rectangular") {
         if (!Number.isFinite(breadth) || breadth <= 0) {
           throw new Error("Please enter a valid Breadth");
         }
@@ -314,23 +411,153 @@ function ProjectDetailPage({ onChange, projectId }) {
         dimensions.breadth = breadth;
         dimensions.height = height;
       } else {
-        throw new Error("Invalid operation type");
+        if (!Number.isFinite(diameter) || diameter <= 0) {
+          throw new Error("Please enter a valid Diameter");
+        }
+        dimensions.diameter = diameter;
       }
+    } else {
+      throw new Error("Invalid operation type");
+    }
 
-      const payload = {
-        dimensions,
-        material,
-        operation_type: opType,
-        machine_name: machineName,
-        man_hours_per_unit: manHours,
-        miscellaneous_amount: Number.isFinite(miscAmount) ? miscAmount : 0,
+    return {
+      dimensions,
+      material,
+      operation_type: opType,
+      machine_name: machineName,
+      man_hours_per_unit: manHours,
+      miscellaneous_amount: Number.isFinite(miscAmount) ? miscAmount : 0,
+    };
+  };
+
+  const closeFileViewer = () => {
+    setFileViewer({ ...fileViewer, isOpen: false });
+  };
+
+  // --- Cost Estimation Logic ---
+  const handleCostFormChange = (partId, opIndex, field, value) => {
+    setCostForms((prev) => {
+      const current = prev?.[partId] || {};
+      const currentOps = Array.isArray(current.operations) ? current.operations : [];
+      const nextOps = currentOps.map((op, idx) => (idx === opIndex ? { ...op, [field]: value } : op));
+      return {
+        ...prev,
+        [partId]: {
+          ...current,
+          operations: nextOps,
+        },
+      };
+    });
+  };
+
+  const handleCostSetActiveOperation = (partId, nextIndex) => {
+    setCostForms((prev) => {
+      const current = prev?.[partId] || {};
+      const ops = Array.isArray(current.operations) ? current.operations : [];
+      const clamped = Math.max(0, Math.min(Number(nextIndex) || 0, Math.max(0, ops.length - 1)));
+      return {
+        ...prev,
+        [partId]: {
+          ...current,
+          activeOperationIndex: clamped,
+        },
+      };
+    });
+  };
+
+  const handleCostAddOperation = (partId) => {
+    setCostForms((prev) => {
+      const current = prev?.[partId] || {};
+      const ops = Array.isArray(current.operations) ? current.operations : [];
+      const template = ops[ops.length - 1] || {
+        operation_type: "turning",
+        material: "steel",
+        machine_name: "",
+        man_hours_per_unit: "",
+        miscellaneous_amount: "",
+        miscellaneous_items: [{ description: "", amount: "" }],
+        length: "",
+        diameter: "",
+        breadth: "",
+        height: "",
       };
 
-      const res = await calculateCostEstimation(payload);
-      setCostResults(prev => ({
+      const nextOps = [...ops, { ...template, machine_name: "" }];
+      return {
         ...prev,
-        [partId]: res.data
-      }));
+        [partId]: {
+          ...current,
+          operations: nextOps,
+          activeOperationIndex: nextOps.length - 1,
+        },
+      };
+    });
+  };
+
+  const handleCostRemoveOperation = (partId, opIndex) => {
+    setCostForms((prev) => {
+      const current = prev?.[partId] || {};
+      const ops = Array.isArray(current.operations) ? current.operations : [];
+      if (ops.length <= 1) return prev;
+      const nextOps = ops.filter((_, idx) => idx !== opIndex);
+      const nextActive = Math.max(0, Math.min(current.activeOperationIndex || 0, nextOps.length - 1));
+      return {
+        ...prev,
+        [partId]: {
+          ...current,
+          operations: nextOps,
+          activeOperationIndex: nextActive,
+        },
+      };
+    });
+
+    setCostResults((prev) => {
+      const current = prev?.[partId];
+      if (!current || !Array.isArray(current.operations)) return prev;
+      const nextOps = current.operations.filter((_, idx) => idx !== opIndex);
+      const combined = nextOps.reduce((sum, r) => {
+        const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+      return {
+        ...prev,
+        [partId]: {
+          ...current,
+          operations: nextOps,
+          combined_total_unit_cost_with_misc: combined,
+        },
+      };
+    });
+  };
+
+  const handleCostSubmit = async (e, partId, opIndex) => {
+    e.preventDefault();
+    setCostLoading(true);
+    setCostError("");
+
+    try {
+      const { res, operationsLength } = await calculateSingleOperation(partId, opIndex);
+      setCostResults((prev) => {
+        const current = prev?.[partId] || { operations: [] };
+        const existingOps = Array.isArray(current.operations) ? current.operations : [];
+        const nextOps = existingOps.slice();
+        while (nextOps.length < operationsLength) nextOps.push(null);
+        nextOps[opIndex] = res.data;
+
+        const combined = nextOps.reduce((sum, r) => {
+          const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
+          return sum + (Number.isFinite(n) ? n : 0);
+        }, 0);
+
+        return {
+          ...prev,
+          [partId]: {
+            ...current,
+            operations: nextOps,
+            combined_total_unit_cost_with_misc: combined,
+          },
+        };
+      });
     } catch (err) {
       console.error("Cost calculation failed:", err);
       setCostError(
@@ -430,9 +657,13 @@ function ProjectDetailPage({ onChange, projectId }) {
               costResults={costResults}
               costForms={costForms}
               onChangeForm={handleCostFormChange}
+              onSetActiveOperation={handleCostSetActiveOperation}
+              onAddOperation={handleCostAddOperation}
+              onRemoveOperation={handleCostRemoveOperation}
               setCostResults={setCostResults}
               onClearCost={handleClearCost}
               onSubmitCost={handleCostSubmit}
+              onSubmitAllCost={handleCostSubmitAll}
               onViewFile={handleViewFile}
               machines={machines}
               operationTypes={operationTypes}

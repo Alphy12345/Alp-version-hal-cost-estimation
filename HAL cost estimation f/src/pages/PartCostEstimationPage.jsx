@@ -81,6 +81,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
   const [form, setForm] = useState({
     operation_type: "turning",
+    shape: "round",
     diameter: "",
     length: "",
     breadth: "",
@@ -261,13 +262,17 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         throw new Error("Please enter a valid Miscellaneous Amount");
       }
 
+      const roundOnlyOps = new Set(["turning", "boring"]);
+      const rectangularOnlyOps = new Set(["milling", "grinding", "surface_treatment"]);
+      const flexibleOps = new Set(["drilling", "heat_treatment", "welding"]);
+
       const dimensions = { length };
-      if (opType === "turning") {
+      if (roundOnlyOps.has(opType)) {
         if (!Number.isFinite(diameter) || diameter <= 0) {
           throw new Error("Please enter a valid Diameter");
         }
         dimensions.diameter = diameter;
-      } else if (opType === "milling") {
+      } else if (rectangularOnlyOps.has(opType)) {
         if (!Number.isFinite(breadth) || breadth <= 0) {
           throw new Error("Please enter a valid Breadth");
         }
@@ -276,6 +281,23 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         }
         dimensions.breadth = breadth;
         dimensions.height = height;
+      } else if (flexibleOps.has(opType)) {
+        const shape = String(form.shape || "round").trim().toLowerCase();
+        if (shape === "rectangular") {
+          if (!Number.isFinite(breadth) || breadth <= 0) {
+            throw new Error("Please enter a valid Breadth");
+          }
+          if (!Number.isFinite(height) || height <= 0) {
+            throw new Error("Please enter a valid Height");
+          }
+          dimensions.breadth = breadth;
+          dimensions.height = height;
+        } else {
+          if (!Number.isFinite(diameter) || diameter <= 0) {
+            throw new Error("Please enter a valid Diameter");
+          }
+          dimensions.diameter = diameter;
+        }
       } else {
         throw new Error("Invalid operation type");
       }
@@ -346,7 +368,52 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
       </Typography>
 
       <Grid container spacing={4} sx={{ mt: 2 }}>
-        {/* Left Column: Form */}
+        <Grid item xs={12}>
+          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            <Box
+              sx={{
+                p: 1.5,
+                bgcolor: "rgba(56,189,248,0.08)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: 1,
+                borderColor: "rgba(56,189,248,0.12)",
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ ml: 1 }}>2D Drawing</Typography>
+              <Stack direction="row">
+                <IconButton size="small" onClick={() => setDrawingZoom((z) => Math.max(0.2, z - 0.2))}><ZoomOutIcon /></IconButton>
+                <IconButton size="small" onClick={() => setDrawingZoom(1)}><RestartAltIcon /></IconButton>
+                <IconButton size="small" onClick={() => setDrawingZoom((z) => Math.min(4, z + 0.2))}><ZoomInIcon /></IconButton>
+              </Stack>
+            </Box>
+            <Box
+              sx={{
+                p: 2,
+                height: 520,
+                bgcolor: "rgba(56,189,248,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              {part.drawing_2d_path ? (
+                <Box sx={{ transform: `scale(${drawingZoom})`, transition: "transform 0.2s" }}>
+                  {isPdfPath(part.drawing_2d_path) ? (
+                    <PdfPreview url={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 500 }} />
+                  ) : (
+                    <img src={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 500, maxWidth: "100%" }} alt="Drawing" />
+                  )}
+                </Box>
+              ) : (
+                <Typography color="text.secondary">No 2D drawing uploaded</Typography>
+              )}
+            </Box>
+          </Paper>
+        </Grid>
+
         <Grid item xs={12} md={5} lg={4}>
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Input Parameters</Typography>
@@ -357,6 +424,12 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 <TextField select label="Operation Type" fullWidth size="small" value={form.operation_type} onChange={(e) => setForm({ ...form, operation_type: e.target.value })}>
                   <MenuItem value="turning">Turning</MenuItem>
                   <MenuItem value="milling">Milling</MenuItem>
+                  <MenuItem value="drilling">Drilling</MenuItem>
+                  <MenuItem value="grinding">Grinding</MenuItem>
+                  <MenuItem value="boring">Boring</MenuItem>
+                  <MenuItem value="heat_treatment">Heat Treatment</MenuItem>
+                  <MenuItem value="welding">Welding</MenuItem>
+                  <MenuItem value="surface_treatment">Surface Treatment</MenuItem>
                 </TextField>
 
                 <TextField select label="Material" fullWidth size="small" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}>
@@ -366,7 +439,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 </TextField>
 
                 <TextField select label="Machine" fullWidth size="small" value={form.machine_name} onChange={(e) => setForm({ ...form, machine_name: e.target.value })}>
-                  {filteredMachines.map(m => <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>)}
+                  {filteredMachines.map((m) => <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>)}
                 </TextField>
 
                 <Box>
@@ -478,13 +551,29 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 <Divider />
                 <Typography variant="caption" fontWeight={600}>Dimensions (mm)</Typography>
 
+                {(["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase())) && (
+                  <TextField
+                    select
+                    label="Shape"
+                    size="small"
+                    fullWidth
+                    value={String(form.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round"}
+                    onChange={(e) => setForm({ ...form, shape: e.target.value })}
+                  >
+                    <MenuItem value="round">Round</MenuItem>
+                    <MenuItem value="rectangular">Rectangular</MenuItem>
+                  </TextField>
+                )}
+
                 <TextField label="Length" type="number" size="small" fullWidth value={form.length} onChange={(e) => setForm({ ...form, length: e.target.value })} />
 
-                {form.operation_type === "turning" && (
+                {(["turning", "boring"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
+                  (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() !== "rectangular")) && (
                   <TextField label="Diameter" type="number" size="small" fullWidth value={form.diameter} onChange={(e) => setForm({ ...form, diameter: e.target.value })} />
                 )}
 
-                {form.operation_type === "milling" && (
+                {(["milling", "grinding", "surface_treatment"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
+                  (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() === "rectangular")) && (
                   <>
                     <TextField label="Breadth" type="number" size="small" fullWidth value={form.breadth} onChange={(e) => setForm({ ...form, breadth: e.target.value })} />
                     <TextField label="Height" type="number" size="small" fullWidth value={form.height} onChange={(e) => setForm({ ...form, height: e.target.value })} />
@@ -499,58 +588,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
           </Paper>
         </Grid>
 
-        {/* Right Column: Visualization & Results */}
         <Grid item xs={12} md={7} lg={8}>
           <Stack spacing={3}>
-            {/* Drawing Viewer */}
-            <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-              <Box
-                sx={{
-                  p: 1.5,
-                  bgcolor: "rgba(56,189,248,0.08)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderBottom: 1,
-                  borderColor: "rgba(56,189,248,0.12)",
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ ml: 1 }}>2D Drawing</Typography>
-                <Stack direction="row">
-                  <IconButton size="small" onClick={() => setDrawingZoom(z => Math.max(0.2, z - 0.2))}><ZoomOutIcon /></IconButton>
-                  <IconButton size="small" onClick={() => setDrawingZoom(1)}><RestartAltIcon /></IconButton>
-                  <IconButton size="small" onClick={() => setDrawingZoom(z => Math.min(4, z + 0.2))}><ZoomInIcon /></IconButton>
-                </Stack>
-              </Box>
-              <Box
-                sx={{
-                  p: 2,
-                  height: 400,
-                  bgcolor: "rgba(56,189,248,0.06)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
-              >
-                {part.drawing_2d_path ? (
-                  <Box sx={{ transform: `scale(${drawingZoom})`, transition: "transform 0.2s" }}>
-                    {isPdfPath(part.drawing_2d_path) ? (
-                      <PdfPreview url={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 380 }} />
-                    ) : (
-                      <img src={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 380, maxWidth: "100%" }} alt="Drawing" />
-                    )}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary">No 2D drawing uploaded</Typography>
-                )}
-              </Box>
-            </Paper>
-
-            {/* Results */}
             {costResult && (
               <Box ref={drawingCaptureRef}>
-                {/* Wrapped in Box for PDF Capture */}
                 <Card variant="outlined">
                   <CardHeader
                     title="Estimation Results"

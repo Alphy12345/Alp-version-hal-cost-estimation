@@ -19,9 +19,13 @@ function CostEstimationTab({
     costResults,
     costForms,
     onChangeForm,
+    onSetActiveOperation,
+    onAddOperation,
+    onRemoveOperation,
     setCostResults, // passed to clear local state inside modal logic if needed? no, clear logic is in parent
     onClearCost, // New prop
     onSubmitCost, // New prop
+    onSubmitAllCost,
     onViewFile,
     machines,
     operationTypes,
@@ -52,6 +56,12 @@ function CostEstimationTab({
     const zoomInDrawing = () => setDrawingZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100));
     const zoomOutDrawing = () => setDrawingZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100));
     const resetDrawingZoom = () => setDrawingZoom(1);
+
+    const getActiveOpIndex = (partId) => {
+        const idx = costForms?.[partId]?.activeOperationIndex;
+        const n = Number(idx);
+        return Number.isFinite(n) ? Math.max(0, n) : 0;
+    };
 
     return (
         <Stack spacing={4}>
@@ -108,7 +118,10 @@ function CostEstimationTab({
                                                         <Box sx={{ textAlign: "right" }}>
                                                             <Typography variant="caption" display="block" color="text.secondary">Unit Cost (with Misc)</Typography>
                                                             <Typography variant="body1" fontWeight="bold" color="primary">
-                                                                {formatValue("total_cost", costResults[part.id].cost_breakdown?.total_unit_cost_with_misc)}
+                                                                {formatValue(
+                                                                    "total_cost",
+                                                                    costResults[part.id]?.combined_total_unit_cost_with_misc ?? costResults[part.id]?.cost_breakdown?.total_unit_cost_with_misc
+                                                                )}
                                                             </Typography>
                                                         </Box>
                                                     )}
@@ -141,10 +154,18 @@ function CostEstimationTab({
                     onClose={closeCostModal}
                     projectData={projectData}
                     part={activeCostPart}
-                    costResult={costResults[activeCostPartId]}
-                    formState={costForms[activeCostPartId] || {}} // Ensure object exists
+                    activeOperationIndex={getActiveOpIndex(activeCostPartId)}
+                    operations={costForms?.[activeCostPartId]?.operations || []}
+                    onSetActiveOperation={onSetActiveOperation}
+                    onAddOperation={onAddOperation}
+                    onRemoveOperation={onRemoveOperation}
+                    costResult={costResults?.[activeCostPartId]?.operations?.[getActiveOpIndex(activeCostPartId)]}
+                    operationResults={costResults?.[activeCostPartId]?.operations}
+                    combinedTotal={costResults?.[activeCostPartId]?.combined_total_unit_cost_with_misc}
+                    formState={costForms?.[activeCostPartId]?.operations?.[getActiveOpIndex(activeCostPartId)] || {}} // Ensure object exists
                     onChangeForm={onChangeForm}
                     onSubmit={onSubmitCost}
+                    onSubmitAll={onSubmitAllCost}
                     onClear={onClearCost}
                     loading={costLoading}
                     machines={machines}

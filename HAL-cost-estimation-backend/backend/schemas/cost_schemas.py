@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from enum import Enum
 
 # -------------------------------------------------
@@ -187,3 +187,10 @@ class CostEstimationResponse(BaseModel):
         json_schema_extra = {
             "example": {}
         }
+
+class CostEstimationBatchRequest(BaseModel):
+    operations: List[CostEstimationRequest] = Field(..., description="List of operations to calculate")
+
+class CostEstimationBatchResponse(BaseModel):
+    operations: List[CostEstimationResponse] = Field(..., description="Per-operation cost estimation results")
+    combined_total_unit_cost_with_misc: float = Field(..., description="Sum of total_unit_cost_with_misc across operations")
