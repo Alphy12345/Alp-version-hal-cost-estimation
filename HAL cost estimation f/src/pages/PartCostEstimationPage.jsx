@@ -172,9 +172,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
     return machines.filter((m) => {
       const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
-      return opId == null ? "" : String(opId) === selectedOpId;
+      if (opId == null) return true;
+      return String(opId) === selectedOpId;
     });
-  }, [form.operation_type, machines, operationTypes]);
+  }, [machines, operationTypes, form.operation_type]);
 
   useEffect(() => {
     const current = String(form.machine_name || "").trim();
@@ -224,6 +225,18 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
       const opType = String(form.operation_type || "").trim().toLowerCase();
       const material = String(form.material || "").trim().toLowerCase();
       const machineName = String(form.machine_name || "").trim();
+
+      const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
+      const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
+      const machineRecord = machines.find((m) => String(m?.name || "").trim() === machineName);
+      if (!machineRecord) {
+        throw new Error("Selected machine is not available. Please re-select the machine.");
+      }
+      const machineOpId = machineRecord?.op_id ?? machineRecord?.operation_type_id ?? machineRecord?.operation_type?.id ?? machineRecord?.operation_types?.id;
+      const machineIsCompatible = machineOpId == null ? true : String(machineOpId) === selectedOpId;
+      if (!machineIsCompatible) {
+        throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
+      }
 
       const length = Number(form.length);
       const diameter = Number(form.diameter);

@@ -253,6 +253,22 @@ function ProjectDetailPage({ onChange, projectId }) {
       const material = String(formData.material || "").trim().toLowerCase();
       const machineName = String(formData.machine_name || "").trim();
 
+      const normalize = (value) => {
+        return value == null ? "" : String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+      };
+
+      const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
+      const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
+      const machineRecord = machines.find((m) => String(m?.name || "").trim() === machineName);
+      if (!machineRecord) {
+        throw new Error("Selected machine is not available. Please re-select the machine.");
+      }
+      const machineOpId = machineRecord?.op_id ?? machineRecord?.operation_type_id ?? machineRecord?.operation_type?.id ?? machineRecord?.operation_types?.id;
+      const machineIsCompatible = machineOpId == null ? true : String(machineOpId) === selectedOpId;
+      if (!machineIsCompatible) {
+        throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
+      }
+
       const manHours = Number(formData.man_hours_per_unit);
       const miscAmountRaw = formData.miscellaneous_amount;
       const miscItems = formData.miscellaneous_items;

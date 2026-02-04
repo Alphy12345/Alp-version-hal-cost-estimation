@@ -199,7 +199,10 @@ function CostEstimationModal({
 
         return machines.filter((m) => {
             const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
-            return opId == null ? "" : String(opId) === selectedOpId;
+            // Some machines are not bound to a specific operation type in backend (operation_type_id null).
+            // Treat them as valid for all operations so UI never hides valid backend machines.
+            if (opId == null) return true;
+            return String(opId) === selectedOpId;
         });
     };
 
@@ -363,8 +366,8 @@ function CostEstimationModal({
                                     </Box>
                                     <Box sx={{ p: 3.5 }}>
                                         <form onSubmit={(e) => onSubmit(e, part.id)}>
-                                            <Grid container spacing={3}>
-                                                <Grid item xs={12} sm={6} md={4}>
+                                            <Grid container spacing={2.5} alignItems="stretch">
+                                                <Grid item xs={12} sm={6} lg={3}>
                                                     <TextField
                                                         select
                                                         label="Operation Type"
@@ -378,7 +381,7 @@ function CostEstimationModal({
                                                     </TextField>
                                                 </Grid>
 
-                                                <Grid item xs={12} sm={6} md={4}>
+                                                <Grid item xs={12} sm={6} lg={3}>
                                                     <TextField
                                                         select
                                                         label="Material"
@@ -393,7 +396,7 @@ function CostEstimationModal({
                                                     </TextField>
                                                 </Grid>
 
-                                                <Grid item xs={12} sm={6} md={4}>
+                                                <Grid item xs={12} sm={6} lg={3}>
                                                     <TextField
                                                         select
                                                         label="Machine"
@@ -409,7 +412,7 @@ function CostEstimationModal({
                                                     </TextField>
                                                 </Grid>
 
-                                                <Grid item xs={12} sm={6} md={4}>
+                                                <Grid item xs={12} sm={6} lg={3}>
                                                     <TextField
                                                         label="Man Hours / Unit"
                                                         type="number"
@@ -422,8 +425,8 @@ function CostEstimationModal({
                                                     />
                                                 </Grid>
 
-                                                <Grid item xs={12}>
-                                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                                <Grid item xs={12} lg={6}>
+                                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: "100%" }}>
                                                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
                                                             <Typography variant="subtitle2">Miscellaneous Costs</Typography>
                                                             <Button
@@ -495,7 +498,7 @@ function CostEstimationModal({
                                                     </Paper>
                                                 </Grid>
 
-                                                <Grid item xs={12} sm={6} md={4}>
+                                                <Grid item xs={12} sm={6} lg={3}>
                                                     <TextField
                                                         label="Length (mm)"
                                                         type="number"
@@ -509,7 +512,7 @@ function CostEstimationModal({
                                                 </Grid>
 
                                                 {formState.operation_type === "turning" && (
-                                                    <Grid item xs={12} sm={6} md={4}>
+                                                    <Grid item xs={12} sm={6} lg={3}>
                                                         <TextField
                                                             label="Diameter (mm)"
                                                             type="number"
@@ -525,7 +528,7 @@ function CostEstimationModal({
 
                                                 {formState.operation_type === "milling" && (
                                                     <>
-                                                        <Grid item xs={12} sm={6} md={4}>
+                                                        <Grid item xs={12} sm={6} lg={3}>
                                                             <TextField
                                                                 label="Breadth (mm)"
                                                                 type="number"
@@ -537,7 +540,7 @@ function CostEstimationModal({
                                                                 required
                                                             />
                                                         </Grid>
-                                                        <Grid item xs={12} sm={6} md={4}>
+                                                        <Grid item xs={12} sm={6} lg={3}>
                                                             <TextField
                                                                 label="Height (mm)"
                                                                 type="number"
@@ -553,7 +556,7 @@ function CostEstimationModal({
                                                 )}
 
                                                 <Grid item xs={12}>
-                                                    <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                                    <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
                                                         <Button type="submit" variant="contained" disabled={loading} sx={{ minWidth: 150 }}>
                                                             {loading ? "Calculating..." : "Calculate Cost"}
                                                         </Button>
