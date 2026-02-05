@@ -3,6 +3,9 @@ import {
   Box,
   Button,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
   Grid,
   Paper,
   Stack,
@@ -89,6 +92,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     material: "steel",
     machine_name: "",
     man_hours_per_unit: "",
+    duty_category: "",
     miscellaneous_items: [{ description: "", amount: "" }],
   });
 
@@ -172,6 +176,8 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
   const [drawingZoom, setDrawingZoom] = useState(1);
   const drawingCaptureRef = useRef(null);
+  const pdfPreviewRef = useRef(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
 
   // --- Loading Data ---
   useEffect(() => {
@@ -346,12 +352,19 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         throw new Error("Invalid operation type");
       }
 
+      const dutyCategory = String(form?.duty_category || "").trim().toLowerCase();
+      const needsManualDuty = opType && opType !== "turning" && opType !== "milling";
+      if (needsManualDuty && !dutyCategory) {
+        throw new Error("Duty Category is required for this operation type. Please select light/medium/heavy.");
+      }
+
       const payload = {
         dimensions,
         material,
         operation_type: opType,
         machine_name: machineName,
         man_hours_per_unit: manHours,
+        ...(dutyCategory ? { duty_category: dutyCategory } : {}),
         miscellaneous_amount: miscAmount,
       };
 
@@ -365,33 +378,45 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     }
   };
 
+  const handleOpenPdfPreview = () => {
+    setPdfPreviewOpen(true);
+  };
+
   const handleDownloadPdf = async () => {
-    // simplified PDF download using basic jsPDF or similar to previous
-    // keeping it simple for now, can copy detailed logic if strictly required user wants exact same PDF
-    if (!projectData || !part) return;
-
-    // For now, let's use the window.print approach or minimal PDF as placeholders if huge logic is too much code.
-    // BUT user said "convert ... without breaking ...". So I must reimplement PDF gen logic.
-    // I'll reuse the logic from CostEstimationModal which I wrote earlier, but adapted here.
-
-    // Actually, I can use the same logic as CostEstimationModal which captures the screen, 
-    // OR the logic from the original file which draws manually. 
-    // The original file draws manually with brand colors. 
-    // I will use html2canvas on a specific Ref (drawingCaptureRef) which wraps the summary content.
-
-    if (!drawingCaptureRef.current) return;
+    if (!projectData || !part || !pdfPreviewRef.current) return;
 
     try {
-      const element = drawingCaptureRef.current;
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const element = pdfPreviewRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#020617",
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
-      const imgH = (canvas.height * pdfW) / canvas.width;
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfW, imgH);
-      pdf.save(`${projectData.project_name}-${part.part_number}-Cost.pdf`);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 5) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
+      const safePart = String(part.part_number || "Part").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Part";
+      pdf.save(`${safeProject}-${safePart}-Cost-Estimation.pdf`);
     } catch (e) {
       console.error("PDF Fail", e);
     }
@@ -399,6 +424,27 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
   if (loading) return <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}><CircularProgress /></Box>;
   if (!projectData || !part) return <Box sx={{ p: 4 }}><Alert severity="error">Part or Project not found</Alert></Box>;
+
+  const flattenForReport = (obj, prefix = "") => {
+    if (obj == null) return [];
+    if (typeof obj !== "object") return [{ key: prefix || "value", value: obj }];
+    if (Array.isArray(obj)) return [{ key: prefix || "items", value: JSON.stringify(obj) }];
+
+    const rows = [];
+    Object.entries(obj).forEach(([k, v]) => {
+      const nextKey = prefix ? `${prefix}.${k}` : k;
+      if (v == null || typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+        rows.push({ key: nextKey, value: v });
+      } else if (Array.isArray(v)) {
+        rows.push({ key: nextKey, value: JSON.stringify(v) });
+      } else if (typeof v === "object") {
+        rows.push(...flattenForReport(v, nextKey));
+      } else {
+        rows.push({ key: nextKey, value: String(v) });
+      }
+    });
+    return rows;
+  };
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", p: 4 }}>
@@ -488,6 +534,21 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
                 <TextField select label="Machine" fullWidth size="small" value={form.machine_name} onChange={(e) => setForm({ ...form, machine_name: e.target.value })}>
                   {filteredMachines.map((m) => <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>)}
+                </TextField>
+
+                <TextField
+                  select
+                  label="Duty Category"
+                  fullWidth
+                  size="small"
+                  value={form.duty_category}
+                  onChange={(e) => setForm({ ...form, duty_category: e.target.value })}
+                  required={Boolean(normalize(form.operation_type) && normalize(form.operation_type) !== "turning" && normalize(form.operation_type) !== "milling")}
+                >
+                  <MenuItem value="">Select Duty</MenuItem>
+                  <MenuItem value="light">Light</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="heavy">Heavy</MenuItem>
                 </TextField>
 
                 <Box>
@@ -644,7 +705,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                   <CardHeader
                     title="Estimation Results"
                     action={
-                      <Button startIcon={<DownloadIcon />} onClick={handleDownloadPdf}>Download Report</Button>
+                      <Button startIcon={<DownloadIcon />} onClick={handleOpenPdfPreview}>Download Report</Button>
                     }
                     sx={{ bgcolor: "rgba(56,189,248,0.08)", borderBottom: 1, borderColor: "rgba(56,189,248,0.12)" }}
                   />
@@ -680,6 +741,204 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
           </Stack>
         </Grid>
       </Grid>
+
+      <Dialog
+        open={pdfPreviewOpen}
+        onClose={() => setPdfPreviewOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: "transparent", boxShadow: "none" } }}
+      >
+        <DialogContent sx={{ p: 0, bgcolor: "transparent" }}>
+          <Box
+            ref={pdfPreviewRef}
+            sx={{
+              bgcolor: "#020617",
+              color: "#e5e7eb",
+              width: "100%",
+              p: 3,
+              borderRadius: 2,
+              border: "1px solid rgba(148,163,184,0.18)",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h5" fontWeight={900} sx={{ color: "#e5e7eb", lineHeight: 1.1 }}>
+                  {projectData?.project_name || "Untitled Project"}
+                </Typography>
+                <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 1.5, rowGap: 0.5, maxWidth: 640 }}>
+                  <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>PO/Ref</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.po_reference_number || "N/A"}</Typography>
+                  <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>Customer</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.customer_name || "N/A"}</Typography>
+                  <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>Date</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.project_date || "N/A"}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                <Typography variant="h6" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                  HAL Cost Estimation
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(229,231,235,0.75)" }}>
+                  Part: {part?.part_number || "N/A"}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ mt: 2.5, height: 4, bgcolor: "#38bdf8", borderRadius: 999 }} />
+
+            <Box sx={{ mt: 2.5 }}>
+              <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5 }}>
+                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                  2D Drawing
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  mt: 1.5,
+                  border: "1px solid rgba(148,163,184,0.18)",
+                  borderRadius: 1.5,
+                  overflow: "hidden",
+                  height: 420,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "#0b1220",
+                }}
+              >
+                {part?.drawing_2d_path ? (
+                  isPdfPath(part.drawing_2d_path) ? (
+                    <Box sx={{ p: 1.5, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <PdfPreview
+                        url={getInlineFileUrl(part.drawing_2d_path)}
+                        style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                      />
+                    </Box>
+                  ) : (
+                    <img
+                      src={getInlineFileUrl(part.drawing_2d_path)}
+                      alt="2D Drawing"
+                      style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                    />
+                  )
+                ) : (
+                  <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.75)" }}>
+                    No 2D drawing uploaded.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            <Box sx={{ mt: 2.5 }}>
+              <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5 }}>
+                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                  Operation Totals
+                </Typography>
+              </Box>
+              <Box sx={{ mt: 1.5, border: "1px solid rgba(148,163,184,0.18)", borderRadius: 1.5, overflow: "hidden" }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 0, bgcolor: "rgba(56,189,248,0.14)", px: 1.25, py: 1 }}>
+                  <Typography variant="body2" fontWeight={900} sx={{ color: "#38bdf8" }}>Operation</Typography>
+                  <Typography variant="body2" fontWeight={900} sx={{ color: "#38bdf8", textAlign: "right" }}>Total (with Misc)</Typography>
+                </Box>
+                <Box sx={{ px: 1.5, py: 1 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 0, alignItems: "center" }}>
+                    <Typography variant="body2" sx={{ color: "#e5e7eb", fontWeight: 800 }}>
+                      {String(form.operation_type || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Operation 1"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ textAlign: "right", color: "rgba(229,231,235,0.9)" }}>
+                      {formatValue("total_cost", costResult?.cost_breakdown?.total_unit_cost_with_misc)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
+              <Box sx={{ minWidth: 320, border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5, overflow: "hidden" }}>
+                <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.14)" }}>
+                  <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                    Final Total
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.75)" }}>
+                    Total (with Misc)
+                  </Typography>
+                  <Typography variant="h6" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                    {formatValue("total_cost", costResult?.cost_breakdown?.total_unit_cost_with_misc)}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* PAGE 2+ */}
+            <Box sx={{ mt: 6, borderTop: "2px solid rgba(56,189,248,0.35)", pt: 3 }}>
+              <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5 }}>
+                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                  All Calculated Metrics
+                </Typography>
+              </Box>
+
+              {(() => {
+                const rows = [...flattenForReport(costResult?.inputs), ...flattenForReport(costResult?.cost_breakdown)];
+                const map = new Map();
+                rows.forEach((r) => {
+                  if (!r?.key) return;
+                  map.set(String(r.key), r.value);
+                });
+
+                const metricKeys = Array.from(map.keys())
+                  .sort((a, b) => String(a).localeCompare(String(b)));
+
+                if (metricKeys.length === 0) return null;
+
+                return (
+                  <Box sx={{ mt: 2.5, border: "1px solid rgba(148,163,184,0.18)", borderRadius: 1.5, overflow: "hidden" }}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 0, bgcolor: "rgba(56,189,248,0.14)", px: 1.25, py: 1 }}>
+                      <Typography variant="body2" fontWeight={900} sx={{ color: "#38bdf8" }}>Metric</Typography>
+                      <Typography variant="body2" fontWeight={900} sx={{ color: "#38bdf8" }}>Value</Typography>
+                    </Box>
+
+                    {metricKeys.map((k) => (
+                      <Box
+                        key={`metric-${k}`}
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "1.2fr 1.8fr",
+                          gap: 0,
+                          px: 1.25,
+                          py: 0.75,
+                          borderTop: "1px solid rgba(148,163,184,0.18)",
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: "rgba(229,231,235,0.85)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>
+                          {String(k).replace(/_/g, " ")}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "rgba(229,231,235,0.85)" }}>
+                          {map.get(k) == null ? "-" : String(map.get(k))}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                );
+              })()}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "transparent", px: 0, pb: 0, pt: 2, justifyContent: "space-between" }}>
+          <Button onClick={() => setPdfPreviewOpen(false)} sx={{ textTransform: "none", fontWeight: 800, color: "#e5e7eb" }}>
+            Close
+          </Button>
+          <Button
+            onClick={handleDownloadPdf}
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            sx={{ textTransform: "none", fontWeight: 900, bgcolor: "#38bdf8", "&:hover": { bgcolor: "#0ea5e9" } }}
+          >
+            Download PDF
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
