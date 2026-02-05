@@ -164,18 +164,62 @@ class CostCalculationService:
         
         return machine_name, category
     
-    def get_machine_details(self, machine_name: str, db: Session) -> dict:
+    def get_machine_details(self, machine_name: str, db: Session, operation: Optional[str] = None) -> dict:
+        """Get machine details from database.
+
+        NOTE: Machine names are not guaranteed to be unique (e.g., 'Conventional' exists for
+        turning, milling, jig boring). If operation is provided, we prefer the row whose
+        op_id matches the operation type.
         """
-        Get machine details from database by name
-        """
-        machine = db.query(Machine).filter(Machine.name == machine_name).first()
-        if not machine:
+
+        from sqlalchemy import func, text  # ensure func imported above if not
+        import re
+        normalized = re.sub(r"[^a-z0-9 ]", " ", str(machine_name).lower())
+        normalized = " ".join(normalized.split())
+        q = db.query(Machine).filter(
+            func.replace(func.lower(func.trim(Machine.name)), "  ", " ") == normalized  # collapse spaces
+        )
+        candidates = q.all()
+
+        if not candidates:
+            # fallback: scan all machines
+            all_rows = db.query(Machine).all()
+            candidates = [m for m in all_rows if normalized == " ".join(re.sub(r"[^a-z0-9 ]", " ", m.name.lower()).split())]
+        if not candidates:
             raise ValueError(f"Machine with name '{machine_name}' not found")
-        
+
+        selected = None
+
+        if operation:
+            op_norm = str(operation).strip().lower().replace("_", " ").replace("-", " ")
+            op_norm = " ".join(op_norm.split())
+            op_compact = "".join(op_norm.split())
+
+            op_row = (
+                db.query(OperationTypeModel)
+                .filter(func.replace(func.lower(func.trim(OperationTypeModel.operation_name)), " ", "") == op_compact)
+                .first()
+            )
+
+            # Handle DB variants like 'JIG boring' while API operation is 'boring'
+            if not op_row and op_norm == "boring":
+                op_row = (
+                    db.query(OperationTypeModel)
+                    .filter(func.replace(func.lower(func.trim(OperationTypeModel.operation_name)), " ", "").like("%boring%"))
+                    .first()
+                )
+
+            op_id = op_row.id if op_row else None
+            if op_id is not None:
+                selected = next((m for m in candidates if getattr(m, "op_id", None) == op_id), None)
+
+        if selected is None:
+            selected = candidates[0]
+
         return {
-            "id": machine.id,
-            "name": machine.name,
-            "operation_type_id": machine.op_id
+            "id": selected.id,
+            "name": selected.name,
+            "operation_type_id": selected.op_id,
         }
     
     def determine_machine_category(self, machine_name: str) -> str:
@@ -328,6 +372,37 @@ class CostCalculationService:
                     break
 
             if best and best.machine_hr_rate is not None:
+                try:
+                    return float(best.machine_hr_rate)
+                except (ValueError, TypeError):
+                    pass
+
+            # Fallback: if duty classification doesn't match DB configuration (common for
+            # drilling/welding/heat_treatment), accept any duty row for the same operation
+            # and best matching machine.
+            best = None
+            best_score = -1
+            for rec in candidates:
+                rec_op = _norm(getattr(rec.operation_type, "operation_name", None))
+                if rec_op != op_norm:
+                    continue
+
+                rec_machine = _norm(getattr(rec.machine, "name", None))
+                if rec_machine == machine_norm:
+                    score = 2
+                elif rec_machine and machine_norm and (rec_machine in machine_norm or machine_norm in rec_machine):
+                    score = 1
+                else:
+                    score = 0
+
+                if score > best_score:
+                    best = rec
+                    best_score = score
+
+                if best_score == 2:
+                    break
+
+            if best and best.machine_hr_rate is not None and best_score > 0:
                 try:
                     return float(best.machine_hr_rate)
                 except (ValueError, TypeError):

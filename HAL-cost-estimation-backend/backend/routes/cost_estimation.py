@@ -92,7 +92,7 @@ def _calculate_one(request: CostEstimationRequest, db: Session) -> CostEstimatio
     service = CostCalculationService(db)
 
     try:
-        machine_details = service.get_machine_details(request.machine_name, db)
+        machine_details = service.get_machine_details(request.machine_name, db, operation=request.operation_type.value)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -121,19 +121,29 @@ def _calculate_one(request: CostEstimationRequest, db: Session) -> CostEstimatio
             detail="Invalid dimensions. Provide either (diameter + length) for round parts OR (length + breadth + height) for rectangular parts"
         )
 
-    if request.duty_category:
-        duty = request.duty_category.value
+    op_value = request.operation_type.value
+
+    if op_value in ("turning", "milling"):
+        if request.duty_category:
+            duty = request.duty_category.value
+        else:
+            duty = service.determine_duty_category(
+                shape=shape,
+                dimensions=dimensions_dict,
+                material=request.material.value,
+                operation=op_value,
+            )
     else:
-        duty = service.determine_duty_category(
-            shape=shape,
-            dimensions=dimensions_dict,
-            material=request.material.value,
-            operation=request.operation_type.value
-        )
+        if not request.duty_category:
+            raise HTTPException(
+                status_code=400,
+                detail=f"duty_category is required for operation_type '{op_value}'. Choose: light, medium, heavy.",
+            )
+        duty = request.duty_category.value
 
     try:
         machine_hour_rate = service.get_machine_hour_rate(
-            operation=request.operation_type.value,
+            operation=op_value,
             duty=duty,
             machine_name=machine_name,
             db=db,
@@ -259,7 +269,7 @@ def quick_estimate(
     )
 
     try:
-        machine_details = service.get_machine_details(machine_name, db)
+        machine_details = service.get_machine_details(machine_name, db, operation=operation)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

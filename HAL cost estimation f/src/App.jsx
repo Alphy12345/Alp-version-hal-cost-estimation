@@ -19,7 +19,7 @@ import MhrPage from "./pages/config/MhrPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 
 function AppContent() {
-  const [activeSection, setActiveSection] = useState("configuration");
+  const [activeSection, setActiveSection] = useState("projects");
   const [createdProject, setCreatedProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [editProjectId, setEditProjectId] = useState(null);

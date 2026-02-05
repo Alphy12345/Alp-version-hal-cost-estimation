@@ -92,6 +92,50 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
     miscellaneous_items: [{ description: "", amount: "" }],
   });
 
+  const operationTypeOptions = useMemo(() => {
+    const toOpValue = (name) => {
+      const raw = name == null ? "" : String(name);
+      const normalized = raw.trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+      return normalized.replace(/\s+/g, "_");
+    };
+
+    const supportedOperationValues = new Set([
+      "turning",
+      "milling",
+      "drilling",
+      "grinding",
+      "boring",
+      "heat_treatment",
+      "welding",
+      "surface_treatment",
+      "rubber_press",
+    ]);
+
+    const toApiOpValue = (name) => {
+      const v = toOpValue(name);
+      if (supportedOperationValues.has(v)) return v;
+      if (v.includes("boring")) return "boring";
+      return v;
+    };
+
+    const rawList = Array.isArray(operationTypes) ? operationTypes : [];
+    const optsFromDb = rawList
+      .map((ot) => {
+        const label = String(ot?.operation_name || "").trim();
+        const apiValue = toApiOpValue(ot?.operation_name);
+        const disabled = !supportedOperationValues.has(apiValue);
+        return label ? { value: apiValue, label, disabled } : null;
+      })
+      .filter(Boolean);
+
+    if (optsFromDb.length > 0) return optsFromDb;
+    return Array.from(supportedOperationValues).map((v) => ({
+      value: v,
+      label: v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      disabled: false,
+    }));
+  }, [operationTypes]);
+
   const miscItems = useMemo(() => {
     const items = form?.miscellaneous_items;
     return Array.isArray(items) && items.length > 0 ? items : [{ description: "", amount: "" }];
@@ -421,15 +465,19 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
             <form onSubmit={handleSubmit}>
               <Stack spacing={3}>
-                <TextField select label="Operation Type" fullWidth size="small" value={form.operation_type} onChange={(e) => setForm({ ...form, operation_type: e.target.value })}>
-                  <MenuItem value="turning">Turning</MenuItem>
-                  <MenuItem value="milling">Milling</MenuItem>
-                  <MenuItem value="drilling">Drilling</MenuItem>
-                  <MenuItem value="grinding">Grinding</MenuItem>
-                  <MenuItem value="boring">Boring</MenuItem>
-                  <MenuItem value="heat_treatment">Heat Treatment</MenuItem>
-                  <MenuItem value="welding">Welding</MenuItem>
-                  <MenuItem value="surface_treatment">Surface Treatment</MenuItem>
+                <TextField
+                  select
+                  label="Operation Type"
+                  fullWidth
+                  size="small"
+                  value={form.operation_type}
+                  onChange={(e) => setForm({ ...form, operation_type: e.target.value, machine_name: "" })}
+                >
+                  {operationTypeOptions.map((opt) => (
+                    <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
                 </TextField>
 
                 <TextField select label="Material" fullWidth size="small" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}>

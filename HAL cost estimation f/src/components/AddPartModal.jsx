@@ -17,7 +17,6 @@ import {
 function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onPartUpdated }) {
   const [partNumber, setPartNumber] = useState("");
   const [partName, setPartName] = useState("");
-  const [model3d, setModel3d] = useState(null);
   const [drawing2d, setDrawing2d] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,13 +25,11 @@ function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onP
     if (partToEdit) {
       setPartNumber(partToEdit.part_number || "");
       setPartName(partToEdit.part_name || "");
-      setModel3d(null);
       setDrawing2d(null);
     } else {
       // Reset form for new part
       setPartNumber("");
       setPartName("");
-      setModel3d(null);
       setDrawing2d(null);
     }
     setError(null);
@@ -47,10 +44,6 @@ function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onP
       const formData = new FormData();
       formData.append('part_number', partNumber);
       formData.append('part_name', partName);
-
-      if (model3d) {
-        formData.append('model_3d', model3d);
-      }
 
       if (drawing2d) {
         formData.append('drawing_2d', drawing2d);
@@ -126,54 +119,6 @@ function AddPartModal({ isOpen, onClose, projectId, partToEdit, onPartAdded, onP
                 />
               </Grid>
             </Grid>
-
-            <Box>
-              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
-                3D Model File
-              </Typography>
-              <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
-                Choose File
-                <input
-                  type="file"
-                  hidden
-                  onChange={handleFileChange(setModel3d)}
-                  accept=".step,.stp,.iges,.igs,.stl,.obj,.ply"
-                />
-              </Button>
-              {model3d && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    bgcolor: "grey.50",
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 1,
-                    border: 1,
-                    borderColor: "divider",
-                    mt: 1,
-                  }}
-                >
-                  <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
-                    {model3d.name}
-                  </Typography>
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => removeFile(setModel3d)}
-                    sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
-                  >
-                    Remove
-                  </Button>
-                </Box>
-              )}
-              {!model3d && partToEdit?.model_3d_path && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                  Current file: {partToEdit.model_3d_path.split('\\').pop()}
-                </Typography>
-              )}
-            </Box>
 
             <Box>
               <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>

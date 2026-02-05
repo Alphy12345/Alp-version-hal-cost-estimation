@@ -30,7 +30,6 @@ function CreateProjectPage({ onChange, onCreate }) {
     {
       partNumber: "",
       partName: "",
-      model3D: null,
       drawing2D: null,
     },
   ]);
@@ -93,7 +92,6 @@ function CreateProjectPage({ onChange, onCreate }) {
       {
         partNumber: "",
         partName: "",
-        model3D: null,
         drawing2D: null,
       },
     ]);
@@ -151,10 +149,6 @@ function CreateProjectPage({ onChange, onCreate }) {
           const partFormData = new FormData();
           partFormData.append('part_number', part.partNumber || '');
           partFormData.append('part_name', part.partName || '');
-
-          if (part.model3D) {
-            partFormData.append('model_3d', part.model3D);
-          }
 
           if (part.drawing2D) {
             partFormData.append('drawing_2d', part.drawing2D);
@@ -484,61 +478,6 @@ function CreateProjectPage({ onChange, onCreate }) {
                             fullWidth
                             size="small"
                           />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                          <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
-                            3D Model
-                          </Typography>
-                          {part.model3D ? (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                bgcolor: "grey.50",
-                                px: 1.5,
-                                py: 0.75,
-                                borderRadius: 1,
-                                border: 1,
-                                borderColor: "divider",
-                              }}
-                            >
-                              <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
-                                {part.model3D.name}
-                              </Typography>
-                              <Box sx={{ display: "flex", gap: 0.5 }}>
-                                <Button size="small" component="label" sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}>
-                                  Edit
-                                  <input
-                                    type="file"
-                                    hidden
-                                    onChange={handlePartFileChange(index, "model3D")}
-                                  />
-                                </Button>
-                                <Button
-                                  size="small"
-                                  color="error"
-                                  onClick={() => {
-                                    const newParts = [...parts];
-                                    newParts[index].model3D = null;
-                                    setParts(newParts);
-                                  }}
-                                  sx={{ minWidth: "auto", px: 1, fontSize: "0.7rem" }}
-                                >
-                                  Delete
-                                </Button>
-                              </Box>
-                            </Box>
-                          ) : (
-                            <Button variant="outlined" component="label" size="small" fullWidth sx={{ justifyContent: "flex-start" }}>
-                              Choose File
-                              <input
-                                type="file"
-                                hidden
-                                onChange={handlePartFileChange(index, "model3D")}
-                              />
-                            </Button>
-                          )}
                         </Grid>
                         <Grid item xs={12} md={6}>
                           <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: "block" }}>

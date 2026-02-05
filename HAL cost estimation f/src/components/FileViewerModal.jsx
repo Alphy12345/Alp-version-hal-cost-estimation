@@ -13,7 +13,6 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import WarningIcon from "@mui/icons-material/Warning";
 import DescriptionIcon from "@mui/icons-material/Description";
-import ViewInArIcon from "@mui/icons-material/ViewInAr";
 import ImageIcon from "@mui/icons-material/Image";
 
 function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
@@ -21,7 +20,6 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
 
   const isImage = fileType === 'image' || /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileName);
   const isPDF = fileType === 'pdf' || /\.pdf$/i.test(fileName);
-  const is3DModel = fileType === '3d' || /\.(step|stp|iges|igs|stl|obj|ply)$/i.test(fileName);
 
   return (
     <Dialog open={isOpen} onClose={onClose} maxWidth="lg" fullWidth>
@@ -144,38 +142,7 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
           </Box>
         )}
 
-        {is3DModel && (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4 }}>
-            <ViewInArIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              3D Model Viewer
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              3D model preview is not available in the browser
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              File: {fileName}
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="contained"
-                onClick={() => window.open(fileUrl, '_blank')}
-              >
-                Download 3D Model
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  alert('To view this 3D model, download it and open it in a 3D modeling software like:\n\n• AutoCAD\n• SolidWorks\n• Fusion 360\n• Blender\n• 3D Viewer Online');
-                }}
-              >
-                View Instructions
-              </Button>
-            </Stack>
-          </Box>
-        )}
-
-        {!isImage && !isPDF && !is3DModel && (
+        {!isImage && !isPDF && (
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4 }}>
             <DescriptionIcon sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
             <Typography variant="body1" color="text.secondary" gutterBottom>
@@ -196,8 +163,7 @@ function FileViewerModal({ isOpen, onClose, fileUrl, fileName, fileType }) {
         <Typography variant="caption" color="text.secondary">
           {isImage && "Image Viewer"}
           {isPDF && "PDF Viewer"}
-          {is3DModel && "3D Model Info"}
-          {!isImage && !isPDF && !is3DModel && "File Info"}
+          {!isImage && !isPDF && "File Info"}
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button

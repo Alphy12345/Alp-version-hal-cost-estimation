@@ -67,6 +67,7 @@ function ProjectDetailPage({ onChange, projectId }) {
             material: "steel",
             machine_name: "",
             man_hours_per_unit: "",
+            duty_category: "",
             miscellaneous_amount: "",
             miscellaneous_items: [{ description: "", amount: "" }],
             length: "",
@@ -341,13 +342,25 @@ function ProjectDetailPage({ onChange, projectId }) {
 
     const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
     const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
-    const machineRecord = machines.find((m) => String(m?.name || "").trim() === machineName);
+    const normalizeMachineName = (v) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const sameNameMachines = machines.filter((m)=> normalizeMachineName(m?.name)===normalizeMachineName(machineName));
+    let machineRecord = null;
+    if (sameNameMachines.length===1){
+      machineRecord = sameNameMachines[0];
+    } else if (sameNameMachines.length>1){
+      machineRecord = sameNameMachines.find((m)=>{
+        const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
+        return selectedOpId && String(opId)===selectedOpId;
+      }) || sameNameMachines[0];
+    }
     if (!machineRecord) {
       throw new Error("Selected machine is not available. Please re-select the machine.");
     }
     const machineOpId = machineRecord?.op_id ?? machineRecord?.operation_type_id ?? machineRecord?.operation_type?.id ?? machineRecord?.operation_types?.id;
     const machineIsCompatible = machineOpId == null ? true : String(machineOpId) === selectedOpId;
-    if (!machineIsCompatible) {
+    const appearsInFiltered = machines.some((m)=> normalizeMachineName(m?.name)===normalizeMachineName(machineName) && (m?.op_id==null || String(m?.op_id)===selectedOpId || String(m?.operation_type_id)===selectedOpId));
+
+    if (!machineIsCompatible && !appearsInFiltered) {
       throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
     }
 
@@ -381,7 +394,7 @@ function ProjectDetailPage({ onChange, projectId }) {
     }
 
     const roundOnlyOps = new Set(["turning", "boring"]);
-    const rectangularOnlyOps = new Set(["milling", "grinding", "surface_treatment"]);
+    const rectangularOnlyOps = new Set(["milling", "grinding", "surface_treatment", "rubber_press"]);
     const flexibleOps = new Set(["drilling", "heat_treatment", "welding"]);
 
     const dimensions = { length };
@@ -420,12 +433,19 @@ function ProjectDetailPage({ onChange, projectId }) {
       throw new Error("Invalid operation type");
     }
 
+    const dutyCategory = String(formData?.duty_category || "").trim().toLowerCase();
+    const needsManualDuty = opType && opType !== "turning" && opType !== "milling";
+    if (needsManualDuty && !dutyCategory) {
+      throw new Error("Duty Category is required for this operation type. Please select light/medium/heavy.");
+    }
+
     return {
       dimensions,
       material,
       operation_type: opType,
       machine_name: machineName,
       man_hours_per_unit: manHours,
+      ...(dutyCategory ? { duty_category: dutyCategory } : {}),
       miscellaneous_amount: Number.isFinite(miscAmount) ? miscAmount : 0,
     };
   };

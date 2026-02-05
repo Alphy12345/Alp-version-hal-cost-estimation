@@ -1,19 +1,15 @@
 import React from "react";
 import {
     Box,
-    Button,
     Grid,
-    Paper,
     Stack,
     Typography,
     Card,
     CardContent
 } from "@mui/material";
-import ViewInArIcon from "@mui/icons-material/ViewInAr";
 import PdfPreview from "../PdfPreview";
 
 function DrawingsSection({ parts, onViewFile, getInlineFileUrl, isPdfPath }) {
-    const models3d = parts.filter((p) => p.model_3d_path);
     const drawings2d = parts.filter((p) => p.drawing_2d_path);
 
     return (
@@ -22,52 +18,6 @@ function DrawingsSection({ parts, onViewFile, getInlineFileUrl, isPdfPath }) {
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                     Project Drawings
                 </Typography>
-
-                {/* 3D Models */}
-                <Box sx={{ mb: 4 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        3D Models
-                    </Typography>
-                    {models3d.length > 0 ? (
-                        <Stack spacing={1}>
-                            {models3d.map((part) => (
-                                <Paper
-                                    key={part.id}
-                                    variant="outlined"
-                                    sx={{
-                                        p: 1.5,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        bgcolor: "rgba(56,189,248,0.06)"
-                                    }}
-                                >
-                                    <Stack direction="row" spacing={2} alignItems="center">
-                                        <ViewInArIcon color="primary" fontSize="small" />
-                                        <Box>
-                                            <Typography variant="body2" fontWeight={500}>
-                                                {part.part_number} - 3D Model
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {part.model_3d_path.split('\\').pop()}
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                    <Button
-                                        size="small"
-                                        onClick={() => onViewFile(part.model_3d_path, part.model_3d_path.split('\\').pop())}
-                                    >
-                                        View
-                                    </Button>
-                                </Paper>
-                            ))}
-                        </Stack>
-                    ) : (
-                        <Typography variant="caption" color="text.secondary">
-                            No 3D models uploaded.
-                        </Typography>
-                    )}
-                </Box>
 
                 {/* 2D Drawings */}
                 <Box>

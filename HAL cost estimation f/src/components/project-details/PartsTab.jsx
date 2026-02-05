@@ -14,7 +14,6 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import ViewInArIcon from "@mui/icons-material/ViewInAr";
 import DescriptionIcon from "@mui/icons-material/Description";
 
 function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
@@ -107,38 +106,6 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                 </Typography>
 
                                 <Stack spacing={1}>
-                                    {part.model_3d_path ? (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                                border: 1,
-                                                borderColor: "divider",
-                                                borderRadius: 1,
-                                                p: 1,
-                                                bgcolor: "background.paper"
-                                            }}
-                                        >
-                                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                                <ViewInArIcon color="primary" fontSize="small" />
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>3D Model</Typography>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                                        {part.model_3d_path.split('\\').pop()}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                            <Button
-                                                size="small"
-                                                onClick={() => onViewFile(part.model_3d_path, part.model_3d_path.split('\\').pop())}
-                                                sx={{ minWidth: "auto" }}
-                                            >
-                                                View
-                                            </Button>
-                                        </Box>
-                                    ) : null}
-
                                     {part.drawing_2d_path ? (
                                         <Box
                                             sx={{
@@ -171,7 +138,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                         </Box>
                                     ) : null}
 
-                                    {!part.model_3d_path && !part.drawing_2d_path && (
+                                    {!part.drawing_2d_path && (
                                         <Typography variant="caption" color="text.secondary" fontStyle="italic">
                                             No files uploaded for this part.
                                         </Typography>

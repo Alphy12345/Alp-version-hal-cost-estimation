@@ -23,6 +23,7 @@ class OperationType(str, Enum):
     HEAT_TREATMENT = "heat_treatment"
     WELDING = "welding"
     SURFACE_TREATMENT = "surface_treatment"
+    RUBBER_PRESS = "rubber_press"
 
 class MachineCategory(str, Enum):
     CONVENTIONAL = "conventional"
@@ -95,7 +96,7 @@ class CostEstimationRequest(BaseModel):
         round_operations = ['turning', 'boring']
         
         # Operations that require rectangular dimensions (length + breadth + height)
-        rectangular_operations = ['milling', 'grinding', 'surface_treatment']
+        rectangular_operations = ['milling', 'grinding', 'surface_treatment', 'rubber_press']
         
         if operation.value in round_operations:
             # Must have diameter and length, should NOT have breadth and height

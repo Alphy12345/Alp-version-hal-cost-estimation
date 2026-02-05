@@ -76,6 +76,51 @@ function CostEstimationModal({
 
     const [expandedOperations, setExpandedOperations] = useState({});
 
+    const operationTypeOptions = useMemo(() => {
+        const toOpValue = (name) => {
+            const raw = name == null ? "" : String(name);
+            const normalized = raw.trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+            return normalized.replace(/\s+/g, "_");
+        };
+
+        const supportedOperationValues = new Set([
+            "turning",
+            "milling",
+            "drilling",
+            "grinding",
+            "boring",
+            "heat_treatment",
+            "welding",
+            "surface_treatment",
+            "rubber_press",
+        ]);
+
+        const toApiOpValue = (name) => {
+            const v = toOpValue(name);
+            if (supportedOperationValues.has(v)) return v;
+            // Map common DB naming variants to supported API enums
+            if (v.includes("boring")) return "boring";
+            return v;
+        };
+
+        const rawList = Array.isArray(operationTypes) ? operationTypes : [];
+        const optsFromDb = rawList
+            .map((ot) => {
+                const label = String(ot?.operation_name || "").trim();
+                const apiValue = toApiOpValue(ot?.operation_name);
+                const disabled = !supportedOperationValues.has(apiValue);
+                return label ? { value: apiValue, label, disabled } : null;
+            })
+            .filter(Boolean);
+
+        if (optsFromDb.length > 0) return optsFromDb;
+        return Array.from(supportedOperationValues).map((v) => ({
+            value: v,
+            label: v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            disabled: false,
+        }));
+    }, [operationTypes]);
+
     const drawingUrl = useMemo(() => {
         if (!part?.drawing_2d_path) return "";
         return getInlineFileUrl(part.drawing_2d_path);
@@ -203,12 +248,36 @@ function CostEstimationModal({
         return String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
     };
 
+    const normalizeMachineName = (value) => {
+        if (value == null) return "";
+        return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+    };
+
+    const resolveOperationTypeId = (operationTypeValue) => {
+        const opType = normalize(operationTypeValue);
+        if (!opType) return "";
+
+        const list = Array.isArray(operationTypes) ? operationTypes : [];
+        const exact = list.find((ot) => normalize(ot?.operation_name) === opType);
+        if (exact?.id != null) return String(exact.id);
+
+        // Handle DB variants like 'JIG boring' while API value is 'boring'
+        if (opType === "boring") {
+            const variant = list.find((ot) => normalize(ot?.operation_name).includes("boring"));
+            if (variant?.id != null) return String(variant.id);
+        }
+
+        return "";
+    };
+
     const getFilteredMachines = () => {
         const opType = normalize(formState.operation_type);
         if (!opType) return machines;
 
-        const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === opType);
-        const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
+        const selectedOpId = resolveOperationTypeId(formState.operation_type);
+
+        // If we can't resolve a matching operation type id (DB naming mismatch), don't filter machines.
+        if (!selectedOpId) return machines;
 
         return machines.filter((m) => {
             const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
@@ -228,8 +297,9 @@ function CostEstimationModal({
         const opType = normalize(operationTypeValue);
         if (!opType) return machines;
 
-        const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === opType);
-        const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
+        const selectedOpId = resolveOperationTypeId(operationTypeValue);
+
+        if (!selectedOpId) return machines;
 
         return machines.filter((m) => {
             const opId = m?.op_id ?? m?.operation_type_id ?? m?.operation_type?.id ?? m?.operation_types?.id;
@@ -241,7 +311,8 @@ function CostEstimationModal({
     useEffect(() => {
         const current = String(formState?.machine_name || "").trim();
         if (!current) return;
-        const exists = filteredMachines.some((m) => String(m?.name || "").trim() === current);
+        const currentNorm = normalizeMachineName(current);
+        const exists = filteredMachines.some((m) => normalizeMachineName(m?.name) === currentNorm);
         if (!exists) {
             onChangeForm(part.id, activeOperationIndex, "machine_name", "");
         }
@@ -259,13 +330,35 @@ function CostEstimationModal({
     const isFlexibleOp = flexibleOps.has(currentOpType);
     const shapeValue = String(formState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
 
+    const getOperationDisplayName = (operationTypeValue) => {
+        const raw = String(operationTypeValue || "").trim();
+        if (!raw) return "";
+
+        const normalized = normalize(raw);
+        const match = Array.isArray(operationTypes)
+            ? operationTypes.find((ot) => normalize(ot?.operation_name) === normalized)
+            : null;
+
+        const fromDb = String(match?.operation_name || "").trim();
+        if (fromDb) return fromDb;
+
+        // Fall back to a readable version of the enum.
+        return raw
+            .replace(/[_-]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     const operationSummaryRows = Array.isArray(operationResults)
         ? operationResults
               .map((r, idx) => {
                   const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
+                  const selectedOpType = operations?.[idx]?.operation_type;
+                  const selectedOpName = getOperationDisplayName(selectedOpType);
                   return {
                       idx,
-                      label: `Operation ${idx + 1}`,
+                      label: selectedOpName ? `Operation ${idx + 1} - ${selectedOpName}` : `Operation ${idx + 1}`,
                       value: Number.isFinite(n) ? n : null,
                   };
               })
@@ -616,19 +709,21 @@ function CostEstimationModal({
                                                     const isExpanded = Boolean(expandedOperations?.[opIndex]);
                                                     const opTypeValue = String(opState?.operation_type || "").trim().toLowerCase();
                                                     const roundOnlyOpsForOp = new Set(["turning", "boring"]);
-                                                    const rectangularOnlyOpsForOp = new Set(["milling", "grinding", "surface_treatment"]);
+                                                    const rectangularOnlyOpsForOp = new Set(["milling", "grinding", "surface_treatment", "rubber_press"]);
                                                     const flexibleOpsForOp = new Set(["drilling", "heat_treatment", "welding"]);
                                                     const isFlexibleOpForOp = flexibleOpsForOp.has(opTypeValue);
                                                     const isRoundOnlyOpForOp = roundOnlyOpsForOp.has(opTypeValue);
                                                     const isRectangularOnlyOpForOp = rectangularOnlyOpsForOp.has(opTypeValue);
                                                     const shapeValueForOp = String(opState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
+                                                    const needsManualDutyForOp = opTypeValue && opTypeValue !== "turning" && opTypeValue !== "milling";
 
                                                     const machinesForOp = getFilteredMachinesForOperation(opState?.operation_type);
                                                     const machineValueForOp = (() => {
                                                         const current = String(opState?.machine_name || "").trim();
                                                         if (!current) return "";
-                                                        const exists = machinesForOp.some((m) => String(m?.name || "").trim() === current);
-                                                        return exists ? current : "";
+                                                        const currentNorm = normalizeMachineName(current);
+                                                        const exists = machinesForOp.some((m) => normalizeMachineName(m?.name) === currentNorm);
+                                                        return exists ? String(opState?.machine_name || "").trim() : "";
                                                     })();
 
                                                     const opMiscItems = (() => {
@@ -712,14 +807,11 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="medium"
                                                                         >
-                                                                            <MenuItem value="turning">Turning</MenuItem>
-                                                                            <MenuItem value="milling">Milling</MenuItem>
-                                                                            <MenuItem value="drilling">Drilling</MenuItem>
-                                                                            <MenuItem value="grinding">Grinding</MenuItem>
-                                                                            <MenuItem value="boring">Boring</MenuItem>
-                                                                            <MenuItem value="heat_treatment">Heat Treatment</MenuItem>
-                                                                            <MenuItem value="welding">Welding</MenuItem>
-                                                                            <MenuItem value="surface_treatment">Surface Treatment</MenuItem>
+                                                                            {operationTypeOptions.map((opt) => (
+                                                                                <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
+                                                                                    {opt.label}
+                                                                                </MenuItem>
+                                                                            ))}
                                                                         </TextField>
                                                                     </Grid>
 
@@ -743,13 +835,13 @@ function CostEstimationModal({
                                                                             select
                                                                             label="Machine"
                                                                             value={machineValueForOp}
-                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "machine_name", e.target.value)}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "machine_name", String(e.target.value || "").trim())}
                                                                             fullWidth
                                                                             size="medium"
                                                                         >
                                                                             <MenuItem value="">Select Machine</MenuItem>
                                                                             {machinesForOp.map((m) => (
-                                                                                <MenuItem key={m.id} value={m.name}>{m.name}</MenuItem>
+                                                                                <MenuItem key={m.id} value={String(m?.name || "").trim()}>{String(m?.name || "").trim()}</MenuItem>
                                                                             ))}
                                                                         </TextField>
                                                                     </Grid>
@@ -766,6 +858,25 @@ function CostEstimationModal({
                                                                             required
                                                                         />
                                                                     </Grid>
+
+                                                                    {needsManualDutyForOp && (
+                                                                        <Grid item xs={12} sm={6} lg={3}>
+                                                                            <TextField
+                                                                                select
+                                                                                label="Duty Category"
+                                                                                value={opState?.duty_category || ""}
+                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "duty_category", e.target.value)}
+                                                                                fullWidth
+                                                                                size="medium"
+                                                                                required
+                                                                            >
+                                                                                <MenuItem value="">Select Duty</MenuItem>
+                                                                                <MenuItem value="light">Light</MenuItem>
+                                                                                <MenuItem value="medium">Medium</MenuItem>
+                                                                                <MenuItem value="heavy">Heavy</MenuItem>
+                                                                            </TextField>
+                                                                        </Grid>
+                                                                    )}
 
                                                                     <Grid item xs={12} lg={6}>
                                                                         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: "100%" }}>
@@ -941,14 +1052,19 @@ function CostEstimationModal({
                                                                     >
                                                                         <Table
                                                                             sx={{
+                                                                                fontSize: "1.02rem",
                                                                                 "& th": {
                                                                                     bgcolor: "rgba(15,23,42,0.98)",
                                                                                     color: "#e5e7eb",
                                                                                     borderBottomColor: "rgba(30,64,175,0.8)",
+                                                                                    fontSize: "1.05rem",
+                                                                                    py: 1.6,
                                                                                 },
                                                                                 "& td": {
                                                                                     borderBottomColor: "rgba(30,64,175,0.45)",
                                                                                     color: "#e5e7eb",
+                                                                                    fontSize: "1.02rem",
+                                                                                    py: 1.45,
                                                                                 },
                                                                             }}
                                                                         >
@@ -962,26 +1078,26 @@ function CostEstimationModal({
                                                                             </TableHead>
                                                                             <TableBody>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Basic Cost</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Basic Cost</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("basic_cost", opResult?.cost_breakdown?.basic_cost_per_unit)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Overheads</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Overheads</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("overheads", opResult?.cost_breakdown?.overheads_per_unit)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Profit</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Profit</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("profit", opResult?.cost_breakdown?.profit_per_unit)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Packing & Fwd</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Packing & Fwd</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("packing", opResult?.cost_breakdown?.packing_forwarding_per_unit)}
                                                                                     </TableCell>
                                                                                 </TableRow>
@@ -989,39 +1105,39 @@ function CostEstimationModal({
                                                                                     .filter((x) => String(x?.description || "").trim() || (x?.amount !== "" && x?.amount != null))
                                                                                     .map((x, i) => (
                                                                                         <TableRow key={`op-${opIndex}-misc-${i}`}>
-                                                                                            <TableCell sx={{ py: 1.35 }}>
+                                                                                            <TableCell sx={{ py: 1.55 }}>
                                                                                                 Misc: {String(x?.description || "").trim() || "(no description)"}
                                                                                             </TableCell>
-                                                                                            <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                            <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                                 {formatValue("miscellaneous_amount", Number(x?.amount) || 0)}
                                                                                             </TableCell>
                                                                                         </TableRow>
                                                                                     ))}
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Miscellaneous Total</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Miscellaneous Total</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("miscellaneous_amount", opResult?.cost_breakdown?.miscellaneous_amount)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Man Hours / Unit</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>{opResult?.cost_breakdown?.man_hours_per_unit}</TableCell>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Man Hours / Unit</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.cost_breakdown?.man_hours_per_unit}</TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Machine Hour Rate</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Machine Hour Rate</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("machine_hour_rate", opResult?.cost_breakdown?.machine_hour_rate)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ py: 1.35 }}>Wage Rate</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.35 }}>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Wage Rate</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
                                                                                         {formatValue("wage_rate", opResult?.cost_breakdown?.wage_rate)}
                                                                                     </TableCell>
                                                                                 </TableRow>
                                                                                 <TableRow selected>
-                                                                                    <TableCell sx={{ fontWeight: 900, py: 1.55 }}>Final Part Cost</TableCell>
-                                                                                    <TableCell align="right" sx={{ fontWeight: 950, color: "primary.main", py: 1.55 }}>
+                                                                                    <TableCell sx={{ fontWeight: 950, fontSize: "1.12rem", py: 1.7 }}>Final Part Cost</TableCell>
+                                                                                    <TableCell align="right" sx={{ fontWeight: 950, fontSize: "1.15rem", color: "primary.main", py: 1.7 }}>
                                                                                         {formatValue("total_cost", opResult?.cost_breakdown?.total_unit_cost_with_misc)}
                                                                                     </TableCell>
                                                                                 </TableRow>

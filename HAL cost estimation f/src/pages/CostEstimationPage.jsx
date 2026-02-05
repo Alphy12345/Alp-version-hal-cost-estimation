@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import CalculateIcon from "@mui/icons-material/Calculate";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { calculateCostEstimation } from "../api/costEstimation";
+import api from "../api/client";
 
 function flattenObject(obj, prefix = "") {
   if (obj == null) return [];
@@ -35,6 +36,8 @@ export default function CostEstimationPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
+  const [operationTypes, setOperationTypes] = useState([]);
+
   const [form, setForm] = useState({
     operation_type: "turning",
     material: "steel",
@@ -47,6 +50,67 @@ export default function CostEstimationPage() {
     height: "",
     shape: "round",
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get("/operation-type/");
+        if (cancelled) return;
+        setOperationTypes(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        if (!cancelled) setOperationTypes([]);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const operationTypeOptions = useMemo(() => {
+    const toOpValue = (name) => {
+      const raw = name == null ? "" : String(name);
+      const normalized = raw.trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+      return normalized.replace(/\s+/g, "_");
+    };
+
+    const supportedOperationValues = new Set([
+      "turning",
+      "milling",
+      "drilling",
+      "grinding",
+      "boring",
+      "heat_treatment",
+      "welding",
+      "surface_treatment",
+      "rubber_press",
+    ]);
+
+    const toApiOpValue = (name) => {
+      const v = toOpValue(name);
+      if (supportedOperationValues.has(v)) return v;
+      if (v.includes("boring")) return "boring";
+      return v;
+    };
+
+    const rawList = Array.isArray(operationTypes) ? operationTypes : [];
+    const optsFromDb = rawList
+      .map((ot) => {
+        const label = String(ot?.operation_name || "").trim();
+        const apiValue = toApiOpValue(ot?.operation_name);
+        const disabled = !supportedOperationValues.has(apiValue);
+        return label ? { value: apiValue, label, disabled } : null;
+      })
+      .filter(Boolean);
+
+    if (optsFromDb.length > 0) return optsFromDb;
+    return Array.from(supportedOperationValues).map((v) => ({
+      value: v,
+      label: v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      disabled: false,
+    }));
+  }, [operationTypes]);
 
   const opTypeNormalized = useMemo(() => {
     return String(form.operation_type || "").trim().toLowerCase();
@@ -81,6 +145,14 @@ export default function CostEstimationPage() {
 
   const handleChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  };
+
+  const handleOperationTypeChange = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      operation_type: e.target.value,
+      machine_name: "",
+    }));
   };
 
   const validate = () => {
@@ -190,16 +262,13 @@ export default function CostEstimationPage() {
                       fullWidth
                       label="Operation Type"
                       value={form.operation_type}
-                      onChange={handleChange("operation_type")}
+                      onChange={handleOperationTypeChange}
                     >
-                      <MenuItem value="turning">Turning</MenuItem>
-                      <MenuItem value="milling">Milling</MenuItem>
-                      <MenuItem value="drilling">Drilling</MenuItem>
-                      <MenuItem value="grinding">Grinding</MenuItem>
-                      <MenuItem value="boring">Boring</MenuItem>
-                      <MenuItem value="heat_treatment">Heat Treatment</MenuItem>
-                      <MenuItem value="welding">Welding</MenuItem>
-                      <MenuItem value="surface_treatment">Surface Treatment</MenuItem>
+                      {operationTypeOptions.map((opt) => (
+                        <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   </Grid>
 
