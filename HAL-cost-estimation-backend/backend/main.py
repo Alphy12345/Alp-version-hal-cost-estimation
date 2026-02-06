@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from .db import engine
 from .models.models import Base, User
+from .models import projects as _projects_models
 from .routes import cost_estimation
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import projects  # Add this import

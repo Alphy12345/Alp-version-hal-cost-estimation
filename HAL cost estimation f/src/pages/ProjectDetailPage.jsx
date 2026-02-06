@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Container,
@@ -12,7 +12,7 @@ import {
   Button
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart } from "../api/projects";
+import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart, getPartCostForm, savePartCostForm } from "../api/projects";
 import AddPartModal from "../components/AddPartModal";
 import FileViewerModal from "../components/FileViewerModal";
 import DocumentsTab from "../components/project-details/DocumentsTab";
@@ -42,6 +42,21 @@ function ProjectDetailPage({ onChange, projectId }) {
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
   const [costResults, setCostResults] = useState({}); // { partId: { operations: [resultData|null], combined_total_unit_cost_with_misc: number } }
+
+  const isHydratingCostFormsRef = useRef(false);
+  const lastSavedCostFormsRef = useRef({});
+  const saveTimersRef = useRef({});
+
+  const buildSavedCostPayload = useCallback((partId, formObj, resultsObj) => {
+    const base = formObj && typeof formObj === "object" ? formObj : {};
+    const merged = { ...base };
+    if (resultsObj && typeof resultsObj === "object") {
+      merged.__calc_results = resultsObj;
+    } else {
+      delete merged.__calc_results;
+    }
+    return merged;
+  }, []);
 
   // --- Initial Data Fetching ---
   useEffect(() => {
@@ -82,7 +97,63 @@ function ProjectDetailPage({ onChange, projectId }) {
               operations: [{ ...defaultOperation }],
             };
           });
-          setCostForms(prev => ({ ...initialForms, ...prev })); // Merge to keep existing edits if any re-fetch happens
+
+          // Hydrate saved form data from backend (if any). Saved data wins over defaults.
+          isHydratingCostFormsRef.current = true;
+          let savedByPartId = {};
+          let savedResultsByPartId = {};
+          try {
+            const results = await Promise.all(
+              (partsData || []).map(async (p) => {
+                try {
+                  const res = await getPartCostForm(p.id);
+                  return { partId: p.id, data: res?.data };
+                } catch (e) {
+                  return { partId: p.id, data: null };
+                }
+              })
+            );
+            results.forEach((r) => {
+              if (r?.partId != null && r?.data && typeof r.data === "object") {
+                const raw = r.data;
+                const next = { ...raw };
+                if (raw && typeof raw === "object" && raw.__calc_results && typeof raw.__calc_results === "object") {
+                  savedResultsByPartId[r.partId] = raw.__calc_results;
+                  delete next.__calc_results;
+                }
+                savedByPartId[r.partId] = next;
+              }
+            });
+          } catch (e) {
+            // ignore hydration failures
+          }
+
+          setCostForms((prev) => {
+            const next = { ...prev };
+            Object.keys(initialForms).forEach((pid) => {
+              const partIdNum = Number(pid);
+              const saved = savedByPartId[partIdNum] || savedByPartId[pid];
+              next[pid] = { ...initialForms[pid], ...(saved || {}) };
+            });
+            return next;
+          });
+
+          // Hydrate saved calculation results (if any)
+          if (savedResultsByPartId && typeof savedResultsByPartId === "object") {
+            setCostResults((prev) => {
+              const next = { ...prev };
+              Object.entries(savedResultsByPartId).forEach(([pid, v]) => {
+                if (!v || typeof v !== "object") return;
+                next[pid] = v;
+              });
+              return next;
+            });
+          }
+
+          // allow subsequent changes to trigger autosave
+          setTimeout(() => {
+            isHydratingCostFormsRef.current = false;
+          }, 0);
         } catch (err) {
           console.error("Failed to fetch parts:", err);
           // Don't block main render if parts fail, just show empty
@@ -340,7 +411,16 @@ function ProjectDetailPage({ onChange, projectId }) {
       return value == null ? "" : String(value).trim().toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
     };
 
-    const selectedOp = operationTypes.find((ot) => normalize(ot?.operation_name) === normalize(opType));
+    const toApiOpValue = (name) => {
+      const v = normalize(name).replace(/\s+/g, "_");
+      if (v === "boring" || v.includes("boring")) return "boring";
+      return v;
+    };
+
+    const selectedOp = operationTypes.find((ot) => {
+      const opName = ot?.operation_name;
+      return toApiOpValue(opName) === opType || normalize(opName) === normalize(opType);
+    });
     const selectedOpId = selectedOp?.id != null ? String(selectedOp.id) : "";
     const normalizeMachineName = (v) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
     const sameNameMachines = machines.filter((m)=> normalizeMachineName(m?.name)===normalizeMachineName(machineName));
@@ -469,6 +549,42 @@ function ProjectDetailPage({ onChange, projectId }) {
       };
     });
   };
+
+  // Autosave cost forms to backend (debounced) so refresh doesn't wipe the entered inputs.
+  useEffect(() => {
+    if (isHydratingCostFormsRef.current) return;
+
+    const forms = costForms && typeof costForms === "object" ? costForms : {};
+    const results = costResults && typeof costResults === "object" ? costResults : {};
+    Object.keys(forms).forEach((partId) => {
+      const data = forms[partId];
+      if (!data || typeof data !== "object") return;
+
+      const payload = buildSavedCostPayload(partId, data, results?.[partId]);
+      const nextSerialized = JSON.stringify(payload);
+      if (lastSavedCostFormsRef.current[partId] === nextSerialized) return;
+
+      if (saveTimersRef.current[partId]) {
+        clearTimeout(saveTimersRef.current[partId]);
+      }
+
+      saveTimersRef.current[partId] = setTimeout(async () => {
+        try {
+          await savePartCostForm(partId, payload);
+          lastSavedCostFormsRef.current[partId] = nextSerialized;
+        } catch (e) {
+          // ignore autosave errors (backend offline etc.)
+        }
+      }, 600);
+    });
+
+    return () => {
+      Object.keys(saveTimersRef.current || {}).forEach((k) => {
+        clearTimeout(saveTimersRef.current[k]);
+      });
+      saveTimersRef.current = {};
+    };
+  }, [costForms, costResults, buildSavedCostPayload]);
 
   const handleCostSetActiveOperation = (partId, nextIndex) => {
     setCostForms((prev) => {

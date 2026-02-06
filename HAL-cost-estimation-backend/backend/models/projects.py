@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..db import Base
@@ -60,6 +61,7 @@ class ProjectPart(Base):
     # Relationships
     project = relationship("Project", back_populates="parts")
     part_documents = relationship("ProjectPartDocument", back_populates="part", cascade="all, delete-orphan")
+    cost_form = relationship("ProjectPartCostForm", back_populates="part", cascade="all, delete-orphan", uselist=False)
 
 
 class ProjectPartDocument(Base):
@@ -74,3 +76,16 @@ class ProjectPartDocument(Base):
 
     # Relationships
     part = relationship("ProjectPart", back_populates="part_documents")
+
+
+class ProjectPartCostForm(Base):
+    __tablename__ = "project_part_cost_forms"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True, nullable=False)
+    part_id = Column(Integer, ForeignKey("project_parts.id"), unique=True, index=True, nullable=False)
+    data = Column(JSONB, nullable=False, default=dict)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    project = relationship("Project")
+    part = relationship("ProjectPart", back_populates="cost_form")

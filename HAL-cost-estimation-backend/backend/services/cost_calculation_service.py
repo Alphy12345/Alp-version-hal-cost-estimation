@@ -286,6 +286,13 @@ class CostCalculationService:
             # Compact spaces for comparisons where SQL can't easily collapse whitespace.
             return "".join(_norm(s).split())
 
+        def _canon_op(s: Optional[str]) -> str:
+            out = _norm(s)
+            # Treat DB variants like 'jig boring' as the API operation 'boring'
+            if out and "boring" in out:
+                return "boring"
+            return out
+
         def _resolve_duty_id(d: str) -> Optional[int]:
             d_norm = _norm(d)
             if not d_norm:
@@ -309,6 +316,12 @@ class CostCalculationService:
                     .filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "") == op_compact)
                     .first()
                 )
+                if not op_row and _norm(operation) == "boring":
+                    op_row = (
+                        db.query(OperationTypeModel)
+                        .filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "").like("%boring%"))
+                        .first()
+                    )
                 op_id = op_row.id if op_row else None
 
             du_id = duty_id if duty_id is not None else _resolve_duty_id(duty)
@@ -332,25 +345,30 @@ class CostCalculationService:
         # Prefer MHR configuration table values; do a normalized match to tolerate
         # differences like: "Medium duty" vs "medium", "Turning" vs "turning".
         try:
-            op_norm = _norm(operation)
+            op_norm = _canon_op(operation)
             duty_norm = _norm(duty)
             machine_norm = _norm(machine_name)
 
-            # Narrow candidates by operation+duty in SQL first. Machine naming can differ
-            # (e.g., "Conventional" vs "Conventional Lathe"), so we score matches in Python.
-            candidates = (
+            # Narrow candidates by operation in SQL first.
+            # IMPORTANT: For DB variants like 'JIG boring' while API operation is 'boring',
+            # filtering by normalized name would miss rows. If we have an op_type_id from the
+            # selected machine, that is the most reliable key.
+            q = (
                 db.query(MHR)
                 .join(OperationTypeModel, MHR.op_type_id == OperationTypeModel.id)
                 .join(Duty, MHR.duty_id == Duty.id)
                 .join(Machine, MHR.machine_id == Machine.id)
-                .filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "") == _compact(operation))
-                .all()
             )
+            if op_type_id is not None:
+                q = q.filter(MHR.op_type_id == op_type_id)
+            else:
+                q = q.filter(func.replace(_norm_sql(OperationTypeModel.operation_name), " ", "") == _compact(operation))
+            candidates = q.all()
 
             best = None
             best_score = -1
             for rec in candidates:
-                rec_op = _norm(getattr(rec.operation_type, "operation_name", None))
+                rec_op = _canon_op(getattr(rec.operation_type, "operation_name", None))
                 rec_duty = _norm(getattr(rec.duty, "name", None))
                 if rec_op != op_norm or rec_duty != duty_norm:
                     continue
@@ -383,7 +401,7 @@ class CostCalculationService:
             best = None
             best_score = -1
             for rec in candidates:
-                rec_op = _norm(getattr(rec.operation_type, "operation_name", None))
+                rec_op = _canon_op(getattr(rec.operation_type, "operation_name", None))
                 if rec_op != op_norm:
                     continue
 

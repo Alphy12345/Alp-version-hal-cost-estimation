@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 
 from ..db import get_db
-from ..models.projects import Project, ProjectCustomField, ProjectDocument, ProjectPart, ProjectPartDocument
+from ..models.projects import Project, ProjectCustomField, ProjectDocument, ProjectPart, ProjectPartDocument, ProjectPartCostForm
 from pydantic import BaseModel
 from backend.services.file_service import upload_file
 from backend.services.minio_client import MINIO_CLIENT, BUCKET_NAME
@@ -75,6 +75,8 @@ class ProjectResponse(ProjectBase):
     class Config:
         from_attributes = True
 
+class PartCostFormPayload(BaseModel):
+    data: dict
 
 # ============= HELPER FUNCTIONS =============
 
@@ -322,6 +324,46 @@ def get_project_parts(project_id: int, db: Session = Depends(get_db)):
     """Get all parts for a project"""
     parts = db.query(ProjectPart).filter(ProjectPart.project_id == project_id).all()
     return parts
+
+
+@router.get("/parts/{part_id}/cost-form")
+def get_part_cost_form(part_id: int, db: Session = Depends(get_db)):
+    """Get saved cost estimation form data for a part (autosave restore)."""
+    part = db.query(ProjectPart).filter(ProjectPart.id == part_id).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+
+    row = db.query(ProjectPartCostForm).filter(ProjectPartCostForm.part_id == part_id).first()
+    return {
+        "project_id": part.project_id,
+        "part_id": part_id,
+        "data": row.data if row else None,
+    }
+
+
+@router.put("/parts/{part_id}/cost-form")
+def upsert_part_cost_form(part_id: int, payload: PartCostFormPayload, db: Session = Depends(get_db)):
+    """Create/update saved cost estimation form data for a part (autosave)."""
+    part = db.query(ProjectPart).filter(ProjectPart.id == part_id).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+
+    row = db.query(ProjectPartCostForm).filter(ProjectPartCostForm.part_id == part_id).first()
+    if row:
+        row.data = payload.data or {}
+    else:
+        row = ProjectPartCostForm(project_id=part.project_id, part_id=part_id, data=payload.data or {})
+        db.add(row)
+
+    db.commit()
+    db.refresh(row)
+
+    return {
+        "project_id": part.project_id,
+        "part_id": part_id,
+        "data": row.data,
+        "updated_at": row.updated_at,
+    }
 
 
 @router.put("/parts/{part_id}", response_model=PartResponse)

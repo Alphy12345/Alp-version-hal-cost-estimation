@@ -399,19 +399,23 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
+
+      const margin = 28;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+      const imgWidth = usableWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
-      let position = 0;
+      let position = margin;
 
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= usableHeight;
 
       while (heightLeft > 5) {
-        position -= pageHeight;
+        position -= usableHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+        heightLeft -= usableHeight;
       }
 
       const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
@@ -490,9 +494,20 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
               }}
             >
               {part.drawing_2d_path ? (
-                <Box sx={{ transform: `scale(${drawingZoom})`, transition: "transform 0.2s" }}>
+                <Box
+                  sx={{
+                    transform: `scale(${drawingZoom})`,
+                    transition: "transform 0.2s",
+                    transformOrigin: "top left",
+                    display: "inline-block",
+                    willChange: "transform",
+                  }}
+                >
                   {isPdfPath(part.drawing_2d_path) ? (
-                    <PdfPreview url={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 500 }} />
+                    <PdfPreview
+                      url={getInlineFileUrl(part.drawing_2d_path)}
+                      style={{ width: 560, maxWidth: "100%", maxHeight: 500, objectFit: "contain" }}
+                    />
                   ) : (
                     <img src={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 500, maxWidth: "100%" }} alt="Drawing" />
                   )}
@@ -749,21 +764,25 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         fullWidth
         PaperProps={{ sx: { bgcolor: "transparent", boxShadow: "none" } }}
       >
-        <DialogContent sx={{ p: 0, bgcolor: "transparent" }}>
+        <DialogContent sx={{ p: 2, bgcolor: "transparent", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
           <Box
             ref={pdfPreviewRef}
             sx={{
               bgcolor: "#020617",
               color: "#e5e7eb",
-              width: "100%",
-              p: 3,
+              width: "min(794px, 100%)",
+              minHeight: "1123px",
+              p: 4,
               borderRadius: 2,
               border: "1px solid rgba(148,163,184,0.18)",
+              fontSize: "14px",
+              lineHeight: 1.35,
+              "& .MuiTypography-root": { fontSize: "1em" },
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="h5" fontWeight={900} sx={{ color: "#e5e7eb", lineHeight: 1.1 }}>
+                <Typography variant="h5" fontWeight={900} sx={{ color: "#e5e7eb", lineHeight: 1.1, fontSize: "1.6em" }}>
                   {projectData?.project_name || "Untitled Project"}
                 </Typography>
                 <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 1.5, rowGap: 0.5, maxWidth: 640 }}>
@@ -776,7 +795,7 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 </Box>
               </Box>
               <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                <Typography variant="h6" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                <Typography variant="h6" fontWeight={900} sx={{ color: "#e5e7eb", fontSize: "1.25em" }}>
                   HAL Cost Estimation
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(229,231,235,0.75)" }}>

@@ -69,3 +69,15 @@ export const deleteProjectPart = async (partId) => {
   const response = await api.delete(`/projects/parts/${partId}`);
   return response.data;
 };
+
+// Get saved cost form for a part
+export const getPartCostForm = async (partId) => {
+  const response = await api.get(`/projects/parts/${partId}/cost-form`);
+  return response.data;
+};
+
+// Save cost form for a part
+export const savePartCostForm = async (partId, data) => {
+  const response = await api.put(`/projects/parts/${partId}/cost-form`, { data });
+  return response.data;
+};
