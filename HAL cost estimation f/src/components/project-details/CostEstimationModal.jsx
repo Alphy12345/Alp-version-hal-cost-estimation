@@ -52,6 +52,7 @@ function CostEstimationModal({
     part,
     activeOperationIndex = 0,
     operations = [],
+    costForms,
     onSetActiveOperation,
     onAddOperation,
     onRemoveOperation,
@@ -149,34 +150,22 @@ function CostEstimationModal({
         else onZoomOut();
     };
 
-    const miscItems = useMemo(() => {
-        const items = formState?.miscellaneous_items;
+    const partMiscItems = useMemo(() => {
+        const partForm = costForms?.[part?.id];
+        const items = partForm?.miscellaneous_items;
         if (Array.isArray(items) && items.length > 0) return items;
-        const desc = String(formState?.miscellaneous_description || "").trim();
-        const amt = formState?.miscellaneous_amount;
-        if (desc || (amt !== "" && amt != null)) {
-            return [{ description: desc, amount: amt }];
-        }
         return [{ description: "", amount: "" }];
-    }, [formState?.miscellaneous_amount, formState?.miscellaneous_description, formState?.miscellaneous_items]);
+    }, [costForms, part?.id]);
 
-    const miscTotal = useMemo(() => {
-        return miscItems.reduce((sum, it) => {
+    const partMiscTotal = useMemo(() => {
+        return partMiscItems.reduce((sum, it) => {
             const n = Number(it?.amount);
             return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
         }, 0);
-    }, [miscItems]);
+    }, [partMiscItems]);
 
-    const updateMiscItems = (next) => {
-        const total = Array.isArray(next)
-            ? next.reduce((sum, it) => {
-                const n = Number(it?.amount);
-                return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
-            }, 0)
-            : 0;
-
-        onChangeForm(part.id, activeOperationIndex, "miscellaneous_items", next);
-        onChangeForm(part.id, activeOperationIndex, "miscellaneous_amount", String(total));
+    const updatePartMiscItems = (next) => {
+        onChangeForm(part.id, -1, "miscellaneous_items", next);
     };
 
     const handleMouseDown = (e) => {
@@ -487,225 +476,127 @@ function CostEstimationModal({
                     bgcolor: "transparent",
                 }}
             >
-                {/* Sidebar - Drawing & Info */}
-                <Paper
-                    elevation={0}
-                    sx={{
-                        width: { xs: 360, md: 420, lg: 460 },
-                        borderRight: "1px solid rgba(30,64,175,0.6)",
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        overflowY: "auto",
-                        bgcolor: "rgba(15,23,42,0.96)",
-                        flexShrink: 0,
-                    }}
-                >
-                    <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
-                        {/* Project Info Card */}
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2.5,
-                                borderRadius: 2.5,
-                                bgcolor: "rgba(15,23,42,0.98)",
-                                borderColor: "rgba(30,64,175,0.65)",
-                            }}
-                        >
-                            <Typography variant="overline" sx={{ letterSpacing: 1, fontSize: "0.75rem" }} color="rgba(148,163,184,0.9)">
-                                PROJECT
-                            </Typography>
-                            <Typography variant="h5" fontWeight={900} gutterBottom sx={{ color: "#e5e7eb" }}>
-                                {projectData?.project_name || "Untitled Project"}
-                            </Typography>
-                            <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
-                                PO/Ref: {projectData?.po_reference_number || "N/A"}
-                            </Typography>
-                            <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
-                                Customer: {projectData?.customer_name || "N/A"}
-                            </Typography>
-                        </Paper>
-
-                        {/* Operation Details (replaces drawing in sidebar) */}
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                overflow: "hidden",
-                                display: "flex",
-                                flexDirection: "column",
-                                bgcolor: "rgba(15,23,42,0.98)",
-                                borderColor: "rgba(30,64,175,0.7)",
-                            }}
-                        >
-                            <Box sx={{ px: 2, py: 1.5, bgcolor: "rgba(15,23,42,0.98)", borderBottom: 1, borderColor: "rgba(30,64,175,0.7)" }}>
-                                <Typography variant="subtitle2" sx={{ color: "#e5e7eb" }}>
-                                    Operation Details
-                                </Typography>
-                            </Box>
-                            <Box sx={{ p: 2.5 }}>
-                                {!costResult ? (
-                                    <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.9)" }}>
-                                        Calculate cost to see the details.
-                                    </Typography>
-                                ) : (
-                                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#020617", borderColor: "rgba(30,64,175,0.6)" }}>
-                                        <Table size="small">
-                                            <TableBody>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Operation</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.operation_type}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Machine</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.selected_machine?.name}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Material</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.material}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Duty Category</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.duty_category}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Shape</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.shape}</TableCell>
-                                                </TableRow>
-                                                {costResult.volume ? (
-                                                    <TableRow>
-                                                        <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Volume</TableCell>
-                                                        <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25 }}>{costResult.volume.toFixed(2)} mm³</TableCell>
-                                                    </TableRow>
-                                                ) : null}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                )}
-                            </Box>
-                        </Paper>
-                    </Box>
-                </Paper>
-
-                {/* Main Content - Form, Cost Breakdown, Drawing */}
-                <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2.5, md: 3.5 } }}>
-                    <Grid container spacing={3.5}>
-                        <Grid item xs={12}>
-                            <Stack spacing={3.5}>
-                                {/* Drawing (full width above Cost Breakdown) */}
-                                <Paper
-                                    variant="outlined"
+            {/* Main Content - Drawing and Operations */}
+            <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2.5, md: 3.5 } }}>
+                <Grid container spacing={3.5}>
+                    <Grid item xs={12}>
+                        <Stack spacing={3.5}>
+                            {/* Drawing */}
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    height: { xs: 560, lg: "calc(100vh - 360px)" },
+                                    borderRadius: 3,
+                                    bgcolor: "rgba(15,23,42,0.98)",
+                                    borderColor: "rgba(30,64,175,0.7)",
+                                    boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
+                                }}
+                            >
+                                <Box
                                     sx={{
-                                        overflow: "hidden",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        height: { xs: 560, lg: "calc(100vh - 360px)" },
-                                        borderRadius: 3,
+                                        px: 2.5,
+                                        py: 1.75,
                                         bgcolor: "rgba(15,23,42,0.98)",
+                                        borderBottom: 1,
                                         borderColor: "rgba(30,64,175,0.7)",
-                                        boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
                                     }}
                                 >
-                                    <Box
-                                        sx={{
-                                            px: 2.5,
-                                            py: 1.75,
-                                            bgcolor: "rgba(15,23,42,0.98)",
-                                            borderBottom: 1,
-                                            borderColor: "rgba(30,64,175,0.7)",
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                        }}
-                                    >
-                                        <Typography variant="subtitle2" sx={{ color: "#e5e7eb", fontWeight: 700 }}>
-                                            2D Drawing
-                                        </Typography>
-                                        <Stack direction="row" spacing={0.5}>
-                                            <IconButton size="small" onClick={onZoomOut} title="Zoom Out" sx={{ color: "#e5e7eb" }}>
-                                                <ZoomOutIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton size="small" onClick={onResetZoom} title="Reset" sx={{ color: "#e5e7eb" }}>
-                                                <RestartAltIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton size="small" onClick={onZoomIn} title="Zoom In" sx={{ color: "#e5e7eb" }}>
-                                                <ZoomInIcon fontSize="small" />
-                                            </IconButton>
-                                        </Stack>
-                                    </Box>
+                                    <Typography variant="subtitle2" sx={{ color: "#e5e7eb", fontWeight: 700 }}>
+                                        2D Drawing
+                                    </Typography>
+                                    <Stack direction="row" spacing={0.5}>
+                                        <IconButton size="small" onClick={onZoomOut} title="Zoom Out" sx={{ color: "#e5e7eb" }}>
+                                            <ZoomOutIcon fontSize="small" />
+                                        </IconButton>
+                                        <IconButton size="small" onClick={onResetZoom} title="Reset" sx={{ color: "#e5e7eb" }}>
+                                            <RestartAltIcon fontSize="small" />
+                                        </IconButton>
+                                        <IconButton size="small" onClick={onZoomIn} title="Zoom In" sx={{ color: "#e5e7eb" }}>
+                                            <ZoomInIcon fontSize="small" />
+                                        </IconButton>
+                                    </Stack>
+                                </Box>
 
-                                    <Box
-                                        ref={drawingScrollRef}
-                                        onWheel={handleDrawingWheel}
-                                        onMouseDown={handleMouseDown}
-                                        onMouseUp={handleMouseUp}
-                                        onMouseLeave={handleMouseLeave}
-                                        onMouseMove={handleMouseMove}
-                                        sx={{
-                                            p: 2,
-                                            bgcolor: "#020617",
-                                            flex: 1,
-                                            minHeight: 0,
-                                            overflow: "auto",
-                                            cursor: part?.drawing_2d_path && !isPdfPath(part.drawing_2d_path) ? "grab" : "default",
-                                        }}
-                                    >
-                                        {!part.drawing_2d_path ? (
-                                            <Typography variant="caption" color="text.secondary">No drawing uploaded.</Typography>
-                                        ) : (
-                                            <Box sx={{ minWidth: "100%", minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                {isPdfPath(part.drawing_2d_path) ? (
+                                <Box
+                                    ref={drawingScrollRef}
+                                    onWheel={handleDrawingWheel}
+                                    onMouseDown={handleMouseDown}
+                                    onMouseUp={handleMouseUp}
+                                    onMouseLeave={handleMouseLeave}
+                                    onMouseMove={handleMouseMove}
+                                    sx={{
+                                        p: 2,
+                                        bgcolor: "#020617",
+                                        flex: 1,
+                                        minHeight: 0,
+                                        overflow: "auto",
+                                        cursor: part?.drawing_2d_path && !isPdfPath(part.drawing_2d_path) ? "grab" : "default",
+                                    }}
+                                >
+                                    {!part.drawing_2d_path ? (
+                                        <Typography variant="caption" color="text.secondary">No drawing uploaded.</Typography>
+                                    ) : (
+                                        <Box sx={{ minWidth: "100%", minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                            {isPdfPath(part.drawing_2d_path) ? (
+                                                <Box
+                                                    component="iframe"
+                                                    title="2D Drawing"
+                                                    src={`${drawingUrl}#toolbar=1&navpanes=0&scrollbar=1&zoom=${Math.round(drawingZoom * 100)}`}
+                                                    sx={{
+                                                        width: "100%",
+                                                        height: "100%",
+                                                        minHeight: 520,
+                                                        border: 0,
+                                                        borderRadius: 1,
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Box
+                                                    sx={{
+                                                        transform: `scale(${drawingZoom})`,
+                                                        transformOrigin: "0 0",
+                                                        transition: "transform 0.1s ease-out",
+                                                        display: "inline-block",
+                                                    }}
+                                                >
                                                     <Box
-                                                        component="iframe"
-                                                        title="2D Drawing"
-                                                        src={`${drawingUrl}#toolbar=1&navpanes=0&scrollbar=1&zoom=${Math.round(drawingZoom * 100)}`}
+                                                        component="img"
+                                                        src={drawingUrl}
+                                                        alt="Drawing Preview"
                                                         sx={{
-                                                            width: "100%",
-                                                            height: "100%",
-                                                            minHeight: 520,
-                                                            border: 0,
-                                                            borderRadius: 1,
+                                                            display: "block",
+                                                            maxWidth: "none",
+                                                            maxHeight: "none",
+                                                            width: "auto",
+                                                            height: "auto",
+                                                            imageRendering: "auto",
                                                         }}
                                                     />
-                                                ) : (
-                                                    <Box
-                                                        sx={{
-                                                            transform: `scale(${drawingZoom})`,
-                                                            transformOrigin: "0 0",
-                                                            transition: "transform 0.1s ease-out",
-                                                            display: "inline-block",
-                                                        }}
-                                                    >
-                                                        <Box
-                                                            component="img"
-                                                            src={drawingUrl}
-                                                            alt="Drawing Preview"
-                                                            sx={{
-                                                                display: "block",
-                                                                maxWidth: "none",
-                                                                maxHeight: "none",
-                                                                width: "auto",
-                                                                height: "auto",
-                                                                imageRendering: "auto",
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                )}
-                                            </Box>
-                                        )}
-                                    </Box>
-                                </Paper>
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Paper>
 
-                                <Paper
-                                    variant="outlined"
-                                    sx={{
-                                        borderRadius: 3,
-                                        overflow: "hidden",
-                                        bgcolor: "rgba(15,23,42,0.98)",
-                                        borderColor: "rgba(30,64,175,0.7)",
-                                        boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
-                                    }}
-                                >
-                                    <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "rgba(30,64,175,0.7)", bgcolor: "rgba(15,23,42,0.98)" }}>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    borderRadius: 3,
+                                    overflow: "hidden",
+                                    bgcolor: "rgba(15,23,42,0.98)",
+                                    borderColor: "rgba(30,64,175,0.7)",
+                                    boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
+                                }}
+                            >
+                                <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "rgba(30,64,175,0.7)", bgcolor: "rgba(15,23,42,0.98)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <Box>
                                         <Typography variant="h5" fontSize="1.4rem" fontWeight={900} sx={{ color: "#e5e7eb" }}>
                                             Machining Inputs
                                         </Typography>
@@ -713,80 +604,32 @@ function CostEstimationModal({
                                             Fill the values and calculate
                                         </Typography>
                                     </Box>
+                                </Box>
 
-                                    <Box sx={{ p: 3.5 }}>
-                                        <Stack spacing={2.25}>
-                                            <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-                                                <Button
-                                                    variant="outlined"
-                                                    size="small"
-                                                    startIcon={<AddCircleOutlineIcon />}
-                                                    onClick={() => onAddOperation && onAddOperation(part.id)}
-                                                    sx={{ textTransform: "none", fontWeight: 800 }}
-                                                >
-                                                    Add Operation
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outlined"
-                                                    disabled={loading || !Array.isArray(operations) || operations.length <= 1}
-                                                    onClick={() => onSubmitAll && onSubmitAll(part.id)}
-                                                    sx={{ textTransform: "none", fontWeight: 800 }}
-                                                >
-                                                    Calculate All Operations
-                                                </Button>
-                                            </Box>
+                                <Box sx={{ p: 3.5 }}>
+                                    <Stack spacing={2.25}>
+                                            {(Array.isArray(operations) && operations.length > 0 ? operations : [formState]).map((op, opIndex) => {
+                                                const opState = opIndex === activeOperationIndex ? formState : (op || {});
+                                                const opResult = Array.isArray(operationResults) ? operationResults[opIndex] : null;
+                                                const isExpanded = Boolean(expandedOperations?.[opIndex]);
+                                                const opTypeValue = String(opState?.operation_type || "").trim().toLowerCase();
+                                                const roundOnlyOpsForOp = new Set(["turning", "boring"]);
+                                                const rectangularOnlyOpsForOp = new Set(["milling", "grinding", "surface_treatment", "rubber_press"]);
+                                                const flexibleOpsForOp = new Set(["drilling", "heat_treatment", "welding"]);
+                                                const isFlexibleOpForOp = flexibleOpsForOp.has(opTypeValue);
+                                                const isRoundOnlyOpForOp = roundOnlyOpsForOp.has(opTypeValue);
+                                                const isRectangularOnlyOpForOp = rectangularOnlyOpsForOp.has(opTypeValue);
+                                                const shapeValueForOp = String(opState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
+                                                const needsManualDutyForOp = opTypeValue && opTypeValue !== "turning" && opTypeValue !== "milling";
 
-                                            <Stack spacing={2.25}>
-                                                {(Array.isArray(operations) && operations.length > 0 ? operations : [formState]).map((op, opIndex) => {
-                                                    const opState = opIndex === activeOperationIndex ? formState : (op || {});
-                                                    const opResult = Array.isArray(operationResults) ? operationResults[opIndex] : null;
-                                                    const isExpanded = Boolean(expandedOperations?.[opIndex]);
-                                                    const opTypeValue = String(opState?.operation_type || "").trim().toLowerCase();
-                                                    const roundOnlyOpsForOp = new Set(["turning", "boring"]);
-                                                    const rectangularOnlyOpsForOp = new Set(["milling", "grinding", "surface_treatment", "rubber_press"]);
-                                                    const flexibleOpsForOp = new Set(["drilling", "heat_treatment", "welding"]);
-                                                    const isFlexibleOpForOp = flexibleOpsForOp.has(opTypeValue);
-                                                    const isRoundOnlyOpForOp = roundOnlyOpsForOp.has(opTypeValue);
-                                                    const isRectangularOnlyOpForOp = rectangularOnlyOpsForOp.has(opTypeValue);
-                                                    const shapeValueForOp = String(opState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
-                                                    const needsManualDutyForOp = opTypeValue && opTypeValue !== "turning" && opTypeValue !== "milling";
-
-                                                    const machinesForOp = getFilteredMachinesForOperation(opState?.operation_type);
-                                                    const machineValueForOp = (() => {
-                                                        const current = String(opState?.machine_name || "").trim();
-                                                        if (!current) return "";
-                                                        const currentNorm = normalizeMachineName(current);
-                                                        const exists = machinesForOp.some((m) => normalizeMachineName(m?.name) === currentNorm);
-                                                        return exists ? String(opState?.machine_name || "").trim() : "";
-                                                    })();
-
-                                                    const opMiscItems = (() => {
-                                                        const items = opState?.miscellaneous_items;
-                                                        if (Array.isArray(items) && items.length > 0) return items;
-                                                        const desc = String(opState?.miscellaneous_description || "").trim();
-                                                        const amt = opState?.miscellaneous_amount;
-                                                        if (desc || (amt !== "" && amt != null)) {
-                                                            return [{ description: desc, amount: amt }];
-                                                        }
-                                                        return [{ description: "", amount: "" }];
-                                                    })();
-
-                                                    const opMiscTotal = opMiscItems.reduce((sum, it) => {
-                                                        const n = Number(it?.amount);
-                                                        return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
-                                                    }, 0);
-
-                                                    const updateOpMiscItems = (next) => {
-                                                        const total = Array.isArray(next)
-                                                            ? next.reduce((sum, it) => {
-                                                                const n = Number(it?.amount);
-                                                                return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
-                                                            }, 0)
-                                                            : 0;
-                                                        onChangeForm(part.id, opIndex, "miscellaneous_items", next);
-                                                        onChangeForm(part.id, opIndex, "miscellaneous_amount", String(total));
-                                                    };
+                                                const machinesForOp = getFilteredMachinesForOperation(opState?.operation_type);
+                                                const machineValueForOp = (() => {
+                                                    const current = String(opState?.machine_name || "").trim();
+                                                    if (!current) return "";
+                                                    const currentNorm = normalizeMachineName(current);
+                                                    const exists = machinesForOp.some((m) => normalizeMachineName(m?.name) === currentNorm);
+                                                    return exists ? String(opState?.machine_name || "").trim() : "";
+                                                })();
 
                                                     return (
                                                         <Paper
@@ -830,7 +673,7 @@ function CostEstimationModal({
 
                                                             <form onSubmit={(e) => onSubmit(e, part.id, opIndex)}>
                                                                 <Grid container spacing={2.5} alignItems="stretch">
-                                                                    <Grid item xs={12} sm={6} lg={3}>
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                         <TextField
                                                                             select
                                                                             label="Operation Type"
@@ -841,16 +684,21 @@ function CostEstimationModal({
                                                                             }}
                                                                             fullWidth
                                                                             size="medium"
+                                                                            sx={{
+                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                                minWidth: 280,
+                                                                            }}
                                                                         >
                                                                             {operationTypeOptions.map((opt) => (
-                                                                                <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
+                                                                                <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)} sx={{ fontSize: '1.05rem', py: 1.5 }}>
                                                                                     {opt.label}
                                                                                 </MenuItem>
                                                                             ))}
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} lg={3}>
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                         <TextField
                                                                             select
                                                                             label="Material"
@@ -858,14 +706,19 @@ function CostEstimationModal({
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "material", e.target.value)}
                                                                             fullWidth
                                                                             size="medium"
+                                                                            sx={{
+                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                                minWidth: 280,
+                                                                            }}
                                                                         >
-                                                                            <MenuItem value="steel">Steel</MenuItem>
-                                                                            <MenuItem value="aluminium">Aluminium</MenuItem>
-                                                                            <MenuItem value="titanium">Titanium</MenuItem>
+                                                                            <MenuItem value="steel" sx={{ fontSize: '1.05rem', py: 1.5 }}>Steel</MenuItem>
+                                                                            <MenuItem value="aluminium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Aluminium</MenuItem>
+                                                                            <MenuItem value="titanium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Titanium</MenuItem>
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} lg={3}>
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                         <TextField
                                                                             select
                                                                             label="Machine"
@@ -873,15 +726,22 @@ function CostEstimationModal({
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "machine_name", String(e.target.value || "").trim())}
                                                                             fullWidth
                                                                             size="medium"
+                                                                            sx={{
+                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                                minWidth: 280,
+                                                                            }}
                                                                         >
-                                                                            <MenuItem value="">Select Machine</MenuItem>
+                                                                            <MenuItem value="" sx={{ fontSize: '1.05rem', py: 1.5 }}>Select Machine</MenuItem>
                                                                             {machinesForOp.map((m) => (
-                                                                                <MenuItem key={m.id} value={String(m?.name || "").trim()}>{String(m?.name || "").trim()}</MenuItem>
+                                                                                <MenuItem key={m.id} value={String(m?.name || "").trim()} sx={{ fontSize: '1.05rem', py: 1.5 }}>
+                                                                                    {String(m?.name || "").trim()}
+                                                                                </MenuItem>
                                                                             ))}
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} lg={3}>
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                         <TextField
                                                                             label="Man Hours / Unit"
                                                                             type="number"
@@ -891,10 +751,14 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="medium"
                                                                             required
+                                                                            sx={{
+                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                            }}
                                                                         />
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} lg={3}>
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                         <TextField
                                                                             select
                                                                             label="Duty Category"
@@ -903,89 +767,21 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="medium"
                                                                             required={Boolean(needsManualDutyForOp)}
+                                                                            sx={{
+                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                                minWidth: 280,
+                                                                            }}
                                                                         >
-                                                                            <MenuItem value="">Select Duty</MenuItem>
-                                                                            <MenuItem value="light">Light</MenuItem>
-                                                                            <MenuItem value="medium">Medium</MenuItem>
-                                                                            <MenuItem value="heavy">Heavy</MenuItem>
+                                                                            <MenuItem value="" sx={{ fontSize: '1.05rem', py: 1.5 }}>Select Duty</MenuItem>
+                                                                            <MenuItem value="light" sx={{ fontSize: '1.05rem', py: 1.5 }}>Light</MenuItem>
+                                                                            <MenuItem value="medium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Medium</MenuItem>
+                                                                            <MenuItem value="heavy" sx={{ fontSize: '1.05rem', py: 1.5 }}>Heavy</MenuItem>
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} lg={6}>
-                                                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: "100%" }}>
-                                                                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                                                                                <Typography variant="subtitle2">Miscellaneous Costs</Typography>
-                                                                                <Button
-                                                                                    size="small"
-                                                                                    variant="outlined"
-                                                                                    startIcon={<AddCircleOutlineIcon />}
-                                                                                    onClick={() => {
-                                                                                        const next = [...opMiscItems, { description: "", amount: "" }];
-                                                                                        updateOpMiscItems(next);
-                                                                                    }}
-                                                                                    sx={{ textTransform: "none", fontWeight: 700 }}
-                                                                                >
-                                                                                    Add
-                                                                                </Button>
-                                                                            </Box>
-
-                                                                            <Stack spacing={1.5}>
-                                                                                {opMiscItems.map((item, idx) => (
-                                                                                    <Grid container spacing={1.5} key={idx} alignItems="center">
-                                                                                        <Grid item xs={12} md={7}>
-                                                                                            <TextField
-                                                                                                label="Description"
-                                                                                                value={item?.description || ""}
-                                                                                                onChange={(e) => {
-                                                                                                    const next = opMiscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
-                                                                                                    updateOpMiscItems(next);
-                                                                                                }}
-                                                                                                fullWidth
-                                                                                                size="medium"
-                                                                                            />
-                                                                                        </Grid>
-                                                                                        <Grid item xs={10} md={4}>
-                                                                                            <TextField
-                                                                                                label="Amount"
-                                                                                                type="number"
-                                                                                                inputProps={{ step: "0.01", min: "0" }}
-                                                                                                value={item?.amount ?? ""}
-                                                                                                onChange={(e) => {
-                                                                                                    const next = opMiscItems.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
-                                                                                                    updateOpMiscItems(next);
-                                                                                                }}
-                                                                                                fullWidth
-                                                                                                size="medium"
-                                                                                            />
-                                                                                        </Grid>
-                                                                                        <Grid item xs={2} md={1} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                                                                                            <IconButton
-                                                                                                onClick={() => {
-                                                                                                    const next = opMiscItems.filter((_, i) => i !== idx);
-                                                                                                    updateOpMiscItems(next.length ? next : [{ description: "", amount: "" }]);
-                                                                                                }}
-                                                                                                title="Remove"
-                                                                                            >
-                                                                                                <DeleteOutlineIcon />
-                                                                                            </IconButton>
-                                                                                        </Grid>
-                                                                                    </Grid>
-                                                                                ))}
-                                                                            </Stack>
-
-                                                                            <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-                                                                                <Typography variant="body2" color="text.secondary" sx={{ mr: 1.5 }}>
-                                                                                    Total
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontWeight={900} color="primary.main">
-                                                                                    {formatValue("miscellaneous_amount", opMiscTotal)}
-                                                                                </Typography>
-                                                                            </Box>
-                                                                        </Paper>
-                                                                    </Grid>
-
                                                                     {isFlexibleOpForOp && (
-                                                                        <Grid item xs={12} sm={6} lg={3}>
+                                                                        <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                             <TextField
                                                                                 select
                                                                                 label="Shape"
@@ -993,77 +789,111 @@ function CostEstimationModal({
                                                                                 onChange={(e) => onChangeForm(part.id, opIndex, "shape", e.target.value)}
                                                                                 fullWidth
                                                                                 size="medium"
+                                                                                sx={{
+                                                                                    '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
+                                                                                    '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                                    minWidth: 280,
+                                                                                }}
                                                                             >
-                                                                                <MenuItem value="round">Round</MenuItem>
-                                                                                <MenuItem value="rectangular">Rectangular</MenuItem>
+                                                                                <MenuItem value="round" sx={{ fontSize: '1.05rem', py: 1.5 }}>Round</MenuItem>
+                                                                                <MenuItem value="rectangular" sx={{ fontSize: '1.05rem', py: 1.5 }}>Rectangular</MenuItem>
                                                                             </TextField>
                                                                         </Grid>
                                                                     )}
+                                                                </Grid>
 
-                                                                    <Grid item xs={12} sm={6} lg={3}>
-                                                                        <TextField
-                                                                            label="Length (mm)"
-                                                                            type="number"
-                                                                            inputProps={{ step: "0.01" }}
-                                                                            value={opState?.length || ""}
-                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "length", e.target.value)}
-                                                                            fullWidth
-                                                                            size="medium"
-                                                                            required
-                                                                        />
+                                                                {/* Second row - Dimensions */}
+                                                                <Grid container spacing={2.5} sx={{ mt: 0 }}>
+                                                                    <Grid item xs={12} md={5} lg={4}>
+                                                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.5)", height: "100%" }}>
+                                                                            <Typography variant="subtitle2" sx={{ mb: 2, color: "#e5e7eb" }}>
+                                                                                Dimensions
+                                                                            </Typography>
+                                                                            <Grid container spacing={2}>
+                                                                                <Grid item xs={4}>
+                                                                                    <TextField
+                                                                                        label="Length (mm)"
+                                                                                        type="number"
+                                                                                        inputProps={{ step: "0.01" }}
+                                                                                        value={opState?.length || ""}
+                                                                                        onChange={(e) => onChangeForm(part.id, opIndex, "length", e.target.value)}
+                                                                                        fullWidth
+                                                                                        size="medium"
+                                                                                        required
+                                                                                    />
+                                                                                </Grid>
+
+                                                                                {(isRoundOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "round")) && (
+                                                                                    <Grid item xs={4}>
+                                                                                        <TextField
+                                                                                            label="Diameter (mm)"
+                                                                                            type="number"
+                                                                                            inputProps={{ step: "0.01" }}
+                                                                                            value={opState?.diameter || ""}
+                                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "diameter", e.target.value)}
+                                                                                            fullWidth
+                                                                                            size="medium"
+                                                                                            required
+                                                                                        />
+                                                                                    </Grid>
+                                                                                )}
+
+                                                                                {(isRectangularOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "rectangular")) && (
+                                                                                    <>
+                                                                                        <Grid item xs={4}>
+                                                                                            <TextField
+                                                                                                label="Breadth (mm)"
+                                                                                                type="number"
+                                                                                                inputProps={{ step: "0.01" }}
+                                                                                                value={opState?.breadth || ""}
+                                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "breadth", e.target.value)}
+                                                                                                fullWidth
+                                                                                                size="medium"
+                                                                                                required
+                                                                                            />
+                                                                                        </Grid>
+                                                                                        <Grid item xs={4}>
+                                                                                            <TextField
+                                                                                                label="Height (mm)"
+                                                                                                type="number"
+                                                                                                inputProps={{ step: "0.01" }}
+                                                                                                value={opState?.height || ""}
+                                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "height", e.target.value)}
+                                                                                                fullWidth
+                                                                                                size="medium"
+                                                                                                required
+                                                                                            />
+                                                                                        </Grid>
+                                                                                    </>
+                                                                                )}
+                                                                            </Grid>
+                                                                        </Paper>
                                                                     </Grid>
+                                                                </Grid>
 
-                                                                    {(isRoundOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "round")) && (
-                                                                        <Grid item xs={12} sm={6} lg={3}>
-                                                                            <TextField
-                                                                                label="Diameter (mm)"
-                                                                                type="number"
-                                                                                inputProps={{ step: "0.01" }}
-                                                                                value={opState?.diameter || ""}
-                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "diameter", e.target.value)}
-                                                                                fullWidth
-                                                                                size="medium"
-                                                                                required
-                                                                            />
-                                                                        </Grid>
-                                                                    )}
-
-                                                                    {(isRectangularOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "rectangular")) && (
-                                                                        <>
-                                                                            <Grid item xs={12} sm={6} lg={3}>
-                                                                                <TextField
-                                                                                    label="Breadth (mm)"
-                                                                                    type="number"
-                                                                                    inputProps={{ step: "0.01" }}
-                                                                                    value={opState?.breadth || ""}
-                                                                                    onChange={(e) => onChangeForm(part.id, opIndex, "breadth", e.target.value)}
-                                                                                    fullWidth
-                                                                                    size="medium"
-                                                                                    required
-                                                                                />
-                                                                            </Grid>
-                                                                            <Grid item xs={12} sm={6} lg={3}>
-                                                                                <TextField
-                                                                                    label="Height (mm)"
-                                                                                    type="number"
-                                                                                    inputProps={{ step: "0.01" }}
-                                                                                    value={opState?.height || ""}
-                                                                                    onChange={(e) => onChangeForm(part.id, opIndex, "height", e.target.value)}
-                                                                                    fullWidth
-                                                                                    size="medium"
-                                                                                    required
-                                                                                />
-                                                                            </Grid>
-                                                                        </>
-                                                                    )}
-
-                                                                    <Grid item xs={12}>
-                                                                        <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                                                                            <Button type="submit" variant="contained" disabled={loading} sx={{ minWidth: 150 }}>
+                                                                {/* Third row - Calculate Cost Buttons */}
+                                                                <Grid container spacing={2.5} sx={{ mt: 2 }}>
+                                                                    <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                                                                        <Stack direction="row" spacing={2}>
+                                                                            <Button 
+                                                                                type="submit" 
+                                                                                variant="contained" 
+                                                                                disabled={loading} 
+                                                                                sx={{ 
+                                                                                    minWidth: 150, 
+                                                                                    py: 1.5,
+                                                                                    px: 3,
+                                                                                    fontSize: '1rem'
+                                                                                }}
+                                                                            >
                                                                                 {loading ? "Calculating..." : "Calculate Cost"}
                                                                             </Button>
-                                                                            {costResult && opIndex === activeOperationIndex && (
-                                                                                <Button variant="outlined" onClick={() => onClear(part.id)}>
+                                                                            {opResult && (
+                                                                                <Button 
+                                                                                    variant="outlined" 
+                                                                                    onClick={() => onClear(part.id)}
+                                                                                    sx={{ py: 1.5, px: 2 }}
+                                                                                >
                                                                                     Clear
                                                                                 </Button>
                                                                             )}
@@ -1134,24 +964,6 @@ function CostEstimationModal({
                                                                                         {formatValue("packing", opResult?.cost_breakdown?.packing_forwarding_per_unit)}
                                                                                     </TableCell>
                                                                                 </TableRow>
-                                                                                {opMiscItems
-                                                                                    .filter((x) => String(x?.description || "").trim() || (x?.amount !== "" && x?.amount != null))
-                                                                                    .map((x, i) => (
-                                                                                        <TableRow key={`op-${opIndex}-misc-${i}`}>
-                                                                                            <TableCell sx={{ py: 1.55 }}>
-                                                                                                Misc: {String(x?.description || "").trim() || "(no description)"}
-                                                                                            </TableCell>
-                                                                                            <TableCell align="right" sx={{ py: 1.55 }}>
-                                                                                                {formatValue("miscellaneous_amount", Number(x?.amount) || 0)}
-                                                                                            </TableCell>
-                                                                                        </TableRow>
-                                                                                    ))}
-                                                                                <TableRow>
-                                                                                    <TableCell sx={{ py: 1.55 }}>Miscellaneous Total</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>
-                                                                                        {formatValue("miscellaneous_amount", opResult?.cost_breakdown?.miscellaneous_amount)}
-                                                                                    </TableCell>
-                                                                                </TableRow>
                                                                                 <TableRow>
                                                                                     <TableCell sx={{ py: 1.55 }}>Man Hours / Unit</TableCell>
                                                                                     <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.cost_breakdown?.man_hours_per_unit}</TableCell>
@@ -1181,41 +993,144 @@ function CostEstimationModal({
                                                             </Collapse>
                                                         </Paper>
                                                     );
-                                                })}
-                                            </Stack>
+                                            })}
+
+                                            {/* Global Miscellaneous Section */}
+                                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
+                                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                        Global Miscellaneous Costs
+                                                    </Typography>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        startIcon={<AddCircleOutlineIcon />}
+                                                        onClick={() => {
+                                                            const next = [...partMiscItems, { description: "", amount: "" }];
+                                                            updatePartMiscItems(next);
+                                                        }}
+                                                        sx={{ textTransform: "none", fontWeight: 700 }}
+                                                    >
+                                                        Add
+                                                    </Button>
+                                                </Box>
+
+                                                <Stack spacing={1.5}>
+                                                    {partMiscItems.map((item, idx) => (
+                                                        <Grid container spacing={1.5} key={idx} alignItems="center">
+                                                            <Grid item xs={12} md={7}>
+                                                                <TextField
+                                                                    label="Description"
+                                                                    value={item?.description || ""}
+                                                                    onChange={(e) => {
+                                                                        const next = partMiscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
+                                                                        updatePartMiscItems(next);
+                                                                    }}
+                                                                    fullWidth
+                                                                    size="medium"
+                                                                />
+                                                            </Grid>
+                                                            <Grid item xs={10} md={4}>
+                                                                <TextField
+                                                                    label="Amount"
+                                                                    type="number"
+                                                                    inputProps={{ step: "0.01", min: "0" }}
+                                                                    value={item?.amount ?? ""}
+                                                                    onChange={(e) => {
+                                                                        const next = partMiscItems.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
+                                                                        updatePartMiscItems(next);
+                                                                    }}
+                                                                    fullWidth
+                                                                    size="medium"
+                                                                />
+                                                            </Grid>
+                                                            <Grid item xs={2} md={1} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        const next = partMiscItems.filter((_, i) => i !== idx);
+                                                                        updatePartMiscItems(next.length ? next : [{ description: "", amount: "" }]);
+                                                                    }}
+                                                                    title="Remove"
+                                                                >
+                                                                    <DeleteOutlineIcon />
+                                                                </IconButton>
+                                                            </Grid>
+                                                        </Grid>
+                                                    ))}
+                                                </Stack>
+
+                                                <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end", gap: 3, alignItems: "center" }}>
+                                                    <Typography variant="body2" fontWeight={700} sx={{ color: "rgba(148,163,184,0.95)" }}>
+                                                        Miscellaneous Total:
+                                                    </Typography>
+                                                    <Typography variant="body1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                        {formatValue("miscellaneous_amount", partMiscTotal)}
+                                                    </Typography>
+                                                </Box>
+                                            </Paper>
+
+                                            {/* Add Operation and Calculate All Buttons - Moved to end */}
+                                            <Box sx={{ display: "flex", justifyContent: "center", gap: 2, pt: 2, flexWrap: "wrap" }}>
+                                                <Button
+                                                    variant="outlined"
+                                                    size="large"
+                                                    startIcon={<AddCircleOutlineIcon />}
+                                                    onClick={() => onAddOperation && onAddOperation(part.id)}
+                                                    sx={{ textTransform: "none", fontWeight: 800, px: 4, py: 1.5 }}
+                                                >
+                                                    Add Operation
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="contained"
+                                                    size="large"
+                                                    disabled={loading || !Array.isArray(operations) || operations.length <= 1}
+                                                    onClick={() => onSubmitAll && onSubmitAll(part.id)}
+                                                    sx={{ textTransform: "none", fontWeight: 800, px: 4, py: 1.5 }}
+                                                >
+                                                    {loading ? "Calculating..." : "Calculate All Operations"}
+                                                </Button>
+                                            </Box>
+
                                         </Stack>
                                     </Box>
                                 </Paper>
 
-                                {operationSummaryRows.length > 1 && (
-                                    <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-                                        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "rgba(56,189,248,0.12)", bgcolor: "rgba(56,189,248,0.08)" }}>
-                                            <Typography variant="h6" fontSize="1rem" color="primary.main">Operations Summary</Typography>
+                                {operationSummaryRows.length > 0 && (
+                                    <Paper variant="outlined" sx={{ overflow: "hidden", bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
+                                        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "rgba(30,64,175,0.7)", bgcolor: "rgba(15,23,42,0.98)" }}>
+                                            <Typography variant="h6" fontSize="1rem" sx={{ color: "#e5e7eb", fontWeight: 900 }}>Operations Summary</Typography>
                                         </Box>
-                                        <Box sx={{ p: 4.5 }}>
-                                            <TableContainer component={Paper} variant="outlined">
+                                        <Box sx={{ p: 3 }}>
+                                            <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.6)" }}>
                                                 <Table>
                                                     <TableHead>
-                                                        <TableRow sx={{ "& th": { bgcolor: "rgba(56,189,248,0.10)", color: "primary.light" } }}>
-                                                            <TableCell sx={{ fontWeight: 900 }}>Operation</TableCell>
-                                                            <TableCell align="right" sx={{ fontWeight: 900 }}>Total (with Misc)</TableCell>
+                                                        <TableRow sx={{ bgcolor: "rgba(30,64,175,0.15)" }}>
+                                                            <TableCell sx={{ fontWeight: 900, color: "#e5e7eb" }}>Operation</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#e5e7eb" }}>Total Cost</TableCell>
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
                                                         {operationSummaryRows.map((row) => (
                                                             <TableRow key={row.idx}>
-                                                                <TableCell>{row.label}</TableCell>
-                                                                <TableCell align="right">{formatValue("total_cost", row.value)}</TableCell>
+                                                                <TableCell sx={{ color: "#e5e7eb" }}>{row.label}</TableCell>
+                                                                <TableCell align="right" sx={{ color: "#e5e7eb" }}>{formatValue("total_cost", row.value)}</TableCell>
                                                             </TableRow>
                                                         ))}
-                                                        <TableRow sx={{ bgcolor: "rgba(56,189,248,0.06)" }}>
-                                                            <TableCell sx={{ fontWeight: 900 }}>Final Total</TableCell>
-                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "primary.main" }}>
+                                                        {partMiscTotal > 0 && (
+                                                            <TableRow sx={{ bgcolor: "rgba(30,64,175,0.08)" }}>
+                                                                <TableCell sx={{ color: "#38bdf8", fontWeight: 800 }}>Global Miscellaneous</TableCell>
+                                                                <TableCell align="right" sx={{ color: "#38bdf8", fontWeight: 800 }}>
+                                                                    {formatValue("miscellaneous_amount", partMiscTotal)}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                        <TableRow sx={{ bgcolor: "rgba(30,64,175,0.15)" }}>
+                                                            <TableCell sx={{ fontWeight: 900, color: "#e5e7eb", fontSize: "1.05rem" }}>Grand Total</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8", fontSize: "1.05rem" }}>
                                                                 {formatValue(
                                                                     "total_cost",
-                                                                    Number.isFinite(Number(combinedTotal))
-                                                                        ? Number(combinedTotal)
-                                                                        : operationSummaryTotal
+                                                                    (Number.isFinite(Number(combinedTotal)) ? Number(combinedTotal) : operationSummaryTotal) + partMiscTotal
                                                                 )}
                                                             </TableCell>
                                                         </TableRow>
@@ -1229,9 +1144,131 @@ function CostEstimationModal({
                         </Grid>
                     </Grid>
                 </Box>
-            </Box>
 
-            <Dialog
+                {/* Right Sidebar - Project Info */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        width: { xs: 360, md: 420, lg: 460 },
+                        borderLeft: "1px solid rgba(30,64,175,0.6)",
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        overflowY: "auto",
+                        bgcolor: "rgba(15,23,42,0.96)",
+                        flexShrink: 0,
+                    }}
+                >
+                <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
+                    {/* Project Info Card */}
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 2.5,
+                            borderRadius: 2.5,
+                            bgcolor: "rgba(15,23,42,0.98)",
+                            borderColor: "rgba(30,64,175,0.65)",
+                        }}
+                    >
+                        <Typography variant="overline" sx={{ letterSpacing: 1, fontSize: "0.75rem" }} color="rgba(148,163,184,0.9)">
+                            PROJECT
+                        </Typography>
+                        <Typography variant="h5" fontWeight={900} gutterBottom sx={{ color: "#e5e7eb" }}>
+                            {projectData?.project_name || "Untitled Project"}
+                        </Typography>
+                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                            PO/Ref: {projectData?.po_reference_number || "N/A"}
+                        </Typography>
+                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                            Customer: {projectData?.customer_name || "N/A"}
+                        </Typography>
+                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                            Date: {projectData?.project_date || "N/A"}
+                        </Typography>
+                    </Paper>
+
+                    {/* Operation Details */}
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                            bgcolor: "rgba(15,23,42,0.98)",
+                            borderColor: "rgba(30,64,175,0.7)",
+                        }}
+                    >
+                        <Box sx={{ px: 2, py: 1.5, bgcolor: "rgba(15,23,42,0.98)", borderBottom: 1, borderColor: "rgba(30,64,175,0.7)" }}>
+                            <Typography variant="subtitle2" sx={{ color: "#e5e7eb" }}>
+                                Operation Details
+                            </Typography>
+                        </Box>
+                        <Box sx={{ p: 2.5 }}>
+                            {!costResult ? (
+                                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.9)" }}>
+                                    Calculate cost to see the details.
+                                </Typography>
+                            ) : (
+                                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#020617", borderColor: "rgba(30,64,175,0.6)" }}>
+                                    <Table size="small">
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Operation</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.operation_type}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Machine</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.selected_machine?.name}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Material</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.material}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Duty Category</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.duty_category}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Shape</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.shape}</TableCell>
+                                            </TableRow>
+                                            {costResult.volume ? (
+                                                <TableRow>
+                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Volume</TableCell>
+                                                    <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25 }}>{costResult.volume.toFixed(2)} mm³</TableCell>
+                                                </TableRow>
+                                            ) : null}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            )}
+                        </Box>
+                    </Paper>
+
+                    {/* Global Misc Summary */}
+                    {partMiscTotal > 0 && (
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 2.5,
+                                borderRadius: 2.5,
+                                bgcolor: "rgba(56,189,248,0.12)",
+                                borderColor: "rgba(56,189,248,0.45)",
+                            }}
+                        >
+                            <Typography variant="subtitle2" sx={{ color: "#38bdf8", mb: 1 }}>
+                                Global Miscellaneous
+                            </Typography>
+                            <Typography variant="h6" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                                {formatValue("miscellaneous_amount", partMiscTotal)}
+                            </Typography>
+                        </Paper>
+                    )}
+                </Box>
+            </Paper>
+        </Box>
+
+        <Dialog
                 open={pdfPreviewOpen}
                 onClose={() => setPdfPreviewOpen(false)}
                 maxWidth="lg"
@@ -1363,6 +1400,47 @@ function CostEstimationModal({
                             </TableContainer>
                         </Box>
 
+                        {/* Global Miscellaneous Section in PDF */}
+                        {partMiscTotal > 0 && (
+                            <Box sx={{ mt: 2.5 }}>
+                                <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)", borderRadius: 1.5 }}>
+                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                                        Global Miscellaneous Costs
+                                    </Typography>
+                                </Box>
+                                <TableContainer sx={{ mt: 1.5, border: "1px solid rgba(148,163,184,0.18)", borderRadius: 1.5, overflow: "hidden" }}>
+                                    <Table size="small" sx={{ "& th, & td": { borderColor: "rgba(148,163,184,0.18)", color: "rgba(229,231,235,0.9)" } }}>
+                                        <TableHead>
+                                            <TableRow sx={{ bgcolor: "rgba(56,189,248,0.10)" }}>
+                                                <TableCell sx={{ fontWeight: 900, color: "#38bdf8" }}>Description</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8" }}>Amount</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {partMiscItems
+                                                .filter((item) => String(item?.description || "").trim() || Number(item?.amount) > 0)
+                                                .map((item, idx) => (
+                                                    <TableRow key={`pdf-misc-${idx}`}>
+                                                        <TableCell sx={{ color: "#e5e7eb" }}>
+                                                            {String(item?.description || "").trim() || "Miscellaneous"}
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            {formatValue("miscellaneous_amount", Number(item?.amount) || 0)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            <TableRow sx={{ bgcolor: "rgba(56,189,248,0.06)" }}>
+                                                <TableCell sx={{ fontWeight: 900, color: "#38bdf8" }}>Miscellaneous Total</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8" }}>
+                                                    {formatValue("miscellaneous_amount", partMiscTotal)}
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Box>
+                        )}
+
                         <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
                             <Box sx={{ minWidth: 320, border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5, overflow: "hidden" }}>
                                 <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.14)" }}>
@@ -1486,6 +1564,8 @@ function CostEstimationModal({
                 getInlineFileUrl={getInlineFileUrl}
                 isPdfPath={isPdfPath}
                 PdfPreview={PdfPreview}
+                partMiscItems={partMiscItems}
+                partMiscTotal={partMiscTotal}
             />
         </Dialog>
     );

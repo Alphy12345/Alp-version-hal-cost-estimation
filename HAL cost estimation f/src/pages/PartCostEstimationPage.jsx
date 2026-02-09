@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Box,
   Button,
@@ -18,7 +19,13 @@ import {
   Divider,
   Card,
   CardContent,
-  CardHeader
+  CardHeader,
+  Chip,
+  Tooltip,
+  Fade,
+  Grow,
+  Slide,
+  Zoom
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -30,6 +37,12 @@ import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EngineeringIcon from "@mui/icons-material/Engineering";
+import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import DrawIcon from "@mui/icons-material/Draw";
+import SettingsIcon from "@mui/icons-material/Settings";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -45,18 +58,37 @@ function isMoneyFieldKey(key) {
   return /(cost|rate|profit|overheads|packing|outsourcing)/i.test(key);
 }
 
+function formatIndianCurrency(value, alwaysShowDecimals = true) {
+  if (value == null || !Number.isFinite(Number(value))) return "-";
+  const num = Number(value);
+  const hasDecimals = Math.abs(num - Math.trunc(num)) > Number.EPSILON || alwaysShowDecimals;
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(num);
+}
+
+function formatIndianNumber(value) {
+  if (value == null || !Number.isFinite(Number(value))) return "-";
+  const num = Number(value);
+  const hasDecimals = Math.abs(num - Math.trunc(num)) > Number.EPSILON;
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(num);
+}
+
 function formatValue(key, value) {
   if (value == null) return "-";
-  if (typeof value === "number" && Number.isFinite(value) && isMoneyFieldKey(key)) {
-    const hasDecimals = Math.abs(value - Math.trunc(value)) > Number.EPSILON;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: hasDecimals ? 2 : 0,
-    }).format(value);
-  }
   if (typeof value === "string") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString("en-IN");
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (isMoneyFieldKey(key) || key?.includes("cost") || key?.includes("price") || key?.includes("amount") || key?.includes("total") || key?.includes("profit") || key?.includes("overheads") || key?.includes("packing")) {
+      return formatIndianCurrency(value);
+    }
+    return formatIndianNumber(value);
+  }
   return JSON.stringify(value);
 }
 
@@ -453,313 +485,807 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
   };
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: "auto", p: 4 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => onChange("project_detail", { projectId })} sx={{ mb: 2 }}>
-        Back to Project
-      </Button>
+    <motion.Box
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      sx={{ maxWidth: 1400, mx: "auto", p: { xs: 2, md: 4 } }}
+    >
+      {/* Back Button with Animation */}
+      <motion.div
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.4 }}
+      >
+        <Button 
+          startIcon={<ArrowBackIcon />} 
+          onClick={() => onChange("project_detail", { projectId })} 
+          sx={{ 
+            mb: 3,
+            color: "text.secondary",
+            '&:hover': { 
+              color: "primary.main",
+              transform: "translateX(-4px)",
+              transition: "transform 0.2s ease"
+            }
+          }}
+        >
+          Back to Project
+        </Button>
+      </motion.div>
 
-      <Typography variant="h4" fontWeight={700} gutterBottom>Part Cost Estimation</Typography>
-      <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-        {part.part_number} — {part.part_name}
-      </Typography>
+      {/* Header Section with Staggered Animation */}
+      <motion.div
+        initial={{ y: -30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 100 }}
+      >
+        <Box sx={{ mb: 4 }}>
+          <Typography 
+            variant="h3" 
+            fontWeight={800} 
+            gutterBottom
+            sx={{
+              background: "linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              letterSpacing: "-0.5px"
+            }}
+          >
+            Part Cost Estimation
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            <Chip 
+              icon={<PrecisionManufacturingIcon />}
+              label={part.part_number}
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 600, fontSize: "0.95rem" }}
+            />
+            <Typography variant="h6" color="text.secondary" fontWeight={500}>
+              {part.part_name}
+            </Typography>
+          </Box>
+        </Box>
+      </motion.div>
 
-      <Grid container spacing={4} sx={{ mt: 2 }}>
+      <Grid container spacing={3} sx={{ mt: 1 }}>
+        {/* 2D Drawing Section */}
         <Grid item xs={12}>
-          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-            <Box
-              sx={{
-                p: 1.5,
-                bgcolor: "rgba(56,189,248,0.08)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                borderBottom: 1,
-                borderColor: "rgba(56,189,248,0.12)",
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ ml: 1 }}>2D Drawing</Typography>
-              <Stack direction="row">
-                <IconButton size="small" onClick={() => setDrawingZoom((z) => Math.max(0.2, z - 0.2))}><ZoomOutIcon /></IconButton>
-                <IconButton size="small" onClick={() => setDrawingZoom(1)}><RestartAltIcon /></IconButton>
-                <IconButton size="small" onClick={() => setDrawingZoom((z) => Math.min(4, z + 0.2))}><ZoomInIcon /></IconButton>
-              </Stack>
-            </Box>
-            <Box
-              sx={{
-                p: 2,
-                height: 520,
-                bgcolor: "rgba(56,189,248,0.06)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
+          >
+            <Paper 
+              elevation={0}
+              sx={{ 
                 overflow: "hidden",
+                borderRadius: 3,
+                border: "1px solid rgba(56,189,248,0.2)",
+                background: "linear-gradient(135deg, rgba(56,189,248,0.03) 0%, rgba(129,140,248,0.03) 100%)"
               }}
             >
-              {part.drawing_2d_path ? (
-                <Box
-                  sx={{
-                    transform: `scale(${drawingZoom})`,
-                    transition: "transform 0.2s",
-                    transformOrigin: "top left",
-                    display: "inline-block",
-                    willChange: "transform",
-                  }}
-                >
-                  {isPdfPath(part.drawing_2d_path) ? (
-                    <PdfPreview
-                      url={getInlineFileUrl(part.drawing_2d_path)}
-                      style={{ width: 560, maxWidth: "100%", maxHeight: 500, objectFit: "contain" }}
-                    />
-                  ) : (
-                    <img src={getInlineFileUrl(part.drawing_2d_path)} style={{ maxHeight: 500, maxWidth: "100%" }} alt="Drawing" />
-                  )}
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: "rgba(56,189,248,0.08)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid rgba(56,189,248,0.15)",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <DrawIcon sx={{ color: "primary.main" }} />
+                  <Typography variant="h6" fontWeight={600}>2D Technical Drawing</Typography>
                 </Box>
-              ) : (
-                <Typography color="text.secondary">No 2D drawing uploaded</Typography>
-              )}
-            </Box>
-          </Paper>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Zoom Out">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setDrawingZoom((z) => Math.max(0.2, z - 0.2))}
+                      sx={{ 
+                        transition: "all 0.2s",
+                        '&:hover': { transform: "scale(1.1)", bgcolor: "rgba(56,189,248,0.15)" }
+                      }}
+                    >
+                      <ZoomOutIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Reset Zoom">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setDrawingZoom(1)}
+                      sx={{ 
+                        transition: "all 0.2s",
+                        '&:hover': { transform: "rotate(180deg)", bgcolor: "rgba(56,189,248,0.15)" }
+                      }}
+                    >
+                      <RestartAltIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Zoom In">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setDrawingZoom((z) => Math.min(4, z + 0.2))}
+                      sx={{ 
+                        transition: "all 0.2s",
+                        '&:hover': { transform: "scale(1.1)", bgcolor: "rgba(56,189,248,0.15)" }
+                      }}
+                    >
+                      <ZoomInIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Box>
+              <Box
+                sx={{
+                  p: 3,
+                  height: 520,
+                  bgcolor: "rgba(2,6,23,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <AnimatePresence mode="wait">
+                  {part.drawing_2d_path ? (
+                    <motion.Box
+                      key="drawing"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ 
+                        scale: drawingZoom, 
+                        opacity: 1,
+                        transition: { type: "spring", stiffness: 200, damping: 20 }
+                      }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      sx={{
+                        transformOrigin: "center center",
+                        display: "inline-block",
+                        willChange: "transform",
+                        boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+                      }}
+                    >
+                      {isPdfPath(part.drawing_2d_path) ? (
+                        <PdfPreview
+                          url={getInlineFileUrl(part.drawing_2d_path)}
+                          style={{ width: 560, maxWidth: "100%", maxHeight: 500, objectFit: "contain" }}
+                        />
+                      ) : (
+                        <img 
+                          src={getInlineFileUrl(part.drawing_2d_path)} 
+                          style={{ maxHeight: 500, maxWidth: "100%", borderRadius: 8 }} 
+                          alt="Drawing" 
+                        />
+                      )}
+                    </motion.Box>
+                  ) : (
+                    <motion.Typography 
+                      key="no-drawing"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      color="text.secondary"
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <DrawIcon />
+                      No 2D drawing uploaded
+                    </motion.Typography>
+                  )}
+                </AnimatePresence>
+              </Box>
+            </Paper>
+          </motion.div>
         </Grid>
 
+        {/* Input Parameters */}
         <Grid item xs={12} md={5} lg={4}>
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Input Parameters</Typography>
-            {costError && <Alert severity="error" sx={{ mb: 2 }}>{costError}</Alert>}
-
-            <form onSubmit={handleSubmit}>
-              <Stack spacing={3}>
-                <TextField
-                  select
-                  label="Operation Type"
-                  fullWidth
-                  size="small"
-                  value={form.operation_type}
-                  onChange={(e) => setForm({ ...form, operation_type: e.target.value, machine_name: "" })}
+          <motion.div
+            initial={{ x: -40, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5, type: "spring" }}
+          >
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 3, 
+                borderRadius: 3,
+                border: "1px solid rgba(56,189,248,0.15)",
+                background: "linear-gradient(135deg, rgba(15,23,42,0.8) 0%, rgba(2,6,23,0.8) 100%)",
+                backdropFilter: "blur(10px)"
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+                <SettingsIcon sx={{ color: "primary.main" }} />
+                <Typography variant="h5" fontWeight={700}>Input Parameters</Typography>
+              </Box>
+              
+              {costError && (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
                 >
-                  {operationTypeOptions.map((opt) => (
-                    <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{costError}</Alert>
+                </motion.div>
+              )}
 
-                <TextField select label="Material" fullWidth size="small" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}>
-                  <MenuItem value="steel">Steel</MenuItem>
-                  <MenuItem value="aluminium">Aluminium</MenuItem>
-                  <MenuItem value="titanium">Titanium</MenuItem>
-                </TextField>
-
-                <TextField select label="Machine" fullWidth size="small" value={form.machine_name} onChange={(e) => setForm({ ...form, machine_name: e.target.value })}>
-                  {filteredMachines.map((m) => <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>)}
-                </TextField>
-
-                <TextField
-                  select
-                  label="Duty Category"
-                  fullWidth
-                  size="small"
-                  value={form.duty_category}
-                  onChange={(e) => setForm({ ...form, duty_category: e.target.value })}
-                  required={Boolean(normalize(form.operation_type) && normalize(form.operation_type) !== "turning" && normalize(form.operation_type) !== "milling")}
-                >
-                  <MenuItem value="">Select Duty</MenuItem>
-                  <MenuItem value="light">Light</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="heavy">Heavy</MenuItem>
-                </TextField>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" gutterBottom>Man Hours / Unit</Typography>
-                  <Grid container spacing={1}>
-                    <Grid item xs={8}>
-                      <TextField
-                        type="number"
-                        fullWidth
-                        size="small"
-                        value={form.man_hours_per_unit}
-                        onChange={(e) => setForm({ ...form, man_hours_per_unit: e.target.value })}
-                      />
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Button
-                        variant="outlined"
-                        component="label"
-                        fullWidth
-                        size="small"
-                        disabled={manHoursUploadLoading}
-                        startIcon={manHoursUploadLoading ? <CircularProgress size={16} /> : <CloudUploadIcon />}
-                        sx={{ fontSize: "0.7rem", height: "100%" }}
-                        onClick={handleManHoursUploadClick}
-                      >
-                        Extract
-                      </Button>
-                      <input
-                        type="file"
-                        hidden
-                        ref={manHoursFileInputRef}
-                        accept=".pdf,.doc,.docx,.txt"
-                        onChange={handleManHoursFileSelected}
-                      />
-                    </Grid>
-                  </Grid>
-                  {manHoursUploadError && <Typography variant="caption" color="error">{manHoursUploadError}</Typography>}
-                </Box>
-
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                    <Typography variant="subtitle2">Miscellaneous Costs</Typography>
-                    <Button
+              <form onSubmit={handleSubmit}>
+                <Stack spacing={2.5}>
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <TextField
+                      select
+                      label="Operation Type"
+                      fullWidth
                       size="small"
-                      variant="outlined"
-                      startIcon={<AddCircleOutlineIcon />}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
-                      onClick={() => setForm((p) => ({
-                        ...p,
-                        miscellaneous_items: [...miscItems, { description: "", amount: "" }],
-                      }))}
+                      value={form.operation_type}
+                      onChange={(e) => setForm({ ...form, operation_type: e.target.value, machine_name: "" })}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          transition: "all 0.3s",
+                          '&:hover': { boxShadow: "0 0 0 2px rgba(56,189,248,0.2)" },
+                          '&.Mui-focused': { boxShadow: "0 0 0 3px rgba(56,189,248,0.3)" }
+                        }
+                      }}
                     >
-                      Add
-                    </Button>
-                  </Box>
+                      {operationTypeOptions.map((opt) => (
+                        <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </motion.div>
 
-                  <Stack spacing={1.25}>
-                    {miscItems.map((item, idx) => (
-                      <Grid container spacing={1} key={idx} alignItems="center">
-                        <Grid item xs={12} sm={7}>
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.55 }}
+                  >
+                    <TextField 
+                      select 
+                      label="Material" 
+                      fullWidth 
+                      size="small" 
+                      value={form.material} 
+                      onChange={(e) => setForm({ ...form, material: e.target.value })}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          transition: "all 0.3s",
+                          '&:hover': { boxShadow: "0 0 0 2px rgba(56,189,248,0.2)" },
+                        }
+                      }}
+                    >
+                      <MenuItem value="steel">Steel</MenuItem>
+                      <MenuItem value="aluminium">Aluminium</MenuItem>
+                      <MenuItem value="titanium">Titanium</MenuItem>
+                    </TextField>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <TextField 
+                      select 
+                      label="Machine" 
+                      fullWidth 
+                      size="small" 
+                      value={form.machine_name} 
+                      onChange={(e) => setForm({ ...form, machine_name: e.target.value })}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          transition: "all 0.3s",
+                          '&:hover': { boxShadow: "0 0 0 2px rgba(56,189,248,0.2)" },
+                        }
+                      }}
+                    >
+                      {filteredMachines.map((m) => <MenuItem key={m.id || m.name} value={m.name}>{m.name}</MenuItem>)}
+                    </TextField>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.65 }}
+                  >
+                    <TextField
+                      select
+                      label="Duty Category"
+                      fullWidth
+                      size="small"
+                      value={form.duty_category}
+                      onChange={(e) => setForm({ ...form, duty_category: e.target.value })}
+                      required={Boolean(normalize(form.operation_type) && normalize(form.operation_type) !== "turning" && normalize(form.operation_type) !== "milling")}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          transition: "all 0.3s",
+                          '&:hover': { boxShadow: "0 0 0 2px rgba(56,189,248,0.2)" },
+                        }
+                      }}
+                    >
+                      <MenuItem value="">Select Duty</MenuItem>
+                      <MenuItem value="light">Light</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="heavy">Heavy</MenuItem>
+                    </TextField>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <EngineeringIcon fontSize="inherit" />
+                        Man Hours / Unit
+                      </Typography>
+                      <Grid container spacing={1}>
+                        <Grid item xs={8}>
                           <TextField
-                            label="Description"
-                            size="small"
-                            fullWidth
-                            value={item?.description || ""}
-                            onChange={(e) => {
-                              const next = miscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
-                              setForm((p) => ({ ...p, miscellaneous_items: next }));
-                            }}
-                          />
-                        </Grid>
-                        <Grid item xs={10} sm={4}>
-                          <TextField
-                            label="Amount"
                             type="number"
-                            size="small"
                             fullWidth
-                            inputProps={{ step: "0.01", min: "0" }}
-                            value={item?.amount ?? ""}
-                            onChange={(e) => {
-                              const next = miscItems.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
-                              setForm((p) => ({ ...p, miscellaneous_items: next }));
+                            size="small"
+                            value={form.man_hours_per_unit}
+                            onChange={(e) => setForm({ ...form, man_hours_per_unit: e.target.value })}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                              }
                             }}
                           />
                         </Grid>
-                        <Grid item xs={2} sm={1} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                          <IconButton
-                            title="Remove"
-                            onClick={() => {
-                              const next = miscItems.filter((_, i) => i !== idx);
-                              setForm((p) => ({ ...p, miscellaneous_items: next.length ? next : [{ description: "", amount: "" }] }));
+                        <Grid item xs={4}>
+                          <Button
+                            variant="outlined"
+                            component="label"
+                            fullWidth
+                            size="small"
+                            disabled={manHoursUploadLoading}
+                            startIcon={manHoursUploadLoading ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+                            sx={{ 
+                              fontSize: "0.75rem", 
+                              height: "100%",
+                              borderRadius: 2,
+                              transition: "all 0.3s",
+                              '&:hover': { 
+                                transform: "translateY(-2px)",
+                                boxShadow: "0 4px 12px rgba(56,189,248,0.3)" 
+                              }
+                            }}
+                            onClick={handleManHoursUploadClick}
+                          >
+                            Extract
+                          </Button>
+                          <input
+                            type="file"
+                            hidden
+                            ref={manHoursFileInputRef}
+                            accept=".pdf,.doc,.docx,.txt"
+                            onChange={handleManHoursFileSelected}
+                          />
+                        </Grid>
+                      </Grid>
+                      {manHoursUploadError && <Typography variant="caption" color="error">{manHoursUploadError}</Typography>}
+                    </Box>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.75 }}
+                  >
+                    <Paper 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2, 
+                        borderRadius: 2,
+                        background: "rgba(56,189,248,0.05)",
+                        border: "1px solid rgba(56,189,248,0.15)"
+                      }}
+                    >
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                        <Typography variant="subtitle2" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <AttachMoneyIcon fontSize="small" />
+                          Miscellaneous Costs
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AddCircleOutlineIcon />}
+                          sx={{ 
+                            textTransform: "none", 
+                            fontWeight: 700,
+                            borderRadius: 2,
+                            transition: "all 0.2s",
+                            '&:hover': { transform: "scale(1.05)" }
+                          }}
+                          onClick={() => setForm((p) => ({
+                            ...p,
+                            miscellaneous_items: [...miscItems, { description: "", amount: "" }],
+                          }))}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+
+                      <AnimatePresence>
+                        <Stack spacing={1.25}>
+                          {miscItems.map((item, idx) => (
+                            <motion.Grid 
+                              container 
+                              spacing={1} 
+                              key={idx} 
+                              alignItems="center"
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ delay: idx * 0.05 }}
+                            >
+                              <Grid item xs={12} sm={7}>
+                                <TextField
+                                  label="Description"
+                                  size="small"
+                                  fullWidth
+                                  value={item?.description || ""}
+                                  onChange={(e) => {
+                                    const next = miscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
+                                    setForm((p) => ({ ...p, miscellaneous_items: next }));
+                                  }}
+                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                />
+                              </Grid>
+                              <Grid item xs={10} sm={4}>
+                                <TextField
+                                  label="Amount"
+                                  type="number"
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{ step: "0.01", min: "0" }}
+                                  value={item?.amount ?? ""}
+                                  onChange={(e) => {
+                                    const next = miscItems.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
+                                    setForm((p) => ({ ...p, miscellaneous_items: next }));
+                                  }}
+                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                />
+                              </Grid>
+                              <Grid item xs={2} sm={1} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                                <IconButton
+                                  title="Remove"
+                                  onClick={() => {
+                                    const next = miscItems.filter((_, i) => i !== idx);
+                                    setForm((p) => ({ ...p, miscellaneous_items: next.length ? next : [{ description: "", amount: "" }] }));
+                                  }}
+                                  sx={{ 
+                                    transition: "all 0.2s",
+                                    '&:hover': { 
+                                      color: "error.main",
+                                      transform: "rotate(90deg)"
+                                    }
+                                  }}
+                                >
+                                  <DeleteOutlineIcon fontSize="small" />
+                                </IconButton>
+                              </Grid>
+                            </motion.Grid>
+                          ))}
+                        </Stack>
+                      </AnimatePresence>
+
+                      <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "baseline", p: 1, borderRadius: 1, bgcolor: "rgba(56,189,248,0.1)" }}>
+                        <Typography variant="caption" color="text.secondary">Total Misc</Typography>
+                        <Typography variant="body2" fontWeight={800} color="primary.main">
+                          {formatIndianCurrency(miscTotal)}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                  >
+                    <Divider sx={{ my: 1 }}>
+                      <Typography variant="caption" fontWeight={600} color="text.secondary">Dimensions (mm)</Typography>
+                    </Divider>
+                  </motion.div>
+
+                  <AnimatePresence mode="wait">
+                    {(["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase())) && (
+                      <motion.div
+                        key="shape-selector"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <TextField
+                          select
+                          label="Shape"
+                          size="small"
+                          fullWidth
+                          value={String(form.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round"}
+                          onChange={(e) => setForm({ ...form, shape: e.target.value })}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        >
+                          <MenuItem value="round">Round</MenuItem>
+                          <MenuItem value="rectangular">Rectangular</MenuItem>
+                        </TextField>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.85 }}
+                  >
+                    <TextField 
+                      label="Length" 
+                      type="number" 
+                      size="small" 
+                      fullWidth 
+                      value={form.length} 
+                      onChange={(e) => setForm({ ...form, length: e.target.value })} 
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </motion.div>
+
+                  <AnimatePresence mode="wait">
+                    {(["turning", "boring"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
+                      (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() !== "rectangular")) && (
+                      <motion.div
+                        key="diameter-field"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                      >
+                        <TextField 
+                          label="Diameter" 
+                          type="number" 
+                          size="small" 
+                          fullWidth 
+                          value={form.diameter} 
+                          onChange={(e) => setForm({ ...form, diameter: e.target.value })} 
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <AnimatePresence mode="wait">
+                    {(["milling", "grinding", "surface_treatment"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
+                      (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() === "rectangular")) && (
+                      <motion.div
+                        key="rectangular-fields"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <Stack spacing={2}>
+                          <TextField 
+                            label="Breadth" 
+                            type="number" 
+                            size="small" 
+                            fullWidth 
+                            value={form.breadth} 
+                            onChange={(e) => setForm({ ...form, breadth: e.target.value })} 
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                          />
+                          <TextField 
+                            label="Height" 
+                            type="number" 
+                            size="small" 
+                            fullWidth 
+                            value={form.height} 
+                            onChange={(e) => setForm({ ...form, height: e.target.value })} 
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                          />
+                        </Stack>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.9, type: "spring", stiffness: 200 }}
+                  >
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      fullWidth
+                      disabled={costLoading} 
+                      startIcon={costLoading ? <CircularProgress size={20} color="inherit" /> : <CalculateIcon />}
+                      sx={{ 
+                        py: 1.5,
+                        borderRadius: 2,
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        background: "linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)",
+                        boxShadow: "0 4px 14px rgba(56,189,248,0.4)",
+                        transition: "all 0.3s",
+                        '&:hover': { 
+                          background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
+                          boxShadow: "0 6px 20px rgba(56,189,248,0.5)",
+                          transform: "translateY(-2px)"
+                        },
+                        '&:disabled': {
+                          background: "rgba(148,163,184,0.3)",
+                        }
+                      }}
+                    >
+                      {costLoading ? "Calculating..." : "Calculate Cost"}
+                    </Button>
+                  </motion.div>
+                </Stack>
+              </form>
+            </Paper>
+          </motion.div>
+        </Grid>
+
+        {/* Results Section */}
+        <Grid item xs={12} md={7} lg={8}>
+          <AnimatePresence>
+            {costResult && (
+              <motion.div
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 40, opacity: 0 }}
+                transition={{ duration: 0.5, type: "spring" }}
+              >
+                <Stack spacing={3}>
+                  <Box ref={drawingCaptureRef}>
+                    <Card 
+                      elevation={0}
+                      sx={{ 
+                        borderRadius: 3,
+                        border: "1px solid rgba(56,189,248,0.2)",
+                        background: "linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(2,6,23,0.9) 100%)",
+                        backdropFilter: "blur(10px)",
+                        overflow: "hidden"
+                      }}
+                    >
+                      <CardHeader
+                        title={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <AssessmentIcon sx={{ color: "primary.main" }} />
+                            <Typography variant="h6" fontWeight={700}>Estimation Results</Typography>
+                          </Box>
+                        }
+                        action={
+                          <Button 
+                            startIcon={<DownloadIcon />} 
+                            onClick={handleOpenPdfPreview}
+                            variant="outlined"
+                            sx={{ 
+                              borderRadius: 2,
+                              textTransform: "none",
+                              fontWeight: 600,
+                              transition: "all 0.3s",
+                              '&:hover': {
+                                transform: "translateY(-2px)",
+                                boxShadow: "0 4px 12px rgba(56,189,248,0.3)"
+                              }
                             }}
                           >
-                            <DeleteOutlineIcon fontSize="small" />
-                          </IconButton>
+                            Download Report
+                          </Button>
+                        }
+                        sx={{ 
+                          bgcolor: "rgba(56,189,248,0.08)", 
+                          borderBottom: "1px solid rgba(56,189,248,0.15)",
+                          py: 2
+                        }}
+                      />
+                      <CardContent sx={{ p: 3 }}>
+                        <Grid container spacing={3}>
+                          <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" gutterBottom fontWeight={600} color="text.secondary">Cost Breakdown</Typography>
+                            <Stack spacing={1.5}>
+                              {[
+                                { label: "Basic Cost:", value: formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit) },
+                                { label: "Overheads:", value: formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit) },
+                                { label: "Profit:", value: formatValue("profit", costResult.cost_breakdown?.profit_per_unit) },
+                                { label: "Packing:", value: formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit) },
+                              ].map((item, idx) => (
+                                <motion.Box 
+                                  key={idx}
+                                  display="flex" 
+                                  justifyContent="space-between"
+                                  alignItems="center"
+                                  initial={{ x: -20, opacity: 0 }}
+                                  animate={{ x: 0, opacity: 1 }}
+                                  transition={{ delay: 0.1 + idx * 0.05 }}
+                                  sx={{ py: 0.5 }}
+                                >
+                                  <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+                                  <Typography variant="body2" fontWeight="bold" color="text.primary">{item.value}</Typography>
+                                </motion.Box>
+                              ))}
+                              <Divider sx={{ my: 1 }} />
+                              <motion.Box 
+                                display="flex" 
+                                justifyContent="space-between"
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: 0.4 }}
+                                sx={{ 
+                                  p: 1.5, 
+                                  borderRadius: 2, 
+                                  bgcolor: "rgba(56,189,248,0.1)",
+                                  border: "1px solid rgba(56,189,248,0.2)"
+                                }}
+                              >
+                                <Typography variant="subtitle1" fontWeight={700}>Unit Cost:</Typography>
+                                <Typography variant="subtitle1" fontWeight={800} color="primary.main">{formatValue("total_cost", costResult.cost_breakdown?.unit_cost)}</Typography>
+                              </motion.Box>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" gutterBottom fontWeight={600} color="text.secondary">Non-Recurring Costs</Typography>
+                            <Stack spacing={2}>
+                              <TextField 
+                                label="Description (e.g. Fixtures)" 
+                                size="small" 
+                                fullWidth 
+                                value={nonrecurringCostType} 
+                                onChange={(e) => setNonrecurringCostType(e.target.value)}
+                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                              />
+                              <TextField 
+                                label="Amount" 
+                                type="number" 
+                                size="small" 
+                                fullWidth 
+                                value={nonrecurringCostAmount} 
+                                onChange={(e) => setNonrecurringCostAmount(e.target.value)}
+                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                              />
+                              <motion.Box 
+                                display="flex" 
+                                justifyContent="space-between" 
+                                mt={2}
+                                p={2}
+                                borderRadius={2}
+                                sx={{ 
+                                  background: "linear-gradient(135deg, rgba(56,189,248,0.15) 0%, rgba(129,140,248,0.15) 100%)",
+                                  border: "2px solid rgba(56,189,248,0.3)"
+                                }}
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: 0.5, type: "spring" }}
+                              >
+                                <Typography variant="h6" fontWeight={700}>Final Total:</Typography>
+                                <Typography variant="h6" color="primary.main" fontWeight={800}>{formatValue("total_cost", displayedTotalCost)}</Typography>
+                              </motion.Box>
+                            </Stack>
+                          </Grid>
                         </Grid>
-                      </Grid>
-                    ))}
-                  </Stack>
-
-                  <Box sx={{ mt: 1.5, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <Typography variant="caption" color="text.secondary">Total</Typography>
-                    <Typography variant="body2" fontWeight={800} color="primary.main">
-                      {miscTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                    </Typography>
+                      </CardContent>
+                    </Card>
                   </Box>
-                </Paper>
-
-                <Divider />
-                <Typography variant="caption" fontWeight={600}>Dimensions (mm)</Typography>
-
-                {(["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase())) && (
-                  <TextField
-                    select
-                    label="Shape"
-                    size="small"
-                    fullWidth
-                    value={String(form.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round"}
-                    onChange={(e) => setForm({ ...form, shape: e.target.value })}
-                  >
-                    <MenuItem value="round">Round</MenuItem>
-                    <MenuItem value="rectangular">Rectangular</MenuItem>
-                  </TextField>
-                )}
-
-                <TextField label="Length" type="number" size="small" fullWidth value={form.length} onChange={(e) => setForm({ ...form, length: e.target.value })} />
-
-                {(["turning", "boring"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
-                  (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() !== "rectangular")) && (
-                  <TextField label="Diameter" type="number" size="small" fullWidth value={form.diameter} onChange={(e) => setForm({ ...form, diameter: e.target.value })} />
-                )}
-
-                {(["milling", "grinding", "surface_treatment"].includes(String(form.operation_type || "").trim().toLowerCase()) ||
-                  (["drilling", "heat_treatment", "welding"].includes(String(form.operation_type || "").trim().toLowerCase()) && String(form.shape || "round").trim().toLowerCase() === "rectangular")) && (
-                  <>
-                    <TextField label="Breadth" type="number" size="small" fullWidth value={form.breadth} onChange={(e) => setForm({ ...form, breadth: e.target.value })} />
-                    <TextField label="Height" type="number" size="small" fullWidth value={form.height} onChange={(e) => setForm({ ...form, height: e.target.value })} />
-                  </>
-                )}
-
-                <Button type="submit" variant="contained" disabled={costLoading} startIcon={<CalculateIcon />}>
-                  Calculate Cost
-                </Button>
-              </Stack>
-            </form>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={7} lg={8}>
-          <Stack spacing={3}>
-            {costResult && (
-              <Box ref={drawingCaptureRef}>
-                <Card variant="outlined">
-                  <CardHeader
-                    title="Estimation Results"
-                    action={
-                      <Button startIcon={<DownloadIcon />} onClick={handleOpenPdfPreview}>Download Report</Button>
-                    }
-                    sx={{ bgcolor: "rgba(56,189,248,0.08)", borderBottom: 1, borderColor: "rgba(56,189,248,0.12)" }}
-                  />
-                  <CardContent>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" gutterBottom>Breakdown</Typography>
-                        <Stack spacing={1}>
-                          <Box display="flex" justifyContent="space-between"><Typography variant="body2">Basic Cost:</Typography><Typography variant="body2" fontWeight="bold">{formatValue("basic_cost", costResult.cost_breakdown?.basic_cost_per_unit)}</Typography></Box>
-                          <Box display="flex" justifyContent="space-between"><Typography variant="body2">Overheads:</Typography><Typography variant="body2" fontWeight="bold">{formatValue("overheads", costResult.cost_breakdown?.overheads_per_unit)}</Typography></Box>
-                          <Box display="flex" justifyContent="space-between"><Typography variant="body2">Profit:</Typography><Typography variant="body2" fontWeight="bold">{formatValue("profit", costResult.cost_breakdown?.profit_per_unit)}</Typography></Box>
-                          <Box display="flex" justifyContent="space-between"><Typography variant="body2">Packing:</Typography><Typography variant="body2" fontWeight="bold">{formatValue("packing", costResult.cost_breakdown?.packing_forwarding_per_unit)}</Typography></Box>
-                          <Divider />
-                          <Box display="flex" justifyContent="space-between"><Typography variant="subtitle1">Unit Cost:</Typography><Typography variant="subtitle1" fontWeight="bold" color="primary">{formatValue("total_cost", costResult.cost_breakdown?.unit_cost)}</Typography></Box>
-                        </Stack>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" gutterBottom>Non-Recurring Costs</Typography>
-                        <Stack spacing={2}>
-                          <TextField label="Description (e.g. Fixtures)" size="small" fullWidth value={nonrecurringCostType} onChange={(e) => setNonrecurringCostType(e.target.value)} />
-                          <TextField label="Amount" type="number" size="small" fullWidth value={nonrecurringCostAmount} onChange={(e) => setNonrecurringCostAmount(e.target.value)} />
-                          <Box display="flex" justifyContent="space-between" mt={2}>
-                            <Typography variant="h6">Final Total:</Typography>
-                            <Typography variant="h6" color="primary.main">{formatValue("total_cost", displayedTotalCost)}</Typography>
-                          </Box>
-                        </Stack>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Box>
+                </Stack>
+              </motion.div>
             )}
-          </Stack>
+          </AnimatePresence>
         </Grid>
       </Grid>
 
-      {/* Old PDF preview Dialog - keeping for backward compatibility */}
+      {/* PDF Export Dialogs */}
       <Dialog
         open={pdfPreviewOpen}
         onClose={() => setPdfPreviewOpen(false)}
@@ -793,7 +1319,6 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         </DialogActions>
       </Dialog>
 
-      {/* New Professional PDF Export Component */}
       <PdfReportExport
         open={pdfExportOpen}
         onClose={() => setPdfExportOpen(false)}
@@ -806,6 +1331,6 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
         isPdfPath={isPdfPath}
         PdfPreview={PdfPreview}
       />
-    </Box>
+    </motion.Box>
   );
 }

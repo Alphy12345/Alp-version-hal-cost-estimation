@@ -156,13 +156,14 @@ function CostEstimationTab({
                     part={activeCostPart}
                     activeOperationIndex={getActiveOpIndex(activeCostPartId)}
                     operations={costForms?.[activeCostPartId]?.operations || []}
+                    costForms={costForms}
                     onSetActiveOperation={onSetActiveOperation}
                     onAddOperation={onAddOperation}
                     onRemoveOperation={onRemoveOperation}
                     costResult={costResults?.[activeCostPartId]?.operations?.[getActiveOpIndex(activeCostPartId)]}
                     operationResults={costResults?.[activeCostPartId]?.operations}
                     combinedTotal={costResults?.[activeCostPartId]?.combined_total_unit_cost_with_misc}
-                    formState={costForms?.[activeCostPartId]?.operations?.[getActiveOpIndex(activeCostPartId)] || {}} // Ensure object exists
+                    formState={costForms?.[activeCostPartId]?.operations?.[getActiveOpIndex(activeCostPartId)] || {}}
                     onChangeForm={onChangeForm}
                     onSubmit={onSubmitCost}
                     onSubmitAll={onSubmitAllCost}

@@ -83,8 +83,6 @@ function ProjectDetailPage({ onChange, projectId }) {
             machine_name: "",
             man_hours_per_unit: "",
             duty_category: "",
-            miscellaneous_amount: "",
-            miscellaneous_items: [{ description: "", amount: "" }],
             length: "",
             diameter: "", // for turning
             breadth: "", // for milling
@@ -95,6 +93,7 @@ function ProjectDetailPage({ onChange, projectId }) {
             initialForms[p.id] = {
               activeOperationIndex: 0,
               operations: [{ ...defaultOperation }],
+              miscellaneous_items: [{ description: "", amount: "" }],
             };
           });
 
@@ -215,12 +214,21 @@ function ProjectDetailPage({ onChange, projectId }) {
 
   const formatValue = (key, value) => {
     if (value === undefined || value === null) return "-";
-    if (typeof value === "number") {
-      if (key === "man_hours_per_unit") return value.toFixed(2);
-      if (key === "cost_per_hour" || key.includes("cost") || key.includes("price") || key.includes("rate") || key.includes("amount") || key.includes("overheads") || key.includes("profit") || key.includes("packing")) {
-        return `₹${value.toFixed(2)}`;
+    
+    // Ensure value is a number
+    const numValue = typeof value === "number" ? value : Number(value);
+    
+    if (Number.isFinite(numValue)) {
+      if (key === "man_hours_per_unit") return numValue.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+      if (key === "cost_per_hour" || key.includes("cost") || key.includes("price") || key.includes("rate") || key.includes("amount") || key.includes("overheads") || key.includes("profit") || key.includes("packing") || key.includes("total")) {
+        return new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(numValue);
       }
-      return value;
+      return numValue.toLocaleString("en-IN");
     }
     return value;
   };
@@ -255,14 +263,13 @@ function ProjectDetailPage({ onChange, projectId }) {
             material: "steel",
             machine_name: "",
             man_hours_per_unit: "",
-            miscellaneous_amount: "",
-            miscellaneous_items: [{ description: "", amount: "" }],
             length: "",
             diameter: "",
             breadth: "",
             height: "",
           },
         ],
+        miscellaneous_items: [{ description: "", amount: "" }],
       }
     }));
   };
@@ -445,17 +452,16 @@ function ProjectDetailPage({ onChange, projectId }) {
     }
 
     const manHours = Number(formData.man_hours_per_unit);
-    const miscAmountRaw = formData.miscellaneous_amount;
-    const miscItems = formData.miscellaneous_items;
-    const miscAmountFromItems = Array.isArray(miscItems)
-      ? miscItems.reduce((sum, it) => {
+    
+    // Get global miscellaneous items from part level
+    const globalMiscItems = partForm?.miscellaneous_items;
+    const miscAmount = Array.isArray(globalMiscItems)
+      ? globalMiscItems.reduce((sum, it) => {
           const n = Number(it?.amount);
           return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
         }, 0)
-      : null;
-    const miscAmount = typeof miscAmountFromItems === "number"
-      ? miscAmountFromItems
-      : (miscAmountRaw === "" || miscAmountRaw == null ? 0 : Number(miscAmountRaw));
+      : 0;
+    
     const length = Number(formData.length);
     const diameter = Number(formData.diameter);
     const breadth = Number(formData.breadth);
@@ -536,6 +542,22 @@ function ProjectDetailPage({ onChange, projectId }) {
 
   // --- Cost Estimation Logic ---
   const handleCostFormChange = (partId, opIndex, field, value) => {
+    // Handle global miscellaneous items (opIndex === -1)
+    if (opIndex === -1) {
+      setCostForms((prev) => {
+        const current = prev?.[partId] || {};
+        return {
+          ...prev,
+          [partId]: {
+            ...current,
+            [field]: value,
+          },
+        };
+      });
+      return;
+    }
+    
+    // Handle operation-specific fields
     setCostForms((prev) => {
       const current = prev?.[partId] || {};
       const currentOps = Array.isArray(current.operations) ? current.operations : [];
@@ -605,20 +627,23 @@ function ProjectDetailPage({ onChange, projectId }) {
     setCostForms((prev) => {
       const current = prev?.[partId] || {};
       const ops = Array.isArray(current.operations) ? current.operations : [];
-      const template = ops[ops.length - 1] || {
+      const lastOp = ops[ops.length - 1];
+      
+      // Only carry over material from last operation, keep everything else null/empty
+      const newOperation = {
         operation_type: "turning",
-        material: "steel",
+        material: lastOp?.material || "steel",
         machine_name: "",
         man_hours_per_unit: "",
-        miscellaneous_amount: "",
-        miscellaneous_items: [{ description: "", amount: "" }],
+        duty_category: "",
         length: "",
         diameter: "",
         breadth: "",
         height: "",
+        shape: "round",
       };
 
-      const nextOps = [...ops, { ...template, machine_name: "" }];
+      const nextOps = [...ops, newOperation];
       return {
         ...prev,
         [partId]: {
