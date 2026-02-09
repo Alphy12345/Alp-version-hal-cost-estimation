@@ -38,6 +38,9 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+// Import the new professional PDF export component
+import PdfReportExport from "../PdfReportExport";
+
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -79,6 +82,7 @@ function CostEstimationModal({
 
     const [expandedOperations, setExpandedOperations] = useState({});
     const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+    const [pdfExportOpen, setPdfExportOpen] = useState(false);
 
     const operationTypeOptions = useMemo(() => {
         const toOpValue = (name) => {
@@ -205,7 +209,7 @@ function CostEstimationModal({
     };
 
     const handleOpenPdfPreview = () => {
-        setPdfPreviewOpen(true);
+        setPdfExportOpen(true);
     };
 
     const handleDownloadPdf = async () => {
@@ -1469,6 +1473,20 @@ function CostEstimationModal({
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* New Professional PDF Export Component */}
+            <PdfReportExport
+                open={pdfExportOpen}
+                onClose={() => setPdfExportOpen(false)}
+                projectData={projectData}
+                part={part}
+                operations={operations}
+                operationResults={operationResults}
+                drawingPath={part?.drawing_2d_path}
+                getInlineFileUrl={getInlineFileUrl}
+                isPdfPath={isPdfPath}
+                PdfPreview={PdfPreview}
+            />
         </Dialog>
     );
 }
