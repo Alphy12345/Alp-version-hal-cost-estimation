@@ -20,9 +20,16 @@ import {
   Typography,
   Alert,
   IconButton,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import SaveIcon from "@mui/icons-material/Save";
+import CancelIcon from "@mui/icons-material/Cancel";
 
 function MhrPage() {
   const [operationTypes, setOperationTypes] = useState([]);
@@ -32,6 +39,8 @@ function MhrPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editingItem, setEditingItem] = useState(null);
+  const [inlineEditingId, setInlineEditingId] = useState(null);
+  const [inlineForm, setInlineForm] = useState({});
 
   useEffect(() => {
     const fetchLookups = async () => {
@@ -112,6 +121,36 @@ function MhrPage() {
     setEditingItem(null);
   };
 
+  const handleInlineEdit = (item) => {
+    setInlineEditingId(item.id);
+    setInlineForm({ ...item });
+  };
+
+  const handleInlineCancel = () => {
+    setInlineEditingId(null);
+    setInlineForm({});
+  };
+
+  const handleInlineChange = (key, value) => {
+    setInlineForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleInlineSubmit = async (id) => {
+    try {
+      setLoading(true);
+      setError("");
+      await api.put(`/mhr/${id}`, inlineForm);
+      setInlineEditingId(null);
+      setInlineForm({});
+      fetchItems();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getOperationTypeName = (opTypeId) => {
     const op = operationTypes.find(ot => ot.id === opTypeId);
     return op?.operation_name ?? opTypeId ?? "-";
@@ -165,17 +204,17 @@ function MhrPage() {
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "grey.50" }}>
-                  <TableCell>Operation Type</TableCell>
-                  <TableCell>Duty</TableCell>
-                  <TableCell>Machine</TableCell>
-                  <TableCell>Investment Cost</TableCell>
-                  <TableCell>Power Rating</TableCell>
-                  <TableCell>Power Charges</TableCell>
-                  <TableCell>Available Hrs</TableCell>
-                  <TableCell>Utilization Hrs</TableCell>
-                  <TableCell>MHR</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                <TableRow sx={{ bgcolor: "#1e3a5f" }}>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Operation Type</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Duty</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Machine</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Investment Cost</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Power Rating</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Power Charges</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Available Hrs</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Utilization Hrs</TableCell>
+                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>MHR</TableCell>
+                  <TableCell align="right" sx={{ color: "#d4af37", fontWeight: 600 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -190,34 +229,162 @@ function MhrPage() {
                 )}
                 {items.map((item) => (
                   <TableRow key={item.id} hover>
-                    <TableCell>{getOperationTypeName(item.op_type_id)}</TableCell>
-                    <TableCell>{getDutyName(item.duty_id)}</TableCell>
-                    <TableCell>{getMachineName(item.machine_id)}</TableCell>
-                    <TableCell>{item.investment_cost || "-"}</TableCell>
-                    <TableCell>{item.elect_power_rating || "-"}</TableCell>
-                    <TableCell>{item.elect_power_charges || "-"}</TableCell>
-                    <TableCell>{item.available_hrs_per_annum || "-"}</TableCell>
-                    <TableCell>{item.utilization_hrs_year || "-"}</TableCell>
-                    <TableCell>{item.machine_hr_rate || "-"}</TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(item)}
-                          title="Edit"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDelete(item.id)}
-                          title="Delete"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    </TableCell>
+                    {inlineEditingId === item.id ? (
+                      <>
+                        <TableCell>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Operation Type</InputLabel>
+                            <Select
+                              value={inlineForm.op_type_id || ""}
+                              onChange={(e) => handleInlineChange("op_type_id", e.target.value)}
+                              label="Operation Type"
+                            >
+                              {operationTypes.map((ot) => (
+                                <MenuItem key={ot.id} value={ot.id}>
+                                  {ot.operation_name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Duty</InputLabel>
+                            <Select
+                              value={inlineForm.duty_id || ""}
+                              onChange={(e) => handleInlineChange("duty_id", e.target.value)}
+                              label="Duty"
+                            >
+                              {duties.map((d) => (
+                                <MenuItem key={d.id} value={d.id}>
+                                  {d.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Machine</InputLabel>
+                            <Select
+                              value={inlineForm.machine_id || ""}
+                              onChange={(e) => handleInlineChange("machine_id", e.target.value)}
+                              label="Machine"
+                            >
+                              {machines.map((m) => (
+                                <MenuItem key={m.id} value={m.id}>
+                                  {m.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.investment_cost || ""}
+                            onChange={(e) => handleInlineChange("investment_cost", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.elect_power_rating || ""}
+                            onChange={(e) => handleInlineChange("elect_power_rating", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.elect_power_charges || ""}
+                            onChange={(e) => handleInlineChange("elect_power_charges", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.available_hrs_per_annum || ""}
+                            onChange={(e) => handleInlineChange("available_hrs_per_annum", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.utilization_hrs_year || ""}
+                            onChange={(e) => handleInlineChange("utilization_hrs_year", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            value={inlineForm.machine_hr_rate || ""}
+                            onChange={(e) => handleInlineChange("machine_hr_rate", e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleInlineSubmit(item.id)}
+                              title="Save"
+                            >
+                              <SaveIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={handleInlineCancel}
+                              title="Cancel"
+                            >
+                              <CancelIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>{getOperationTypeName(item.op_type_id)}</TableCell>
+                        <TableCell>{getDutyName(item.duty_id)}</TableCell>
+                        <TableCell>{getMachineName(item.machine_id)}</TableCell>
+                        <TableCell>{item.investment_cost || "-"}</TableCell>
+                        <TableCell>{item.elect_power_rating || "-"}</TableCell>
+                        <TableCell>{item.elect_power_charges || "-"}</TableCell>
+                        <TableCell>{item.available_hrs_per_annum || "-"}</TableCell>
+                        <TableCell>{item.utilization_hrs_year || "-"}</TableCell>
+                        <TableCell>{item.machine_hr_rate || "-"}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleInlineEdit(item)}
+                              title="Edit"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDelete(item.id)}
+                              title="Delete"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

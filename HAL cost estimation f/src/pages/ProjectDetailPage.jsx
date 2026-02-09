@@ -83,6 +83,8 @@ function ProjectDetailPage({ onChange, projectId }) {
             machine_name: "",
             man_hours_per_unit: "",
             duty_category: "",
+            machine_setup_time: "",
+            cycle_time: "",
             length: "",
             diameter: "", // for turning
             breadth: "", // for milling
@@ -520,6 +522,8 @@ function ProjectDetailPage({ onChange, projectId }) {
     }
 
     const dutyCategory = String(formData?.duty_category || "").trim().toLowerCase();
+    const machineSetupTime = formData?.machine_setup_time;
+    const cycleTime = formData?.cycle_time;
     const needsManualDuty = opType && opType !== "turning" && opType !== "milling";
     if (needsManualDuty && !dutyCategory) {
       throw new Error("Duty Category is required for this operation type. Please select light/medium/heavy.");
@@ -532,6 +536,8 @@ function ProjectDetailPage({ onChange, projectId }) {
       machine_name: machineName,
       man_hours_per_unit: manHours,
       ...(dutyCategory ? { duty_category: dutyCategory } : {}),
+      ...(machineSetupTime ? { machine_setup_time: Number(machineSetupTime) } : {}),
+      ...(cycleTime ? { cycle_time: Number(cycleTime) } : {}),
       miscellaneous_amount: Number.isFinite(miscAmount) ? miscAmount : 0,
     };
   };
@@ -636,6 +642,8 @@ function ProjectDetailPage({ onChange, projectId }) {
         machine_name: "",
         man_hours_per_unit: "",
         duty_category: "",
+        machine_setup_time: "",
+        cycle_time: "",
         length: "",
         diameter: "",
         breadth: "",

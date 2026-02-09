@@ -223,6 +223,8 @@ def _calculate_one(request: CostEstimationRequest, db: Session) -> CostEstimatio
         cost_breakdown=CostBreakdown(**cost_breakdown),
         material=request.material,
         operation_type=request.operation_type,
+        machine_setup_time=request.machine_setup_time,
+        cycle_time=request.cycle_time,
         calculation_steps=calculation_steps
     )
 

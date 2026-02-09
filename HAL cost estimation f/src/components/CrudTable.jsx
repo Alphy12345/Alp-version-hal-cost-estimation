@@ -16,7 +16,12 @@ import {
   CircularProgress,
   Stack,
   Grid,
+  IconButton,
 } from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
+import CancelIcon from "@mui/icons-material/Cancel";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 function CrudTable({
   title,
@@ -29,10 +34,14 @@ function CrudTable({
   const [error, setError] = useState("");
   const [form, setForm] = useState(initialFormState);
   const [editingId, setEditingId] = useState(null);
+  const [inlineEditingId, setInlineEditingId] = useState(null);
+  const [inlineForm, setInlineForm] = useState({});
 
   const resetForm = () => {
     setForm(initialFormState);
     setEditingId(null);
+    setInlineEditingId(null);
+    setInlineForm({});
   };
 
   const fetchItems = async () => {
@@ -78,13 +87,37 @@ function CrudTable({
     }
   };
 
-  const handleEdit = (item) => {
-    setEditingId(item.id);
+  const handleInlineEdit = (item) => {
+    setInlineEditingId(item.id);
     const next = { ...initialFormState };
     Object.keys(next).forEach((k) => {
       next[k] = item[k] ?? "";
     });
-    setForm(next);
+    setInlineForm(next);
+  };
+
+  const handleInlineChange = (key, value) => {
+    setInlineForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleInlineSubmit = async (id) => {
+    try {
+      setLoading(true);
+      setError("");
+      await api.put(`${resourcePath}${id}`, inlineForm);
+      resetForm();
+      fetchItems();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInlineCancel = () => {
+    setInlineEditingId(null);
+    setInlineForm({});
   };
 
   const handleDelete = async (id) => {
@@ -169,7 +202,7 @@ function CrudTable({
                   size="small"
                   sx={{ textTransform: "none", fontWeight: 600 }}
                 >
-                  {editingId != null ? "Update" : "Add"}
+                  Add
                 </Button>
               </Stack>
             </Grid>
@@ -229,34 +262,70 @@ function CrudTable({
                 >
                   {columns.map((col) => (
                     <TableCell key={col.key}>
-                      {(() => {
-                        const rawValue = col.getValue
-                          ? col.getValue(item)
-                          : item[col.key];
-                        return rawValue != null ? String(rawValue) : "-";
-                      })()}
+                      {inlineEditingId === item.id ? (
+                        col.renderInput ? (
+                          col.renderInput({
+                            value: inlineForm[col.key] ?? "",
+                            onChange: (value) => handleInlineChange(col.key, value),
+                            form: inlineForm,
+                          })
+                        ) : (
+                          <TextField
+                            value={inlineForm[col.key] ?? ""}
+                            onChange={(e) => handleInlineChange(col.key, e.target.value)}
+                            size="small"
+                            fullWidth
+                            sx={{ minWidth: 100 }}
+                          />
+                        )
+                      ) : (
+                        (() => {
+                          const rawValue = col.getValue
+                            ? col.getValue(item)
+                            : item[col.key];
+                          return rawValue != null ? String(rawValue) : "-";
+                        })()
+                      )}
                     </TableCell>
                   ))}
                   <TableCell align="right">
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleEdit(item)}
-                        sx={{ minWidth: "auto", px: 1.5, fontSize: "0.7rem" }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={() => handleDelete(item.id)}
-                        sx={{ minWidth: "auto", px: 1.5, fontSize: "0.7rem" }}
-                      >
-                        Delete
-                      </Button>
-                    </Stack>
+                    {inlineEditingId === item.id ? (
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleInlineSubmit(item.id)}
+                          title="Save"
+                        >
+                          <SaveIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={handleInlineCancel}
+                          title="Cancel"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleInlineEdit(item)}
+                          title="Edit"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(item.id)}
+                          title="Delete"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -120,6 +120,24 @@ const PdfReportExport = ({
           ...flattenForReport(opRes?.inputs),
           ...flattenForReport(opRes?.cost_breakdown),
         ];
+        
+        // Explicitly add Machine Setup Time and Cycle Time if they exist in response
+        const setupTime = opRes?.machine_setup_time;
+        const cycleTime = opRes?.cycle_time;
+        
+        if (setupTime !== undefined && setupTime !== null && setupTime !== "") {
+          rows.unshift({
+            key: "Machine Setup Time (min)",
+            value: String(setupTime)
+          });
+        }
+        if (cycleTime !== undefined && cycleTime !== null && cycleTime !== "") {
+          rows.unshift({
+            key: "Cycle Time (min)",
+            value: String(cycleTime)
+          });
+        }
+        
         const map = new Map();
         rows.forEach((r) => {
           if (!r?.key) return;
@@ -153,7 +171,21 @@ const PdfReportExport = ({
           }, new Set())
         ).sort((a, b) => String(a).localeCompare(String(b)))
       : [];
-  const metricKeys = filteredMetricKeys;
+  
+  // Ensure Machine Setup Time and Cycle Time appear at the top
+  const timeFields = [];
+  const hasSetupTime = filteredMetricKeys.some(k => k === "Machine Setup Time (min)");
+  const hasCycleTime = filteredMetricKeys.some(k => k === "Cycle Time (min)");
+  
+  if (hasSetupTime) {
+    timeFields.push("Machine Setup Time (min)");
+  }
+  if (hasCycleTime) {
+    timeFields.push("Cycle Time (min)");
+  }
+  
+  const otherKeys = filteredMetricKeys.filter(k => k !== "Machine Setup Time (min)" && k !== "Cycle Time (min)");
+  const metricKeys = [...timeFields, ...otherKeys];
 
   // Calculate scale for preview (fit to container)
   const calculateScale = useCallback(() => {

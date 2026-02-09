@@ -780,6 +780,40 @@ function CostEstimationModal({
                                                                         </TextField>
                                                                     </Grid>
 
+                                                                    {/* Machine Setup Time */}
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                        <TextField
+                                                                            label="Machine Setup Time (min)"
+                                                                            type="number"
+                                                                            inputProps={{ step: "0.01", min: "0" }}
+                                                                            value={opState?.machine_setup_time || ""}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "machine_setup_time", e.target.value)}
+                                                                            fullWidth
+                                                                            size="medium"
+                                                                            sx={{
+                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                            }}
+                                                                        />
+                                                                    </Grid>
+
+                                                                    {/* Cycle Time */}
+                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                        <TextField
+                                                                            label="Cycle Time (min)"
+                                                                            type="number"
+                                                                            inputProps={{ step: "0.01", min: "0" }}
+                                                                            value={opState?.cycle_time || ""}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "cycle_time", e.target.value)}
+                                                                            fullWidth
+                                                                            size="medium"
+                                                                            sx={{
+                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
+                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
+                                                                            }}
+                                                                        />
+                                                                    </Grid>
+
                                                                     {isFlexibleOpForOp && (
                                                                         <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                             <TextField
@@ -940,6 +974,14 @@ function CostEstimationModal({
                                                                                 </TableRow>
                                                                             </TableHead>
                                                                             <TableBody>
+                                                                                <TableRow>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Machine Setup Time (min)</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.inputs?.machine_setup_time || "-"}</TableCell>
+                                                                                </TableRow>
+                                                                                <TableRow>
+                                                                                    <TableCell sx={{ py: 1.55 }}>Cycle Time (min)</TableCell>
+                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.inputs?.cycle_time || "-"}</TableCell>
+                                                                                </TableRow>
                                                                                 <TableRow>
                                                                                     <TableCell sx={{ py: 1.55 }}>Basic Cost</TableCell>
                                                                                     <TableCell align="right" sx={{ py: 1.55 }}>
