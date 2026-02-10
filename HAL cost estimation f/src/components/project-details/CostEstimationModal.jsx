@@ -1439,7 +1439,7 @@ function CostEstimationModal({
                                 background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
                             }}
                         >
-                            {importLoading ? "Uploading..." : "Import"}
+                            {importLoading ? "Uploading..." : "Import operations"}
                         </Button>
                         <input
                             type="file"

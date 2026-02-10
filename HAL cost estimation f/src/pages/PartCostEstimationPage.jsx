@@ -43,7 +43,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import DrawIcon from "@mui/icons-material/Draw";
 import SettingsIcon from "@mui/icons-material/Settings";
 import AssessmentIcon from "@mui/icons-material/Assessment";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -719,7 +719,6 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
               <Button
                 variant="contained"
                 size="small"
-                startIcon={<UploadFileIcon />}
                 sx={{
                   textTransform: "none",
                   fontWeight: 600,
@@ -744,9 +743,23 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
               />
             </Box>
             {importFileError && (
-              <Typography variant="caption" color="error" sx={{ mt: 1, display: "block" }}>
-                {importFileError}
-              </Typography>
+              <Paper 
+                sx={{ 
+                  mt: 2, 
+                  p: 1.5, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 1,
+                  bgcolor: "rgba(211, 47, 47, 0.15)", 
+                  border: "1px solid rgba(211, 47, 47, 0.3)",
+                  borderRadius: 2
+                }}
+              >
+                <ErrorOutlineIcon color="error" fontSize="small" />
+                <Typography variant="caption" color="error" sx={{ flex: 1 }}>
+                  {importFileError}
+                </Typography>
+              </Paper>
             )}
           </motion.div>
         </Grid>

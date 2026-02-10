@@ -28,6 +28,7 @@ function CrudTable({
   resourcePath, // e.g. "/operation-type/"
   columns, // [{ key: "operation_name", label: "Operation Name" }, ...]
   initialFormState,
+  onAddSuccess, // callback when item is added
 }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,7 +76,11 @@ function CrudTable({
       if (editingId != null) {
         await api.put(`${resourcePath}${editingId}`, form);
       } else {
-        await api.post(resourcePath, form);
+        const res = await api.post(resourcePath, form);
+        // Call onAddSuccess callback if provided
+        if (onAddSuccess && typeof onAddSuccess === "function") {
+          onAddSuccess(form);
+        }
       }
       resetForm();
       fetchItems();

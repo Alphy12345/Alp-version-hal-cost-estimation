@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
-  Container,
-  Tab,
-  Tabs,
-  Typography,
+  Button,
   CircularProgress,
+  Container,
+  Tabs,
+  Tab,
+  Stack,
+  Typography,
   Alert,
   Paper,
-  Stack,
-  Button
+  Link
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart, getPartCostForm, savePartCostForm } from "../api/projects";
@@ -315,13 +316,27 @@ function ProjectDetailPage({ onChange, projectId }) {
         const data = res?.data;
 
         const nextOps = Array.isArray(data?.operations) ? data.operations : [];
+        
+        // Merge inputs from the form data into the results
+        const opsWithInputs = nextOps.map((opResult, idx) => {
+          const formData = ops[idx];
+          return {
+            ...opResult,
+            inputs: {
+              machine_setup_time: formData?.machine_setup_time,
+              cycle_time: formData?.cycle_time,
+              ...opResult?.inputs,
+            },
+          };
+        });
+        
         const combined = Number(data?.combined_total_unit_cost_with_misc);
 
         setCostResults((prev) => {
           const current = prev?.[partId] || { operations: [] };
           const combinedValue = Number.isFinite(combined)
             ? combined
-            : nextOps.reduce((sum, r) => {
+            : opsWithInputs.reduce((sum, r) => {
                 const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
                 return sum + (Number.isFinite(n) ? n : 0);
               }, 0);
@@ -330,7 +345,7 @@ function ProjectDetailPage({ onChange, projectId }) {
             ...prev,
             [partId]: {
               ...current,
-              operations: nextOps,
+              operations: opsWithInputs,
               combined_total_unit_cost_with_misc: combinedValue,
             },
           };
@@ -346,12 +361,23 @@ function ProjectDetailPage({ onChange, projectId }) {
 
       for (let i = 0; i < ops.length; i += 1) {
         const { res, operationsLength } = await calculateSingleOperation(partId, i);
+        
+        // Get the form data for this operation
+        const formData = ops[i];
+        
         setCostResults((prev) => {
           const current = prev?.[partId] || { operations: [] };
           const existingOps = Array.isArray(current.operations) ? current.operations : [];
           const nextOps = existingOps.slice();
           while (nextOps.length < operationsLength) nextOps.push(null);
-          nextOps[i] = res.data;
+          nextOps[i] = {
+            ...res.data,
+            inputs: {
+              machine_setup_time: formData?.machine_setup_time,
+              cycle_time: formData?.cycle_time,
+              ...res.data?.inputs,
+            },
+          };
 
           const combined = nextOps.reduce((sum, r) => {
             const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
@@ -706,12 +732,25 @@ function ProjectDetailPage({ onChange, projectId }) {
 
     try {
       const { res, operationsLength } = await calculateSingleOperation(partId, opIndex);
+      
+      // Get the form data for this operation to include inputs in results
+      const partForm = costForms[partId];
+      const operations = Array.isArray(partForm?.operations) ? partForm.operations : [];
+      const formData = operations[opIndex];
+      
       setCostResults((prev) => {
         const current = prev?.[partId] || { operations: [] };
         const existingOps = Array.isArray(current.operations) ? current.operations : [];
         const nextOps = existingOps.slice();
         while (nextOps.length < operationsLength) nextOps.push(null);
-        nextOps[opIndex] = res.data;
+        nextOps[opIndex] = {
+          ...res.data,
+          inputs: {
+            machine_setup_time: formData?.machine_setup_time,
+            cycle_time: formData?.cycle_time,
+            ...res.data?.inputs,
+          },
+        };
 
         const combined = nextOps.reduce((sum, r) => {
           const n = Number(r?.cost_breakdown?.total_unit_cost_with_misc);
@@ -864,14 +903,6 @@ function ProjectDetailPage({ onChange, projectId }) {
         partToEdit={editingPart}
         onPartAdded={handlePartAdded}
         onPartUpdated={handlePartUpdated}
-      />
-
-      <FileViewerModal
-        isOpen={fileViewer.isOpen}
-        onClose={closeFileViewer}
-        fileUrl={fileViewer.fileUrl}
-        fileName={fileViewer.fileName}
-        fileType={fileViewer.fileType}
       />
     </Box>
   );

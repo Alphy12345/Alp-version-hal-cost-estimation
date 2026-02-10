@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from "react";
 import CrudTable from "../components/CrudTable";
 import api from "../api/client";
-import { Box, Typography, Grid, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
+import { Box, Typography, Grid, Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Button, Stack } from "@mui/material";
 
-function ConfigurationPage() {
+function ConfigurationPage({ onChange }) {
   const [machines, setMachines] = useState([]);
   const [operationTypes, setOperationTypes] = useState([]);
   const [dimensions, setDimensions] = useState([]);
   const [duties, setDuties] = useState([]);
   const [materials, setMaterials] = useState([]);
+  
+  // Track the newly added operation for the workflow
+  const [pendingOperation, setPendingOperation] = useState(null);
+  
+  // Notifications state
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "info",
+    actions: [],
+  });
 
   useEffect(() => {
     const fetchLookups = async () => {
@@ -39,6 +50,75 @@ function ConfigurationPage() {
     fetchLookups();
   }, []);
 
+  // Show notification helper
+  const showNotification = (message, severity = "info", actions = []) => {
+    setNotification({
+      open: true,
+      message,
+      severity,
+      actions,
+    });
+  };
+
+  const closeNotification = () => {
+    setNotification({ open: false, message: "", severity: "info", actions: [] });
+  };
+
+  // Handle when operation type is added
+  const handleOperationAdded = (item) => {
+    // Store the pending operation for tracking
+    setPendingOperation({
+      id: item.id,
+      name: item.operation_name,
+    });
+    
+    showNotification(
+      `Operation "${item.operation_name}" added! Please enter a machine for this operation.`,
+      "info",
+      [
+        {
+          label: "Add Machine",
+          onClick: () => {
+            closeNotification();
+            onChange && onChange("config_machines");
+          },
+        },
+        {
+          label: "Dismiss",
+          onClick: closeNotification,
+        },
+      ]
+    );
+  };
+
+  // Handle when machine is added - check if it matches pending operation
+  const handleMachineAdded = (item) => {
+    // If we have a pending operation and this machine is for that operation
+    if (pendingOperation && String(item.op_id) === String(pendingOperation.id)) {
+      showNotification(
+        `Machine "${item.name}" added for "${pendingOperation.name}"! Now please enter MHR values for this operation.`,
+        "success",
+        [
+          {
+            label: "Enter MHR",
+            onClick: () => {
+              closeNotification();
+              setPendingOperation(null); // Clear pending operation
+              onChange && onChange("config_mhr");
+            },
+          },
+          {
+            label: "Dismiss",
+            onClick: () => {
+              closeNotification();
+              setPendingOperation(null);
+            },
+          },
+        ]
+      );
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto" }}>
       <Box sx={{ mb: 3 }}>
@@ -61,6 +141,7 @@ function ConfigurationPage() {
               { key: "operation_name", label: "Operation Name" },
             ]}
             initialFormState={{ operation_name: "" }}
+            onAddSuccess={handleOperationAdded}
           />
         </Grid>
 
@@ -104,7 +185,8 @@ function ConfigurationPage() {
                 ),
               },
             ]}
-            initialFormState={{ name: "", op_id: "" }}
+            initialFormState={{ name: "", op_id: pendingOperation?.id || "" }}
+            onAddSuccess={handleMachineAdded}
           />
         </Grid>
 
@@ -360,6 +442,34 @@ function ConfigurationPage() {
           />
         </Grid>
       </Grid>
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={null}
+        onClose={closeNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          severity={notification.severity}
+          sx={{ width: "100%" }}
+          action={
+            <Stack direction="row" spacing={1}>
+              {notification.actions.map((action, index) => (
+                <Button
+                  key={index}
+                  color="inherit"
+                  size="small"
+                  onClick={action.onClick}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </Stack>
+          }
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

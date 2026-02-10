@@ -76,7 +76,7 @@ function AppContent() {
             bgcolor: "background.default",
           }}
         >
-          {activeSection === "configuration" && <ConfigurationPage />}
+          {activeSection === "configuration" && <ConfigurationPage onChange={handleSectionChange} />}
           {activeSection === "cost_estimation" && <CostEstimationPage />}
           {activeSection === "projects" && <ProjectsPage onChange={handleSectionChange} />}
           {activeSection === "create_project" && <CreateProjectPage onChange={handleSectionChange} onCreate={setCreatedProject} />}

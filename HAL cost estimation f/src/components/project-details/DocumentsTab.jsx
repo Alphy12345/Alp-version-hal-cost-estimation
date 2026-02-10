@@ -31,9 +31,9 @@ function DocumentsTab({ projectData, onViewFile }) {
                     <ListItem
                         key={doc.id}
                         sx={{
-                            bgcolor: "grey.50",
+                            bgcolor: "rgba(15, 23, 42, 0.6)",
                             border: 1,
-                            borderColor: "divider",
+                            borderColor: "rgba(30, 64, 175, 0.3)",
                             borderRadius: 2,
                             mb: 1,
                             py: 1
