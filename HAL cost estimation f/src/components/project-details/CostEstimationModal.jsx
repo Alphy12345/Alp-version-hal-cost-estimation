@@ -91,6 +91,28 @@ function CostEstimationModal({
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         
+        // Check if file type is supported
+        const supportedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        ];
+        
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        const supportedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+        
+        if (!supportedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension)) {
+            alert(`Unsupported file type: ${file.name}\n\nSupported formats:\n• PDF files (.pdf)\n• Word documents (.doc, .docx)\n• Excel spreadsheets (.xls, .xlsx)\n• PowerPoint presentations (.ppt, .pptx)`);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+            return;
+        }
+        
         setImportLoading(true);
         try {
             const formData = new FormData();
@@ -104,90 +126,125 @@ function CostEstimationModal({
             
             // Extract data from response
             const extractedData = response.data?.extracted_data;
-            if (extractedData && Object.keys(extractedData).some(k => extractedData[k] !== null)) {
-                // Create a new operation first
-                const newOpIndex = operations.length;
-                onAddOperation(part.id);
+            console.log("Extracted data from file:", extractedData);
+            console.log("Is array?:", Array.isArray(extractedData));
+            
+            // Handle multiple operations (array) or single operation (object)
+            const operationsToProcess = Array.isArray(extractedData) ? extractedData : [extractedData];
+            const validOperations = operationsToProcess.filter(op => op && Object.keys(op).some(k => op[k] !== null));
+            
+            console.log("Operations to process:", operationsToProcess.length);
+            console.log("Valid operations:", validOperations.length);
+            console.log("Current operations count:", operations.length);
+            
+            if (validOperations.length > 0) {
+                // Capture the base index once at the start
+                const baseOpIndex = operations.length;
+                let createdOperations = [];
                 
-                // Small delay to ensure operation is created
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Switch to the new operation
-                onSetActiveOperation(part.id, newOpIndex);
-                
-                // Fill the new operation with extracted data
-                const fields = [];
-                
-                // First set operation type so machine filtering works
-                if (extractedData.operation_type) {
-                    onChangeForm(part.id, newOpIndex, "operation_type", extractedData.operation_type);
-                    fields.push("operation_type");
-                }
-                
-                // Small delay to ensure operation type is set before filtering machines
-                await new Promise(resolve => setTimeout(resolve, 50));
-                
-                if (extractedData.material) {
-                    onChangeForm(part.id, newOpIndex, "material", extractedData.material);
-                    fields.push("material");
-                }
-                
-                // Use smart machine matching to find best match from available machines
-                if (extractedData.machine) {
-                    // Get available machines for the selected operation type
-                    const opType = extractedData.operation_type || "turning";
-                    const availableMachines = getFilteredMachinesForOperation(opType);
+                for (let i = 0; i < validOperations.length; i++) {
+                    const opData = validOperations[i];
                     
-                    // Find best matching machine
-                    const matchedMachine = findBestMatchingMachine(extractedData.machine, availableMachines);
+                    // Calculate the new operation index
+                    const newOpIndex = baseOpIndex + i;
                     
-                    if (matchedMachine) {
-                        onChangeForm(part.id, newOpIndex, "machine_name", matchedMachine);
-                        fields.push("machine_name");
-                    } else {
-                        // Fallback: just set the extracted value directly
-                        onChangeForm(part.id, newOpIndex, "machine_name", extractedData.machine);
-                        fields.push("machine_name (unmatched)");
+                    // Create a new operation for each valid operation
+                    onAddOperation(part.id);
+                    
+                    // Wait longer for state update and operation creation
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // Switch to the new operation (only switch to the first one)
+                    if (i === 0) {
+                        onSetActiveOperation(part.id, newOpIndex);
+                        await new Promise(resolve => setTimeout(resolve, 100));
                     }
-                }
-                if (extractedData.man_hours !== null && extractedData.man_hours !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "man_hours_per_unit", extractedData.man_hours);
-                    fields.push("man_hours_per_unit");
-                }
-                if (extractedData.duty_category) {
-                    onChangeForm(part.id, newOpIndex, "duty_category", extractedData.duty_category);
-                    fields.push("duty_category");
-                }
-                if (extractedData.machine_setup_time !== null && extractedData.machine_setup_time !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "machine_setup_time", extractedData.machine_setup_time);
-                    fields.push("machine_setup_time");
-                }
-                if (extractedData.cycle_time !== null && extractedData.cycle_time !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "cycle_time", extractedData.cycle_time);
-                    fields.push("cycle_time");
-                }
-                if (extractedData.diameter !== null && extractedData.diameter !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "diameter", extractedData.diameter);
-                    fields.push("diameter");
-                }
-                if (extractedData.length !== null && extractedData.length !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "length", extractedData.length);
-                    fields.push("length");
-                }
-                if (extractedData.breadth !== null && extractedData.breadth !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "breadth", extractedData.breadth);
-                    fields.push("breadth");
-                }
-                if (extractedData.height !== null && extractedData.height !== undefined) {
-                    onChangeForm(part.id, newOpIndex, "height", extractedData.height);
-                    fields.push("height");
-                }
-                if (extractedData.shape) {
-                    onChangeForm(part.id, newOpIndex, "shape", extractedData.shape);
-                    fields.push("shape");
+                    
+                    // Fill the new operation with extracted data
+                    const fields = [];
+                    
+                    // First set operation type so machine filtering works
+                    if (opData.operation_type) {
+                        onChangeForm(part.id, newOpIndex, "operation_type", opData.operation_type);
+                        fields.push("operation_type");
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                    
+                    if (opData.material) {
+                        onChangeForm(part.id, newOpIndex, "material", opData.material);
+                        fields.push("material");
+                    }
+                    
+                    // Use smart machine matching to find best match from available machines
+                    if (opData.machine) {
+                        // Get available machines for the selected operation type
+                        const opType = opData.operation_type || "turning";
+                        const availableMachines = getFilteredMachinesForOperation(opType);
+                        
+                        // Find best matching machine
+                        const matchedMachine = findBestMatchingMachine(opData.machine, availableMachines);
+                        
+                        if (matchedMachine) {
+                            onChangeForm(part.id, newOpIndex, "machine_name", matchedMachine);
+                            fields.push("machine_name");
+                        } else {
+                            // Fallback: just set the extracted value directly
+                            onChangeForm(part.id, newOpIndex, "machine_name", opData.machine);
+                            fields.push("machine_name (unmatched)");
+                        }
+                    }
+                    if (opData.man_hours !== null && opData.man_hours !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "man_hours_per_unit", opData.man_hours);
+                        fields.push("man_hours_per_unit");
+                    }
+                    if (opData.duty_category) {
+                        onChangeForm(part.id, newOpIndex, "duty_category", opData.duty_category);
+                        fields.push("duty_category");
+                    }
+                    // Support both "machine_setup_time" and "setup_time" field names
+                    const setupTimeValue = opData.machine_setup_time !== undefined ? opData.machine_setup_time : opData.setup_time;
+                    if (setupTimeValue !== null && setupTimeValue !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "machine_setup_time", setupTimeValue);
+                        fields.push("machine_setup_time");
+                    }
+                    if (opData.cycle_time !== null && opData.cycle_time !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "cycle_time", opData.cycle_time);
+                        fields.push("cycle_time");
+                    }
+                    if (opData.diameter !== null && opData.diameter !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "diameter", opData.diameter);
+                        fields.push("diameter");
+                    }
+                    if (opData.length !== null && opData.length !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "length", opData.length);
+                        fields.push("length");
+                    }
+                    if (opData.breadth !== null && opData.breadth !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "breadth", opData.breadth);
+                        fields.push("breadth");
+                    }
+                    if (opData.height !== null && opData.height !== undefined) {
+                        onChangeForm(part.id, newOpIndex, "height", opData.height);
+                        fields.push("height");
+                    }
+                    if (opData.shape) {
+                        onChangeForm(part.id, newOpIndex, "shape", opData.shape);
+                        fields.push("shape");
+                    }
+                    
+                    createdOperations.push({
+                        index: newOpIndex + 1,
+                        fields: fields.join(', ')
+                    });
                 }
                 
-                alert(`Created new Operation ${newOpIndex + 1} and filled with extracted data!\n\nFields set:\n${fields.join(', ')}`);
+                // Show appropriate message based on number of operations created
+                if (createdOperations.length === 1) {
+                    alert(`Created 1 new operation and filled with extracted data!\n\nFields set:\n${createdOperations[0].fields}`);
+                } else {
+                    const opDetails = createdOperations.map(op => `Operation ${op.index}: ${op.fields}`).join('\n\n');
+                    alert(`Created ${createdOperations.length} new operations from the PDF!\n\n${opDetails}`);
+                }
             } else {
                 alert("File uploaded but no operation data could be extracted from the file.");
             }
@@ -1445,7 +1502,7 @@ function CostEstimationModal({
                             type="file"
                             hidden
                             ref={fileInputRef}
-                            accept="*/*"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                             onChange={handleFileSelected}
                         />
                     </Paper>
