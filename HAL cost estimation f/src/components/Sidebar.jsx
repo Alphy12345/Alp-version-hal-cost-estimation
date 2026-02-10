@@ -40,6 +40,7 @@ function Sidebar({ active, onChange }) {
           width: 280,
           boxSizing: "border-box",
           borderRightColor: "rgba(255,255,255,0.08)",
+          bgcolor: "#000000",
         },
       }}
     >

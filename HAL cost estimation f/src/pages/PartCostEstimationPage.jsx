@@ -43,6 +43,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import DrawIcon from "@mui/icons-material/Draw";
 import SettingsIcon from "@mui/icons-material/Settings";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -189,6 +190,10 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
   const [manHoursUploadError, setManHoursUploadError] = useState("");
   const manHoursFileInputRef = useRef(null);
 
+  const [importFileLoading, setImportFileLoading] = useState(false);
+  const [importFileError, setImportFileError] = useState("");
+  const importFileInputRef = useRef(null);
+
   const [costLoading, setCostLoading] = useState(false);
   const [costResult, setCostResult] = useState(null);
 
@@ -272,11 +277,42 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
   }, [filteredMachines, form.machine_name]);
 
   // --- Handlers ---
+  const handleImportFileClick = () => {
+    setImportFileError("");
+    if (importFileInputRef.current) {
+      importFileInputRef.current.value = "";
+      importFileInputRef.current.click();
+    }
+  };
+
   const handleManHoursUploadClick = () => {
     setManHoursUploadError("");
     if (manHoursFileInputRef.current) {
       manHoursFileInputRef.current.value = "";
       manHoursFileInputRef.current.click();
+    }
+  };
+
+  const handleImportFileSelected = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setImportFileLoading(true);
+    setImportFileError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("part_id", partId);
+      fd.append("project_id", projectId);
+      await api.post("/import/file", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      // Refresh part data after successful import
+      const parts = await getProjectParts(projectId);
+      const found = Array.isArray(parts) ? parts.find((p) => p.id === partId) : null;
+      setPart(found || null);
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || "Failed to import file";
+      setImportFileError(String(msg));
+    } finally {
+      setImportFileLoading(false);
     }
   };
 
@@ -677,6 +713,41 @@ export default function PartCostEstimationPage({ onChange, projectId, partId }) 
                 </AnimatePresence>
               </Box>
             </Paper>
+
+            {/* Import Button */}
+            <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-start" }}>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<UploadFileIcon />}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
+                  transition: "all 0.3s",
+                  '&:hover': {
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 4px 12px rgba(56,189,248,0.3)"
+                  }
+                }}
+                onClick={handleImportFileClick}
+              >
+                Import
+              </Button>
+              <input
+                type="file"
+                hidden
+                ref={importFileInputRef}
+                accept="*/*"
+                onChange={handleImportFileSelected}
+              />
+            </Box>
+            {importFileError && (
+              <Typography variant="caption" color="error" sx={{ mt: 1, display: "block" }}>
+                {importFileError}
+              </Typography>
+            )}
           </motion.div>
         </Grid>
 

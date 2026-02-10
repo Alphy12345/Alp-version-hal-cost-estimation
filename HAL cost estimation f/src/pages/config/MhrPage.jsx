@@ -205,16 +205,16 @@ function MhrPage() {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: "#1e3a5f" }}>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Operation Type</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Duty</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Machine</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Investment Cost</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Power Rating</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Power Charges</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Available Hrs</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>Utilization Hrs</TableCell>
-                  <TableCell sx={{ color: "#d4af37", fontWeight: 600 }}>MHR</TableCell>
-                  <TableCell align="right" sx={{ color: "#d4af37", fontWeight: 600 }}>Actions</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Operation Type</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Duty</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Machine</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Investment Cost</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Power Rating</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Power Charges</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Available Hrs</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Utilization Hrs</TableCell>
+                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>MHR</TableCell>
+                  <TableCell align="right" sx={{ color: "#38bdf8", fontWeight: 600 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

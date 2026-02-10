@@ -77,7 +77,7 @@ function ProjectsPage({ onChange }) {
       <Paper
         sx={{
           borderRadius: 3,
-          background: "linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)",
+          background: "#000000",
           color: "white",
           p: 3,
           mb: 3,
@@ -90,7 +90,7 @@ function ProjectsPage({ onChange }) {
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} lg={6}>
-          <Card sx={{ borderRadius: 3, height: "100%" }}>
+          <Card sx={{ borderRadius: 3, height: "100%", bgcolor: "#000000" }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
                 <Box
@@ -142,12 +142,12 @@ function ProjectsPage({ onChange }) {
         </Grid>
       </Grid>
 
-      <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+      <Paper sx={{ borderRadius: 3, overflow: "hidden", bgcolor: "#000000" }}>
         <Box
           sx={{
             px: 3,
             py: 2,
-            background: "linear-gradient(90deg, #1e293b 0%, #334155 50%, #475569 100%)",
+            background: "#000000",
             color: "white",
             borderBottom: 1,
             borderColor: "divider",
@@ -164,20 +164,20 @@ function ProjectsPage({ onChange }) {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: "grey.50" }}>
-                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+              <TableRow sx={{ bgcolor: "#000000" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#d4af37", textTransform: "uppercase", fontSize: "0.75rem" }}>
                   Project Name
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#d4af37", textTransform: "uppercase", fontSize: "0.75rem" }}>
                   Customer Name
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#d4af37", textTransform: "uppercase", fontSize: "0.75rem" }}>
                   Created Date
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#d4af37", textTransform: "uppercase", fontSize: "0.75rem" }}>
                   Number of Parts
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", fontSize: "0.75rem" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#d4af37", textTransform: "uppercase", fontSize: "0.75rem" }}>
                   Actions
                 </TableCell>
               </TableRow>
@@ -208,7 +208,14 @@ function ProjectsPage({ onChange }) {
                 </TableRow>
               ) : (
                 projects.map((p) => (
-                  <TableRow key={p.id} hover>
+                  <TableRow 
+                    key={p.id} 
+                    hover
+                    sx={{
+                      bgcolor: "#000000",
+                      "& td": { color: "white", borderBottom: "1px solid rgba(255,255,255,0.1)" }
+                    }}
+                  >
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
                         <Box
@@ -221,28 +228,28 @@ function ProjectsPage({ onChange }) {
                           }}
                         />
                         <Box>
-                          <Typography variant="body2" fontWeight={600}>
+                          <Typography variant="body2" fontWeight={600} sx={{ color: "white" }}>
                             {p.project_name}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
                             ID: {p.id}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography variant="body2" fontWeight={500} sx={{ color: "white" }}>
                         {p.customer_name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
                         Customer
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography variant="body2" fontWeight={500} sx={{ color: "white" }}>
                         {formatDate(p.created_at)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
                         Creation Date
                       </Typography>
                     </TableCell>
@@ -250,9 +257,13 @@ function ProjectsPage({ onChange }) {
                       <Chip
                         label={`${p.parts?.length || 0} Parts`}
                         size="small"
-                        color="primary"
+                        sx={{ 
+                          fontWeight: 600, 
+                          fontSize: "0.7rem",
+                          color: "white",
+                          borderColor: "rgba(255,255,255,0.5)"
+                        }}
                         variant="outlined"
-                        sx={{ fontWeight: 600, fontSize: "0.7rem" }}
                       />
                     </TableCell>
                     <TableCell>
@@ -274,16 +285,22 @@ function ProjectsPage({ onChange }) {
                         <Button
                           size="small"
                           variant="outlined"
-                          color="warning"
-                          startIcon={<EditIcon />}
+                          sx={{ 
+                            textTransform: "none", 
+                            fontWeight: 600, 
+                            fontSize: "0.75rem",
+                            color: "#fbbf24",
+                            borderColor: "#fbbf24",
+                            "&:hover": { borderColor: "#f59e0b", bgcolor: "rgba(251,191,36,0.1)" }
+                          }}
+                          startIcon={<EditIcon sx={{ color: "#fbbf24" }} />}
                           onClick={() => onChange("edit_project", { projectId: p.id })}
-                          sx={{ textTransform: "none", fontWeight: 600, fontSize: "0.75rem" }}
                         >
                           Edit
                         </Button>
                         <IconButton
                           size="small"
-                          color="error"
+                          sx={{ color: "#ef4444" }}
                           onClick={() => handleDeleteProject(p.id)}
                           title="Delete Project"
                         >

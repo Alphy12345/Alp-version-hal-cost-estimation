@@ -35,8 +35,10 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import api from "../../api/client";
 
 // Import the new professional PDF export component
 import PdfReportExport from "../PdfReportExport";
@@ -76,9 +78,132 @@ function CostEstimationModal({
     PdfPreview, // Component passed as prop
     formatValue,
 }) {
-    const contentRef = useRef(null);
+    const [importLoading, setImportLoading] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const handleImportClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleFileSelected = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        
+        setImportLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("project_id", projectData?.id);
+            formData.append("part_id", part?.id);
+            
+            const response = await api.post("/files/import/file", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+            
+            // Extract data from response
+            const extractedData = response.data?.extracted_data;
+            if (extractedData && Object.keys(extractedData).some(k => extractedData[k] !== null)) {
+                // Create a new operation first
+                const newOpIndex = operations.length;
+                onAddOperation(part.id);
+                
+                // Small delay to ensure operation is created
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Switch to the new operation
+                onSetActiveOperation(part.id, newOpIndex);
+                
+                // Fill the new operation with extracted data
+                const fields = [];
+                
+                // First set operation type so machine filtering works
+                if (extractedData.operation_type) {
+                    onChangeForm(part.id, newOpIndex, "operation_type", extractedData.operation_type);
+                    fields.push("operation_type");
+                }
+                
+                // Small delay to ensure operation type is set before filtering machines
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                if (extractedData.material) {
+                    onChangeForm(part.id, newOpIndex, "material", extractedData.material);
+                    fields.push("material");
+                }
+                
+                // Use smart machine matching to find best match from available machines
+                if (extractedData.machine) {
+                    // Get available machines for the selected operation type
+                    const opType = extractedData.operation_type || "turning";
+                    const availableMachines = getFilteredMachinesForOperation(opType);
+                    
+                    // Find best matching machine
+                    const matchedMachine = findBestMatchingMachine(extractedData.machine, availableMachines);
+                    
+                    if (matchedMachine) {
+                        onChangeForm(part.id, newOpIndex, "machine_name", matchedMachine);
+                        fields.push("machine_name");
+                    } else {
+                        // Fallback: just set the extracted value directly
+                        onChangeForm(part.id, newOpIndex, "machine_name", extractedData.machine);
+                        fields.push("machine_name (unmatched)");
+                    }
+                }
+                if (extractedData.man_hours !== null && extractedData.man_hours !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "man_hours_per_unit", extractedData.man_hours);
+                    fields.push("man_hours_per_unit");
+                }
+                if (extractedData.duty_category) {
+                    onChangeForm(part.id, newOpIndex, "duty_category", extractedData.duty_category);
+                    fields.push("duty_category");
+                }
+                if (extractedData.machine_setup_time !== null && extractedData.machine_setup_time !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "machine_setup_time", extractedData.machine_setup_time);
+                    fields.push("machine_setup_time");
+                }
+                if (extractedData.cycle_time !== null && extractedData.cycle_time !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "cycle_time", extractedData.cycle_time);
+                    fields.push("cycle_time");
+                }
+                if (extractedData.diameter !== null && extractedData.diameter !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "diameter", extractedData.diameter);
+                    fields.push("diameter");
+                }
+                if (extractedData.length !== null && extractedData.length !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "length", extractedData.length);
+                    fields.push("length");
+                }
+                if (extractedData.breadth !== null && extractedData.breadth !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "breadth", extractedData.breadth);
+                    fields.push("breadth");
+                }
+                if (extractedData.height !== null && extractedData.height !== undefined) {
+                    onChangeForm(part.id, newOpIndex, "height", extractedData.height);
+                    fields.push("height");
+                }
+                if (extractedData.shape) {
+                    onChangeForm(part.id, newOpIndex, "shape", extractedData.shape);
+                    fields.push("shape");
+                }
+                
+                alert(`Created new Operation ${newOpIndex + 1} and filled with extracted data!\n\nFields set:\n${fields.join(', ')}`);
+            } else {
+                alert("File uploaded but no operation data could be extracted from the file.");
+            }
+        } catch (err) {
+            console.error("Upload failed:", err);
+            alert("Failed to upload file: " + (err?.response?.data?.detail || err.message));
+        } finally {
+            setImportLoading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
     const pdfPreviewRef = useRef(null);
     const drawingScrollRef = useRef(null);
+    const contentRef = useRef(null);
     const dragStateRef = useRef({ isDown: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
 
     const [expandedOperations, setExpandedOperations] = useState({});
@@ -251,6 +376,76 @@ function CostEstimationModal({
     const normalizeMachineName = (value) => {
         if (value == null) return "";
         return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+    };
+
+    // Smart machine matching - finds the best matching machine name from available options
+    const findBestMatchingMachine = (extractedMachineName, availableMachines) => {
+        if (!extractedMachineName || !Array.isArray(availableMachines) || availableMachines.length === 0) {
+            return null;
+        }
+        
+        const extracted = normalizeMachineName(extractedMachineName);
+        if (!extracted) return null;
+        
+        // Common machine name mappings
+        const machineMappings = {
+            'cnc': ['cnc', 'cnc machine', 'cnc lathe', 'cnc milling'],
+            'lathe': ['lathe', 'cnc lathe', 'turning lathe'],
+            'milling': ['milling', 'cnc milling', 'milling machine', 'vmc', 'hmc'],
+            'drilling': ['drilling', 'drilling machine', 'drill', 'cnc drilling'],
+            'grinding': ['grinding', 'grinding machine', 'grinder'],
+            'boring': ['boring', 'boring machine', 'jig boring'],
+            'turning': ['turning', 'turning machine', 'cnc turning'],
+        };
+        
+        // Try exact match first
+        const exactMatch = availableMachines.find(m => normalizeMachineName(m?.name) === extracted);
+        if (exactMatch) return exactMatch.name;
+        
+        // Try partial match
+        for (const machine of availableMachines) {
+            const machineName = normalizeMachineName(machine?.name);
+            if (machineName.includes(extracted) || extracted.includes(machineName)) {
+                return machine.name;
+            }
+        }
+        
+        // Try keyword matching
+        for (const [key, variations] of Object.entries(machineMappings)) {
+            if (variations.some(v => extracted.includes(v))) {
+                // Find a machine that matches this keyword
+                for (const machine of availableMachines) {
+                    const machineName = normalizeMachineName(machine?.name);
+                    if (variations.some(v => machineName.includes(v))) {
+                        return machine.name;
+                    }
+                }
+            }
+        }
+        
+        // Try word-by-word matching (for machines like "3 axis CNC")
+        const extractedWords = extracted.split(/\s+/);
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        for (const machine of availableMachines) {
+            const machineName = normalizeMachineName(machine?.name);
+            const machineWords = machineName.split(/\s+/);
+            
+            let score = 0;
+            for (const word of extractedWords) {
+                if (word.length > 2 && machineWords.some(mw => mw.includes(word) || word.includes(mw))) {
+                    score += 1;
+                }
+            }
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = machine.name;
+            }
+        }
+        
+        return bestScore > 0 ? bestMatch : null;
     };
 
     const resolveOperationTypeId = (operationTypeValue) => {
@@ -1227,6 +1422,32 @@ function CostEstimationModal({
                         <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
                             Date: {projectData?.project_date || "N/A"}
                         </Typography>
+
+                        {/* Import Button */}
+                        <Button
+                            variant="contained"
+                            size="small"
+                            fullWidth
+                            disabled={importLoading}
+                            startIcon={importLoading ? <CircularProgress size={16} /> : <UploadFileIcon />}
+                            onClick={handleImportClick}
+                            sx={{
+                                mt: 2,
+                                textTransform: "none",
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
+                            }}
+                        >
+                            {importLoading ? "Uploading..." : "Import"}
+                        </Button>
+                        <input
+                            type="file"
+                            hidden
+                            ref={fileInputRef}
+                            accept="*/*"
+                            onChange={handleFileSelected}
+                        />
                     </Paper>
 
                     {/* Operation Details */}

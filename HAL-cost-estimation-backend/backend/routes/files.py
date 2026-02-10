@@ -1,9 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, Query
+from fastapi import APIRouter, UploadFile, File, Query, Form, Depends, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from backend.services.file_service import upload_file
 from backend.services.minio_client import MINIO_CLIENT, BUCKET_NAME
+from sqlalchemy.orm import Session
+from backend.db import get_db
+from backend.models.projects import ProjectPart
+from backend.services.file_extraction import extract_from_uploaded_file
 import os
-
+import shutil
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -86,3 +90,49 @@ def serve_upload_file(file_path: str, inline: bool = Query(False, description="D
             "Content-Disposition": content_disposition
         }
     )
+
+
+@router.post("/import/file")
+async def import_file(
+    file: UploadFile = File(...),
+    project_id: int = Form(...),
+    part_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Import a file, extract operation details, and associate it with a part/project."""
+    try:
+        # Verify part exists
+        part = db.query(ProjectPart).filter(ProjectPart.id == part_id).first()
+        if not part:
+            raise HTTPException(status_code=404, detail="Part not found")
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join("uploads", "imported", str(project_id), str(part_id))
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        filename = file.filename
+        file_path = os.path.join(upload_dir, filename)
+        
+        # Save file locally
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Extract operation details from file
+        extraction_result = extract_from_uploaded_file(file_path)
+        
+        # Store relative path in database
+        relative_path = os.path.join("uploads", "imported", str(project_id), str(part_id), filename)
+        
+        return {
+            "message": "File imported successfully",
+            "filename": filename,
+            "file_path": relative_path,
+            "project_id": project_id,
+            "part_id": part_id,
+            "extraction_success": extraction_result.get('success', False),
+            "extracted_data": extraction_result.get('extracted_data', {}),
+            "text_preview": extraction_result.get('text', '')
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to import file: {str(e)}")
