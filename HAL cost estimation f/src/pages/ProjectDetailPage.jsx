@@ -693,9 +693,8 @@ function ProjectDetailPage({ onChange, projectId }) {
     setCostForms((prev) => {
       const current = prev?.[partId] || {};
       const ops = Array.isArray(current.operations) ? current.operations : [];
-      if (ops.length <= 1) return prev;
       const nextOps = ops.filter((_, idx) => idx !== opIndex);
-      const nextActive = Math.max(0, Math.min(current.activeOperationIndex || 0, nextOps.length - 1));
+      const nextActive = Math.max(0, Math.min(current.activeOperationIndex || 0, Math.max(0, nextOps.length - 1)));
       return {
         ...prev,
         [partId]: {

@@ -47,7 +47,7 @@ function Sidebar({ active, onChange }) {
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <Box sx={{ px: 3, py: 2.25 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.2 }}>
-            HAL Cost Estimation
+            Cost Estimation
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Admin Panel
@@ -123,7 +123,7 @@ function Sidebar({ active, onChange }) {
             Logout
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.25 }}>
-            © {new Date().getFullYear()} HAL
+            © {new Date().getFullYear()} Cost Estimation
           </Typography>
         </Box>
       </Box>

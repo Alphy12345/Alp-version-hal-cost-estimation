@@ -195,7 +195,7 @@ const LoginPage = () => {
                 textShadow: '0 2px 10px rgba(0,0,0,0.3)',
               }}
             >
-              HAL Cost Estimation
+              Cost Estimation
             </Typography>
             <Typography
               variant="body2"
@@ -679,7 +679,7 @@ const LoginPage = () => {
               color: 'rgba(255,255,255,0.5)',
             }}
           >
-            © 2026 HAL Cost Estimation System. All rights reserved.
+            © 2026 Cost Estimation System. All rights reserved.
           </Typography>
         </Box>
       </Slide>

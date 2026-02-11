@@ -142,6 +142,11 @@ function CostEstimationModal({
                 const baseOpIndex = operations.length;
                 let createdOperations = [];
                 
+                console.log(`Creating ${validOperations.length} operations in PDF order:`);
+                validOperations.forEach((op, idx) => {
+                    console.log(`  ${idx + 1}. ${op.operation_type || 'Unknown'} - ${op.machine || 'No machine'}`);
+                });
+                
                 for (let i = 0; i < validOperations.length; i++) {
                     const opData = validOperations[i];
                     
@@ -165,7 +170,12 @@ function CostEstimationModal({
                     
                     // First set operation type so machine filtering works
                     if (opData.operation_type) {
-                        onChangeForm(part.id, newOpIndex, "operation_type", opData.operation_type);
+                        // Map backend operation types to frontend supported values
+                        let mappedOpType = opData.operation_type;
+                        if (mappedOpType === 'jig_boring' || mappedOpType.includes('jig') && mappedOpType.includes('boring')) {
+                            mappedOpType = 'boring';
+                        }
+                        onChangeForm(part.id, newOpIndex, "operation_type", mappedOpType);
                         fields.push("operation_type");
                         await new Promise(resolve => setTimeout(resolve, 50));
                     }
@@ -266,6 +276,7 @@ function CostEstimationModal({
     const [expandedOperations, setExpandedOperations] = useState({});
     const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
     const [pdfExportOpen, setPdfExportOpen] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({});
 
     const operationTypeOptions = useMemo(() => {
         const toOpValue = (name) => {
@@ -444,15 +455,23 @@ function CostEstimationModal({
         const extracted = normalizeMachineName(extractedMachineName);
         if (!extracted) return null;
         
-        // Common machine name mappings
+        // Common machine name mappings - expanded for better matching
         const machineMappings = {
-            'cnc': ['cnc', 'cnc machine', 'cnc lathe', 'cnc milling'],
+            'cnc': ['cnc', 'cnc machine', 'cnc lathe', 'cnc milling', 'turning cnc'],
             'lathe': ['lathe', 'cnc lathe', 'turning lathe'],
             'milling': ['milling', 'cnc milling', 'milling machine', 'vmc', 'hmc'],
+            '3 axis cnc': ['3 axis cnc', '3 axis', 'axis cnc'],
+            '5 axis cnc': ['5 axis cnc', '5 axis'],
             'drilling': ['drilling', 'drilling machine', 'drill', 'cnc drilling'],
             'grinding': ['grinding', 'grinding machine', 'grinder'],
             'boring': ['boring', 'boring machine', 'jig boring'],
-            'turning': ['turning', 'turning machine', 'cnc turning'],
+            'jig boring': ['jig boring', 'boring', 'cnc'],
+            'turning': ['turning', 'turning machine', 'cnc turning', 'turning cnc'],
+            'spm': ['spm', 'special purpose machine'],
+            'rubber press': ['rubber press', 'rubber', 'press'],
+            'small': ['small', 'rubber press small', 'less than 650'],
+            'medium': ['medium', 'rubber press medium', 'more than 650'],
+            'large': ['large', 'rubber press large'],
         };
         
         // Try exact match first
@@ -641,6 +660,60 @@ function CostEstimationModal({
             }
         });
         return rows;
+    };
+
+    // Validate all operations before calculate all
+    const validateAllOperations = () => {
+        const errors = {};
+        const opsToRender = Array.isArray(operations) && operations.length > 0 ? operations : [];
+        
+        opsToRender.forEach((op, opIndex) => {
+            const opState = opIndex === activeOperationIndex ? formState : (op || {});
+            const opErrors = [];
+            
+            // Required fields for all operations
+            if (!opState?.operation_type) opErrors.push('Operation Type');
+            if (!opState?.material) opErrors.push('Material');
+            if (!opState?.machine_name) opErrors.push('Machine');
+            if (!opState?.man_hours_per_unit && opState?.man_hours_per_unit !== 0) opErrors.push('Man Hours');
+            if (!opState?.duty_category) opErrors.push('Duty Category');
+            if (!opState?.machine_setup_time && opState?.machine_setup_time !== 0) opErrors.push('Machine Setup Time');
+            if (!opState?.cycle_time && opState?.cycle_time !== 0) opErrors.push('Cycle Time');
+            
+            // Shape-specific dimension checks
+            const opType = String(opState?.operation_type || "").trim().toLowerCase();
+            const isRectangular = opType === "milling" || opType === "grinding" || opType === "surface_treatment" || opState?.shape === "rectangular";
+            
+            if (isRectangular) {
+                if (!opState?.length && opState?.length !== 0) opErrors.push('Length');
+                if (!opState?.breadth && opState?.breadth !== 0) opErrors.push('Breadth');
+                if (!opState?.height && opState?.height !== 0) opErrors.push('Height');
+            } else {
+                if (!opState?.diameter && opState?.diameter !== 0) opErrors.push('Diameter');
+                if (!opState?.length && opState?.length !== 0) opErrors.push('Length');
+            }
+            
+            if (opErrors.length > 0) {
+                errors[opIndex] = opErrors;
+            }
+        });
+        
+        setValidationErrors(errors);
+        return errors;
+    };
+
+    // Handle calculate all with validation
+    const handleCalculateAll = () => {
+        const errors = validateAllOperations();
+        if (Object.keys(errors).length > 0) {
+            const firstErrorIndex = Object.keys(errors)[0];
+            const missingFields = errors[firstErrorIndex].join(', ');
+            alert(`Operation ${parseInt(firstErrorIndex) + 1} is missing: ${missingFields}`);
+            return;
+        }
+        if (onSubmitAll) {
+            onSubmitAll(part.id);
+        }
     };
 
     return (
@@ -860,17 +933,25 @@ function CostEstimationModal({
 
                                 <Box sx={{ p: 3.5 }}>
                                     <Stack spacing={2.25}>
-                                            {(Array.isArray(operations) && operations.length > 0 ? operations : [formState]).map((op, opIndex) => {
+                                            {(() => {
+                                                const opsToRender = Array.isArray(operations) && operations.length > 0 ? operations : [];
+                                                if (opsToRender.length === 0) {
+                                                    return (
+                                                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                                                            <Typography variant="body1" sx={{ color: '#94a3b8', mb: 2 }}>
+                                                                No operations added
+                                                            </Typography>
+                                                        </Box>
+                                                    );
+                                                }
+                                                return opsToRender.map((op, opIndex) => {
                                                 const opState = opIndex === activeOperationIndex ? formState : (op || {});
                                                 const opResult = Array.isArray(operationResults) ? operationResults[opIndex] : null;
                                                 const isExpanded = Boolean(expandedOperations?.[opIndex]);
                                                 const opTypeValue = String(opState?.operation_type || "").trim().toLowerCase();
-                                                const roundOnlyOpsForOp = new Set(["turning", "boring"]);
-                                                const rectangularOnlyOpsForOp = new Set(["milling", "grinding", "surface_treatment", "rubber_press"]);
-                                                const flexibleOpsForOp = new Set(["drilling", "heat_treatment", "welding"]);
-                                                const isFlexibleOpForOp = flexibleOpsForOp.has(opTypeValue);
-                                                const isRoundOnlyOpForOp = roundOnlyOpsForOp.has(opTypeValue);
-                                                const isRectangularOnlyOpForOp = rectangularOnlyOpsForOp.has(opTypeValue);
+                                                const isMillingOnlyOp = opTypeValue === "milling";
+                                                const showRectangularDims = isMillingOnlyOp;
+                                                const showRoundDims = !isMillingOnlyOp;
                                                 const shapeValueForOp = String(opState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
                                                 const needsManualDutyForOp = opTypeValue && opTypeValue !== "turning" && opTypeValue !== "milling";
 
@@ -887,8 +968,22 @@ function CostEstimationModal({
                                                         <Paper
                                                             key={`op-form-${opIndex}`}
                                                             variant="outlined"
-                                                            sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(2,6,23,0.55)", borderColor: "rgba(30,64,175,0.45)" }}
+                                                            id={`operation-${opIndex}`}
+                                                            sx={{ 
+                                                                p: 2.5, 
+                                                                borderRadius: 2, 
+                                                                bgcolor: "rgba(2,6,23,0.55)", 
+                                                                borderColor: validationErrors[opIndex] ? "#ef4444" : "rgba(30,64,175,0.45)",
+                                                                boxShadow: validationErrors[opIndex] ? "0 0 0 1px #ef4444" : "none"
+                                                            }}
                                                         >
+                                                            {validationErrors[opIndex] && (
+                                                                <Box sx={{ mb: 2, p: 1.5, bgcolor: "rgba(239,68,68,0.15)", borderRadius: 1, border: "1px solid rgba(239,68,68,0.3)" }}>
+                                                                    <Typography variant="body2" sx={{ color: "#ef4444", fontWeight: 700 }}>
+                                                                        Missing: {validationErrors[opIndex].join(', ')}
+                                                                    </Typography>
+                                                                </Box>
+                                                            )}
                                                             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, gap: 2, flexWrap: "wrap" }}>
                                                                 <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
                                                                     Operation {opIndex + 1}
@@ -914,7 +1009,6 @@ function CostEstimationModal({
                                                                         size="small"
                                                                         color="error"
                                                                         startIcon={<DeleteOutlineIcon />}
-                                                                        disabled={!Array.isArray(operations) || operations.length <= 1}
                                                                         onClick={() => onRemoveOperation && onRemoveOperation(part.id, opIndex)}
                                                                         sx={{ textTransform: "none", fontWeight: 800 }}
                                                                     >
@@ -1066,7 +1160,7 @@ function CostEstimationModal({
                                                                         />
                                                                     </Grid>
 
-                                                                    {isFlexibleOpForOp && (
+                                                                    {showRoundDims && (
                                                                         <Grid item xs={12} sm={6} md={5} lg={4}>
                                                                             <TextField
                                                                                 select
@@ -1109,7 +1203,7 @@ function CostEstimationModal({
                                                                                     />
                                                                                 </Grid>
 
-                                                                                {(isRoundOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "round")) && (
+                                                                                {showRoundDims && (
                                                                                     <Grid item xs={4}>
                                                                                         <TextField
                                                                                             label="Diameter (mm)"
@@ -1124,7 +1218,7 @@ function CostEstimationModal({
                                                                                     </Grid>
                                                                                 )}
 
-                                                                                {(isRectangularOnlyOpForOp || (isFlexibleOpForOp && shapeValueForOp === "rectangular")) && (
+                                                                                {showRectangularDims && (
                                                                                     <>
                                                                                         <Grid item xs={4}>
                                                                                             <TextField
@@ -1287,9 +1381,8 @@ function CostEstimationModal({
                                                             </Collapse>
                                                         </Paper>
                                                     );
-                                            })}
-
-                                            {/* Global Miscellaneous Section */}
+                                                });
+                                            })()}
                                             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
                                                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                                                     <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
@@ -1363,7 +1456,7 @@ function CostEstimationModal({
                                                 </Box>
                                             </Paper>
 
-                                            {/* Add Operation and Calculate All Buttons - Moved to end */}
+                                            {/* Add Operation, Remove All, and Calculate All Buttons */}
                                             <Box sx={{ display: "flex", justifyContent: "center", gap: 2, pt: 2, flexWrap: "wrap" }}>
                                                 <Button
                                                     variant="outlined"
@@ -1375,11 +1468,29 @@ function CostEstimationModal({
                                                     Add Operation
                                                 </Button>
                                                 <Button
+                                                    variant="outlined"
+                                                    size="large"
+                                                    color="error"
+                                                    startIcon={<DeleteOutlineIcon />}
+                                                    disabled={!Array.isArray(operations) || operations.length === 0}
+                                                    onClick={() => {
+                                                        if (window.confirm(`Are you sure you want to remove all ${operations.length} operations?`)) {
+                                                            // Remove all operations by calling onRemoveOperation for each index
+                                                            for (let i = operations.length - 1; i >= 0; i--) {
+                                                                onRemoveOperation && onRemoveOperation(part.id, i);
+                                                            }
+                                                        }
+                                                    }}
+                                                    sx={{ textTransform: "none", fontWeight: 800, px: 4, py: 1.5 }}
+                                                >
+                                                    Remove All
+                                                </Button>
+                                                <Button
                                                     type="button"
                                                     variant="contained"
                                                     size="large"
-                                                    disabled={loading || !Array.isArray(operations) || operations.length <= 1}
-                                                    onClick={() => onSubmitAll && onSubmitAll(part.id)}
+                                                    disabled={loading || !Array.isArray(operations) || operations.length === 0}
+                                                    onClick={handleCalculateAll}
                                                     sx={{ textTransform: "none", fontWeight: 800, px: 4, py: 1.5 }}
                                                 >
                                                     {loading ? "Calculating..." : "Calculate All Operations"}

@@ -146,7 +146,7 @@ class FileExtractionService:
         
         # List of valid operation types to detect in tables
         valid_operations = ['turning', 'milling', 'drilling', 'grinding', 'boring', 'welding', 
-                           'heat treatment', 'surface treatment', 'jig boring', 'rubber press']
+                           'heat treatment', 'surface treatment', 'jig boring', 'rubber press', 'jig']
         valid_materials = ['steel', 'aluminium', 'aluminum', 'titanium', 'brass', 'copper']
         valid_duties = ['light duty', 'medium duty', 'heavy duty', 'light', 'medium', 'heavy']
         valid_shapes = ['round', 'rectangular', 'square', 'cylindrical']
@@ -161,6 +161,7 @@ class FileExtractionService:
         
         # Table detection: Look for lines that start with an operation name
         # Pattern: lines containing operation type followed by material, machine, etc.
+        # Also support lines like "Operation 15 Milling" or "15. Milling"
         table_rows = []
         for i, line in enumerate(lines):
             line_lower = line.lower().strip()
@@ -182,8 +183,27 @@ class FileExtractionService:
                         table_rows.append({'line': line, 'index': i, 'operation': op})
                         print(f"Found table row {len(table_rows)} (simple): {line[:60]}...")
                         break
+            else:
+                # Check for "Operation X OperationType" pattern (e.g., "Operation 15 Milling")
+                # or "X. OperationType" pattern (e.g., "15. Milling")
+                op_prefix_pattern = rf'^\s*(?:operation|op)?\s*\d+[\.:\)\-]?\s*(\w+)'
+                match = re.search(op_prefix_pattern, line_lower)
+                if match:
+                    potential_op = match.group(1).lower()
+                    # Check if the word after the number is a valid operation
+                    for valid_op in valid_operations:
+                        if valid_op in potential_op or potential_op in valid_op:
+                            table_rows.append({'line': line, 'index': i, 'operation': valid_op})
+                            print(f"Found table row {len(table_rows)} (with prefix): {line[:60]}...")
+                            break
         
         print(f"\n--- Found {len(table_rows)} potential table rows ---")
+        
+        # Sort table rows by their original line index to ensure PDF order is maintained
+        table_rows.sort(key=lambda x: x['index'])
+        print("Table rows sorted by line index (PDF order):")
+        for i, row in enumerate(table_rows):
+            print(f"  {i+1}. Line {row['index']}: {row['operation']}")
         
         # If we found table rows, extract each as an operation
         if len(table_rows) >= 1:
@@ -204,6 +224,18 @@ class FileExtractionService:
                 
                 # Extract details from this row
                 details = cls._extract_operation_from_line(section_text, row_info['operation'])
+                
+                # Normalize operation type to use frontend-compatible values
+                if details['operation_type']:
+                    op_type = details['operation_type'].lower().strip()
+                    # Map to frontend-supported operation types
+                    if 'jig' in op_type or op_type in ['jig', 'jig boring']:
+                        op_type = 'boring'  # Frontend expects 'boring', not 'jig_boring'
+                    elif 'rubber' in op_type or op_type in ['rubber', 'rubber press']:
+                        op_type = 'rubber_press'
+                    elif ' ' in op_type:
+                        op_type = op_type.replace(' ', '_')
+                    details['operation_type'] = op_type
                 
                 if any(v is not None for v in details.values()):
                     operations.append(details)
@@ -259,70 +291,149 @@ class FileExtractionService:
                     break
             
             # Extract shape
-            shapes = ['round', 'rectangular', 'square']
+            shapes = ['round', 'rectangular', 'square', 'cube', 'cylindrical']
             for shape in shapes:
                 if shape in main_lower:
                     details['shape'] = shape
                     break
             
             # Extract machine name directly from the line
-            # Look for common machine patterns in the line
+            # Look for common machine patterns in the line (case insensitive)
+            # Also capture descriptive text in parentheses for rubber press machines
             machine_patterns = [
-                (r'(?:drilling|milling|grinding|turning|boring)\s+machine', 'drilling machine'),
-                (r'cnc\s+(?:lathe|milling|machine)?', 'cnc'),
-                (r'\b\d+\s*axis\s+cnc\b', None),
-                (r'rubber\s+press(?:\s*-\s*(?:small|medium|large))?', None),
-                (r'\bspm\b', 'spm'),
-                (r'jig\s+boring', 'jig boring'),
-                (r'conventional', 'conventional'),
+                (r'(?:drilling|milling|grinding|turning|boring)\s+machine', None),
+                (r'\b(?:3|4|5)\s*axis\s+cnc\b', None),  # Check 3/4/5 axis CNC FIRST
+                (r'cnc\s+(?:lathe|milling|machine)?', None),  # Then CNC with suffix
+                (r'cnc\b', 'CNC'),  # Standalone CNC LAST
+                (r'rubber\s+press(?:\s*[-:]?\s*(?:small|medium|large|sml|med|lge))?(?:\s*\([^)]*\))?', None),
+                (r'\bspm\b', 'SPM'),
+                (r'jig\s+boring', 'Jig boring'),
+                (r'conventional', 'Conventional'),
+                (r'turning\s+cnc', 'Turning CNC'),
+                (r'turning', None),
+                # Rubber press size variations - check these early
+                (r'small\s*\(?\s*less\s+than\s*650', 'Small (less than 650 MMX 650 MM)'),
+                (r'medium\s*\(?\s*more\s+than\s*650', 'Medium (more than 650 MMX 650 MM)'),
+                (r'small\s*\([^)]*650[^)]*\)', 'Small (less than 650 MMX 650 MM)'),
+                (r'medium\s*\([^)]*650[^)]*\)', 'Medium (more than 650 MMX 650 MM)'),
+                (r'large\s*\([^)]*\)', 'Large'),
+                (r'small', 'Small (less than 650 MMX 650 MM)'),  # Fallback: just "Small"
+                (r'medium', 'Medium (more than 650 MMX 650 MM)'),  # Fallback: just "Medium"
+                (r'large', 'Large'),  # Fallback: just "Large"
+                (r'special\s+purpose\s*machine(?:\s*\([^)]*\))?','Special Purpose Machine(SPM)'),
             ]
             for pattern, default_name in machine_patterns:
-                match = re.search(pattern, main_lower)
+                match = re.search(pattern, main_lower, re.IGNORECASE)
                 if match:
-                    # Get the actual matched text (with proper case)
+                    # Get the actual matched text with original casing
                     matched_text = main_line[match.start():match.end()]
-                    details['machine'] = matched_text.strip()
+                    # Normalize casing
+                    if default_name:
+                        details['machine'] = default_name
+                    else:
+                        # Capitalize first letter of each word
+                        details['machine'] = matched_text.strip().title()
                     print(f"  Found machine: {details['machine']}")
                     break
             
             # Extract all numeric values from the line
-            numbers = re.findall(r'\b(\d+(?:\.\d+)?)\b', main_line)
+            # First, remove common prefixes that contain operation numbers
+            # Pattern: "Operation 12" or "Op 12" at the start
+            cleaned_line = re.sub(r'^\s*(?:operation|op)\s*\d+\s*', ' ', main_line, flags=re.IGNORECASE)
+            numbers = re.findall(r'\b(\d+(?:\.\d+)?)\b', cleaned_line)
             numbers = [float(n) for n in numbers]
-            print(f"  Found numbers: {numbers}")
+            print(f"  Found numbers (after cleaning): {numbers}")
             
             # Map numbers to fields based on position and context
-            # Typical table order: Setup Time, Cycle Time, Work Hours, Diameter, Length
-            # Or: Diameter, Length, Setup Time, Cycle Time, Work Hours
+            # Table order typically: [Setup(min), Cycle(sec), Hours, Diameter, Length, Breadth, Height]
+            # OR for rectangular parts (milling): [Setup, Cycle, Hours, -, Length, Breadth, Height]
+            # OR for round parts: [Setup, Cycle, Hours, Diameter, Length, -, -]
             
-            # Check for keywords to help map numbers
-            has_setup = any(kw in main_lower for kw in ['setup', 'set up'])
-            has_cycle = any(kw in main_lower for kw in ['cycle'])
-            has_hours = any(kw in main_lower for kw in ['work', 'hours', 'man hours'])
-            
-            # Try to map based on typical ranges
-            for num in numbers:
-                if num > 1000:  # Likely work hours (man hours)
-                    if details['man_hours'] is None:
+            # Based on typical table structure, try to identify each value by position
+            # Column indices: 0=Setup, 1=Cycle, 2=Hours, 3=Diameter/Dash, 4=Length, 5=Breadth/Dash, 6=Height/Dash
+            if len(numbers) >= 7:
+                # Full 7-column table: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
+                details['machine_setup_time'] = numbers[0]  # Usually 15-60
+                details['cycle_time'] = numbers[1]  # 60-650 (seconds)
+                details['man_hours'] = numbers[2]  # Large: 1200-4200
+                # Index 3 could be diameter or dash (represented as 0 or just skipped)
+                if numbers[3] > 0:
+                    details['diameter'] = numbers[3]
+                details['length'] = numbers[4]
+                if numbers[5] > 0:
+                    details['breadth'] = numbers[5]
+                if numbers[6] > 0:
+                    details['height'] = numbers[6]
+            elif len(numbers) >= 6:
+                # 6-column table (common for milling): Setup, Cycle, Hours, Length, Breadth, Height
+                # EXTRACT ALL VALUES regardless of shape
+                details['machine_setup_time'] = numbers[0]
+                details['cycle_time'] = numbers[1]
+                details['man_hours'] = numbers[2]
+                details['length'] = numbers[3]
+                details['breadth'] = numbers[4]
+                details['height'] = numbers[5]
+                print(f"  6-column table detected: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Length={numbers[3]}, Breadth={numbers[4]}, Height={numbers[5]}")
+            elif len(numbers) >= 5:
+                # Standard 5-column table: Setup, Cycle, Hours, Diameter, Length
+                # OR for rectangular: Setup, Cycle, Hours, Length, Breadth (no height)
+                # EXTRACT ALL VALUES regardless of shape - shape is just metadata
+                details['machine_setup_time'] = numbers[0]
+                details['cycle_time'] = numbers[1]
+                details['man_hours'] = numbers[2]
+                # For 5-column tables, indices 3 and 4 could be:
+                # - Round parts: Diameter (3), Length (4)
+                # - Rectangular parts: Length (3), Breadth (4) 
+                # - Milling with L,B,H: might be Length (3), Breadth (4), Height missing
+                # Store ALL values and let the frontend decide based on operation type
+                details['diameter'] = numbers[3]  # Could also be Length for rectangular
+                details['length'] = numbers[4]    # Could also be Breadth for rectangular
+                # If we detect this might be milling (from operation name), also set breadth
+                if detected_operation and ('mill' in detected_operation.lower() or 'surface' in detected_operation.lower() or 'grinding' in detected_operation.lower()):
+                    details['length'] = numbers[3]   # Position 3 is length for rectangular
+                    details['breadth'] = numbers[4]  # Position 4 is breadth for rectangular
+                    # If there's a 5th number, it might be height
+                    if len(numbers) >= 6:
+                        details['height'] = numbers[5]
+            elif len(numbers) >= 4:
+                # 4 columns - could be without one field
+                # Try to identify based on value ranges
+                for num in numbers:
+                    if num > 1000 and details['man_hours'] is None:
                         details['man_hours'] = num
-                elif num > 100:  # Likely cycle time (seconds) or length (>100mm)
-                    if details['cycle_time'] is None:
-                        details['cycle_time'] = num
-                    elif details['length'] is None and num > 50:
-                        details['length'] = num
-                elif num > 10:  # Could be setup time, diameter, or smaller length
-                    if details['machine_setup_time'] is None:
-                        details['machine_setup_time'] = num
-                    elif details['diameter'] is None:
+                    elif 50 < num < 1000 and details['cycle_time'] is None:
+                        # Could be cycle time (50-650) or setup time (25-60)
+                        if num < 80 and details['machine_setup_time'] is None:
+                            details['machine_setup_time'] = num
+                        else:
+                            details['cycle_time'] = num
+                    elif num > 10 and details['diameter'] is None:
                         details['diameter'] = num
                     elif details['length'] is None:
                         details['length'] = num
-                    elif details['breadth'] is None:
-                        details['breadth'] = num
-                else:  # Small numbers - could be any field
-                    if details['diameter'] is None and details['shape'] == 'round':
-                        details['diameter'] = num
-                    elif details['height'] is None:
-                        details['height'] = num
+            else:
+                # Less than 4 numbers - use range-based logic
+                for num in numbers:
+                    if num > 1000:  # Work hours
+                        if details['man_hours'] is None:
+                            details['man_hours'] = num
+                    elif 100 < num <= 1000:  # Cycle time or length
+                        if details['cycle_time'] is None:
+                            details['cycle_time'] = num
+                        elif details['length'] is None:
+                            details['length'] = num
+                    elif 20 <= num <= 100:  # Setup time or diameter
+                        if details['machine_setup_time'] is None:
+                            details['machine_setup_time'] = num
+                        elif details['diameter'] is None:
+                            details['diameter'] = num
+                        elif details['length'] is None:
+                            details['length'] = num
+                    elif num > 0:  # Small numbers
+                        if details['diameter'] is None:
+                            details['diameter'] = num
+                        elif details['length'] is None:
+                            details['length'] = num
         
         # Use the regular extraction as fallback/supplement
         regular = cls.extract_operation_details(text)
@@ -464,23 +575,49 @@ class FileExtractionService:
         """Extract machine name from text - case insensitive."""
         text_lower = text.lower()
         
+        # First try to match rubber press sizes with descriptions (before CNC check)
+        rubber_press_patterns = [
+            (r'small\s*\(?\s*less\s+than\s*650', 'Small (less than 650 MMX 650 MM)'),
+            (r'medium\s*\(?\s*more\s+than\s*650', 'Medium (more than 650 MMX 650 MM)'),
+            (r'small\s*\([^)]*650[^)]*mm[^)]*\)', 'Small (less than 650 MMX 650 MM)'),
+            (r'medium\s*\([^)]*650[^)]*mm[^)]*\)', 'Medium (more than 650 MMX 650 MM)'),
+            (r'large\s*\([^)]*mm[^)]*\)', 'Large'),
+            (r'small\b', 'Small (less than 650 MMX 650 MM)'),  # Just "Small"
+            (r'medium\b', 'Medium (more than 650 MMX 650 MM)'),  # Just "Medium"
+            (r'large\b', 'Large'),  # Just "Large"
+        ]
+        for pattern, default_name in rubber_press_patterns:
+            match = re.search(pattern, text_lower, re.IGNORECASE)
+            if match:
+                return default_name
+        
+        # Check for specific CNC patterns FIRST (before standalone CNC)
+        multi_axis_match = re.search(r'\b(?:3|4|5)\s*axis\s+cnc\b', text_lower, re.IGNORECASE)
+        if multi_axis_match:
+            # Extract the full pattern like "3 axis CNC"
+            return multi_axis_match.group(0).title()
+        
+        # Check for standalone CNC (but not part of other words) - AFTER multi-axis check
+        if re.search(r'\bcnc\b', text_lower):
+            # Make sure it's not already part of a longer machine name we extracted
+            return 'CNC'
+        
         for line in lines:
             line_lower = line.lower()
             if any(kw.lower() in line_lower for kw in cls.MACHINE_KEYWORDS):
                 # Common machine patterns - expanded
                 machine_patterns = [
-                    r'cnc', r'lathe', r'milling', r'drilling', r'grinding',
-                    r'boring', r'jig\s*boring', r'3\s*axis', r'4\s*axis', r'5\s*axis',
-                    r'vmc', r'hmc', r'turning', r'rubber\s*press', r'spm',
-                    r'conventional', r'cnc\s*lathe', r'cnc\s*milling', r'axis\s*cnc'
+                    r'\b(?:3|4|5)\s*axis\s+cnc\b',  # Check 3/4/5 axis CNC FIRST
+                    r'cnc\s+(?:lathe|milling|machine)',  # CNC with suffix
+                    r'lathe', r'milling', r'drilling', r'grinding',
+                    r'jig\s*boring', r'vmc', r'hmc', r'turning\s+cnc', r'turning',
+                    r'rubber\s*press', r'spm',
+                    r'conventional'
                 ]
                 for pattern in machine_patterns:
                     match = re.search(pattern, line_lower, re.IGNORECASE)
                     if match:
                         # Get the matched text and expand to capture full machine name
-                        start = match.start()
-                        end = match.end()
-                        # Expand to include surrounding words (up to 3 words before and after)
                         words = line.split()
                         matched_word_idx = None
                         for wi, word in enumerate(words):
@@ -489,13 +626,13 @@ class FileExtractionService:
                                 break
                         
                         if matched_word_idx is not None:
-                            # Get up to 2 words before and 2 words after
+                            # Get up to 2 words before and 3 words after for longer names
                             start_idx = max(0, matched_word_idx - 2)
-                            end_idx = min(len(words), matched_word_idx + 3)
+                            end_idx = min(len(words), matched_word_idx + 4)
                             machine_name = ' '.join(words[start_idx:end_idx]).strip()
                             return machine_name
                         
-                        # Fallback: return matched text with some context
+                        # Fallback: return matched text
                         return match.group(0)
         return None
     
