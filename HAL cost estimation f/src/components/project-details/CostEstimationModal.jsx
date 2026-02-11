@@ -985,9 +985,27 @@ function CostEstimationModal({
                                                                 </Box>
                                                             )}
                                                             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, gap: 2, flexWrap: "wrap" }}>
-                                                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
-                                                                    Operation {opIndex + 1}
-                                                                </Typography>
+                                                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                                        Operation {opIndex + 1}
+                                                                    </Typography>
+                                                                    {opResult?.cost_breakdown?.total_unit_cost_with_misc && (
+                                                                        <Typography 
+                                                                            variant="body2" 
+                                                                            sx={{ 
+                                                                                color: "#bbf7d0", 
+                                                                                fontWeight: 700,
+                                                                                bgcolor: "rgba(187,247,208,0.15)",
+                                                                                px: 1.5,
+                                                                                py: 0.5,
+                                                                                borderRadius: 1,
+                                                                                border: "1px solid rgba(187,247,208,0.3)"
+                                                                            }}
+                                                                        >
+                                                                            {formatValue("total_cost", opResult.cost_breakdown.total_unit_cost_with_misc)}
+                                                                        </Typography>
+                                                                    )}
+                                                                </Box>
                                                                 <Stack direction="row" spacing={0.75} alignItems="center">
                                                                     {opResult && (
                                                                         <IconButton

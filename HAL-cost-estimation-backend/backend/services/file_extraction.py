@@ -114,13 +114,20 @@ class FileExtractionService:
                 print(f"Processing page {i+1}/{len(images)}")
                 text = pytesseract.image_to_string(image)
                 text_parts.append(text)
-                print(f"Page {i+1} extracted text length: {len(text)}")
+                page_lines = text.split('\n')
+                non_empty = [l for l in page_lines if l.strip()]
+                print(f"Page {i+1}: {len(page_lines)} lines, {len(non_empty)} non-empty")
+                # Print first 20 non-empty lines of each page for debugging
+                for j, line in enumerate(non_empty[:20]):
+                    print(f"  Page{i+1} Line{j}: {line[:100]}")
         except Exception as e:
             print(f"PDF extraction error: {e}")
             import traceback
             traceback.print_exc()
         
-        return "\n".join(text_parts)
+        full_text = "\n".join(text_parts)
+        print(f"\nTotal extracted text: {len(full_text)} chars, {len(full_text.split(chr(10)))} lines")
+        return full_text
     
     @classmethod
     def _extract_from_image(cls, image_path: str) -> str:
@@ -144,58 +151,89 @@ class FileExtractionService:
         operations = []
         lines = text.split('\n')
         
-        # List of valid operation types to detect in tables
+        # List of valid operation types to detect in tables - EXPANDED
         valid_operations = ['turning', 'milling', 'drilling', 'grinding', 'boring', 'welding', 
-                           'heat treatment', 'surface treatment', 'jig boring', 'rubber press', 'jig']
+                           'heat treatment', 'surface treatment', 'jig boring', 'rubber press', 
+                           'jig', 'heat', 'surface']
         valid_materials = ['steel', 'aluminium', 'aluminum', 'titanium', 'brass', 'copper']
         valid_duties = ['light duty', 'medium duty', 'heavy duty', 'light', 'medium', 'heavy']
         valid_shapes = ['round', 'rectangular', 'square', 'cylindrical']
         
         print(f"\n--- Parsing {len(lines)} lines for table data ---")
         
-        # Debug: Print lines containing potential operation indicators
+        print(f"\n--- ALL LINES (total: {len(lines)}) ---")
         for i, line in enumerate(lines):
-            line_lower = line.lower().strip()
-            if any(op in line_lower for op in ['jig', 'rubber', 'press', 'boring']):
-                print(f"  Line {i}: {repr(line[:80])}")
+            stripped = line.strip()
+            if stripped and len(stripped) > 3:  # Only print non-empty, meaningful lines
+                print(f"  Line {i}: {repr(stripped[:150])}")
         
         # Table detection: Look for lines that start with an operation name
         # Pattern: lines containing operation type followed by material, machine, etc.
         # Also support lines like "Operation 15 Milling" or "15. Milling"
         table_rows = []
+        skip_lines = set()  # Track lines to skip (merged multi-line operations)
         for i, line in enumerate(lines):
+            if i in skip_lines:
+                continue
+            
             line_lower = line.lower().strip()
             if not line_lower:
                 continue
             
+            # Special case: detect "rubber" on one line followed by "press" on the next
+            # (handles multi-line table entries like "Rubber Small" on line N, "press Steel..." on line N+1)
+            if line_lower.startswith('rubber'):
+                # Look ahead to see if next line starts with 'press'
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip().lower()
+                    if next_line.startswith('press'):
+                        combined = line + ' ' + lines[i + 1].strip()
+                        table_rows.append({'line': combined, 'index': i, 'operation': 'rubber press'})
+                        print(f"FOUND split rubber press at lines {i}-{i+1}: {combined[:80]}...")
+                        skip_lines.add(i + 1)  # Skip the press line
+                        continue
+            
             # Check if line starts with an operation type (for table rows) - case insensitive
+            matched_op = None
             for op in valid_operations:
                 # Match at start of line (already lowercase)
                 op_pattern = rf'^\s*{re.escape(op)}\b'
                 if re.search(op_pattern, line_lower):
-                    table_rows.append({'line': line, 'index': i, 'operation': op})
-                    print(f"Found table row {len(table_rows)}: {line[:60]}...")
+                    matched_op = op
                     break
                 # Also try matching without word boundary for multi-word operations
                 if ' ' in op:
                     simple_pattern = rf'^\s*{re.escape(op)}'
                     if re.search(simple_pattern, line_lower):
-                        table_rows.append({'line': line, 'index': i, 'operation': op})
-                        print(f"Found table row {len(table_rows)} (simple): {line[:60]}...")
+                        matched_op = op
                         break
+            
+            if matched_op:
+                table_rows.append({'line': line, 'index': i, 'operation': matched_op})
+                print(f"FOUND ROW {len(table_rows)} at line {i}: {matched_op} -> {line[:80]}...")
             else:
                 # Check for "Operation X OperationType" pattern (e.g., "Operation 15 Milling")
                 # or "X. OperationType" pattern (e.g., "15. Milling")
-                op_prefix_pattern = rf'^\s*(?:operation|op)?\s*\d+[\.:\)\-]?\s*(\w+)'
-                match = re.search(op_prefix_pattern, line_lower)
-                if match:
-                    potential_op = match.group(1).lower()
-                    # Check if the word after the number is a valid operation
-                    for valid_op in valid_operations:
-                        if valid_op in potential_op or potential_op in valid_op:
-                            table_rows.append({'line': line, 'index': i, 'operation': valid_op})
-                            print(f"Found table row {len(table_rows)} (with prefix): {line[:60]}...")
-                            break
+                op_prefix_patterns = [
+                    rf'^\s*(?:operation|op)?\s*\d+[\.:\)\-]?\s*(turning|milling|drilling|grinding|boring|welding|heat|surface|jig|rubber)',
+                    rf'^\s*\d+\.\s*(turning|milling|drilling|grinding|boring|welding|heat|surface|jig|rubber)',
+                    rf'^\s*\d+\s+(turning|milling|drilling|grinding|boring|welding|heat|surface|jig|rubber)',
+                ]
+                for pattern in op_prefix_patterns:
+                    match = re.search(pattern, line_lower)
+                    if match:
+                        potential_op = match.group(1).lower() if match.groups() else None
+                        if not potential_op:
+                            continue
+                        # Check if the word after the number is a valid operation
+                        for valid_op in valid_operations:
+                            if valid_op in potential_op or potential_op in valid_op:
+                                table_rows.append({'line': line, 'index': i, 'operation': valid_op})
+                                print(f"FOUND ROW {len(table_rows)} (with prefix) at line {i}: {valid_op} -> {line[:80]}...")
+                                break
+                        else:
+                            continue
+                        break
         
         print(f"\n--- Found {len(table_rows)} potential table rows ---")
         
@@ -243,10 +281,40 @@ class FileExtractionService:
                 else:
                     print(f"Row {i+1}: No valid data")
         
-        # If no table rows found, try section-based extraction (Operation 1, Op 2, etc.)
-        if not operations:
-            print("\n--- No table rows found, trying section-based extraction ---")
-            operations = cls._extract_sections(text)
+            # If no table rows found via line-matching, try to find operations that span multiple lines
+            # by looking for operation keywords followed by continuation lines
+            if not table_rows:
+                print("\n--- Trying multi-line operation detection ---")
+                i = 0
+                while i < len(lines):
+                    line = lines[i].strip()
+                    line_lower = line.lower()
+                    if not line_lower:
+                        i += 1
+                        continue
+                    
+                    # Check if this line starts with an operation
+                    for op in valid_operations:
+                        if re.search(rf'^\s*{re.escape(op)}\b', line_lower):
+                            # Found an operation start - look ahead for continuation
+                            combined = line
+                            j = i + 1
+                            while j < len(lines) and j < i + 3:  # Check next 2 lines
+                                next_line = lines[j].strip()
+                                next_lower = next_line.lower()
+                                # If next line starts with a continuation word, merge it
+                                if next_lower.startswith('press') or next_lower.startswith('treatment'):
+                                    combined += ' ' + next_line
+                                    print(f"  Merged continuation at line {j}: {next_line[:60]}")
+                                    j += 1
+                                else:
+                                    break
+                            table_rows.append({'line': combined, 'index': i, 'operation': op})
+                            print(f"FOUND multi-line operation at {i}: {op}")
+                            i = j  # Skip the merged lines
+                            break
+                    else:
+                        i += 1
         
         return operations
     
@@ -283,12 +351,34 @@ class FileExtractionService:
                     details['material'] = mat if mat != 'aluminum' else 'aluminium'
                     break
             
-            # Extract duty category
-            duties = [('heavy duty', 'heavy'), ('medium duty', 'medium'), ('light duty', 'light')]
+            # Extract duty category - improved detection with debug
+            print(f"  Looking for duty in: {main_lower[:100]}...")
+            duties = [
+                ('heavy duty', 'heavy'), 
+                ('medium duty', 'medium'), 
+                ('light duty', 'light'),
+                ('heavy', 'heavy'),  # Also check standalone
+                ('medium', 'medium'),
+                ('light', 'light')
+            ]
+            duty_found = False
             for duty_full, duty_short in duties:
-                if duty_full in main_lower or f' {duty_short} ' in f' {main_lower} ':
+                if duty_full in main_lower:
                     details['duty_category'] = duty_short
+                    print(f"  ✓ Found duty: {duty_short} (matched '{duty_full}')")
+                    duty_found = True
                     break
+            
+            if not duty_found:
+                print(f"  ✗ No duty found in line - checking nearby lines...")
+                # Look for duty in the full section text (multiple lines)
+                full_lower = text_lower
+                for duty_full, duty_short in duties:
+                    if duty_full in full_lower:
+                        details['duty_category'] = duty_short
+                        print(f"  ✓ Found duty in section: {duty_short} (matched '{duty_full}')")
+                        duty_found = True
+                        break
             
             # Extract shape
             shapes = ['round', 'rectangular', 'square', 'cube', 'cylindrical']
@@ -305,7 +395,10 @@ class FileExtractionService:
                 (r'\b(?:3|4|5)\s*axis\s+cnc\b', None),  # Check 3/4/5 axis CNC FIRST
                 (r'cnc\s+(?:lathe|milling|machine)?', None),  # Then CNC with suffix
                 (r'cnc\b', 'CNC'),  # Standalone CNC LAST
-                (r'rubber\s+press(?:\s*[-:]?\s*(?:small|medium|large|sml|med|lge))?(?:\s*\([^)]*\))?', None),
+                # Rubber press patterns - handle both "rubber press" and "rubber <size> press" formats
+                (r'rubber\s+(?:small|medium|large)\s*\([^)]*\)\s*press', None),
+                (r'rubber\s+(?:small|medium|large)[^(]*press', None),
+                (r'rubber\s+press', 'Rubber Press'),
                 (r'\bspm\b', 'SPM'),
                 (r'jig\s+boring', 'Jig boring'),
                 (r'conventional', 'Conventional'),
@@ -344,96 +437,134 @@ class FileExtractionService:
             numbers = [float(n) for n in numbers]
             print(f"  Found numbers (after cleaning): {numbers}")
             
-            # Map numbers to fields based on position and context
-            # Table order typically: [Setup(min), Cycle(sec), Hours, Diameter, Length, Breadth, Height]
-            # OR for rectangular parts (milling): [Setup, Cycle, Hours, -, Length, Breadth, Height]
-            # OR for round parts: [Setup, Cycle, Hours, Diameter, Length, -, -]
-            
-            # Based on typical table structure, try to identify each value by position
-            # Column indices: 0=Setup, 1=Cycle, 2=Hours, 3=Diameter/Dash, 4=Length, 5=Breadth/Dash, 6=Height/Dash
-            if len(numbers) >= 7:
-                # Full 7-column table: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
-                details['machine_setup_time'] = numbers[0]  # Usually 15-60
-                details['cycle_time'] = numbers[1]  # 60-650 (seconds)
-                details['man_hours'] = numbers[2]  # Large: 1200-4200
-                # Index 3 could be diameter or dash (represented as 0 or just skipped)
-                if numbers[3] > 0:
+            # Special handling for rubber press operations
+            is_rubber_press = detected_operation and 'rubber' in detected_operation.lower()
+            if is_rubber_press:
+                print(f"  Rubber press detected - processing {len(numbers)} numbers")
+                # Rubber press format: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
+                # or: Setup, Cycle, Hours, Length, Breadth, Height (no diameter)
+                if len(numbers) >= 7:
+                    details['machine_setup_time'] = numbers[0]
+                    details['cycle_time'] = numbers[1]
+                    details['man_hours'] = numbers[2]
                     details['diameter'] = numbers[3]
-                details['length'] = numbers[4]
-                if numbers[5] > 0:
-                    details['breadth'] = numbers[5]
-                if numbers[6] > 0:
-                    details['height'] = numbers[6]
-            elif len(numbers) >= 6:
-                # 6-column table (common for milling): Setup, Cycle, Hours, Length, Breadth, Height
-                # EXTRACT ALL VALUES regardless of shape
-                details['machine_setup_time'] = numbers[0]
-                details['cycle_time'] = numbers[1]
-                details['man_hours'] = numbers[2]
-                details['length'] = numbers[3]
-                details['breadth'] = numbers[4]
-                details['height'] = numbers[5]
-                print(f"  6-column table detected: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Length={numbers[3]}, Breadth={numbers[4]}, Height={numbers[5]}")
-            elif len(numbers) >= 5:
-                # Standard 5-column table: Setup, Cycle, Hours, Diameter, Length
-                # OR for rectangular: Setup, Cycle, Hours, Length, Breadth (no height)
-                # EXTRACT ALL VALUES regardless of shape - shape is just metadata
-                details['machine_setup_time'] = numbers[0]
-                details['cycle_time'] = numbers[1]
-                details['man_hours'] = numbers[2]
-                # For 5-column tables, indices 3 and 4 could be:
-                # - Round parts: Diameter (3), Length (4)
-                # - Rectangular parts: Length (3), Breadth (4) 
-                # - Milling with L,B,H: might be Length (3), Breadth (4), Height missing
-                # Store ALL values and let the frontend decide based on operation type
-                details['diameter'] = numbers[3]  # Could also be Length for rectangular
-                details['length'] = numbers[4]    # Could also be Breadth for rectangular
-                # If we detect this might be milling (from operation name), also set breadth
-                if detected_operation and ('mill' in detected_operation.lower() or 'surface' in detected_operation.lower() or 'grinding' in detected_operation.lower()):
-                    details['length'] = numbers[3]   # Position 3 is length for rectangular
-                    details['breadth'] = numbers[4]  # Position 4 is breadth for rectangular
-                    # If there's a 5th number, it might be height
-                    if len(numbers) >= 6:
+                    details['length'] = numbers[4]
+                    details['breadth'] = numbers[5] if numbers[5] > 0 else None
+                    details['height'] = numbers[6] if numbers[6] > 0 else None
+                    print(f"  Rubber press 7-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={numbers[3]}, Len={numbers[4]}, Breadth={numbers[5]}, Height={numbers[6]}")
+                elif len(numbers) >= 6:
+                    details['machine_setup_time'] = numbers[0]
+                    details['cycle_time'] = numbers[1]
+                    details['man_hours'] = numbers[2]
+                    # Check if position 3 looks like diameter (typically <100 for rubber press)
+                    if numbers[3] < 200:
+                        details['diameter'] = numbers[3]
+                        details['length'] = numbers[4]
+                        details['breadth'] = numbers[5] if numbers[5] > 0 else None
+                    else:
+                        details['length'] = numbers[3]
+                        details['breadth'] = numbers[4]
                         details['height'] = numbers[5]
-            elif len(numbers) >= 4:
-                # 4 columns - could be without one field
-                # Try to identify based on value ranges
-                for num in numbers:
-                    if num > 1000 and details['man_hours'] is None:
-                        details['man_hours'] = num
-                    elif 50 < num < 1000 and details['cycle_time'] is None:
-                        # Could be cycle time (50-650) or setup time (25-60)
-                        if num < 80 and details['machine_setup_time'] is None:
-                            details['machine_setup_time'] = num
-                        else:
-                            details['cycle_time'] = num
-                    elif num > 10 and details['diameter'] is None:
-                        details['diameter'] = num
-                    elif details['length'] is None:
-                        details['length'] = num
+                    print(f"  Rubber press 6-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={details.get('diameter')}, Len={details['length']}")
+                elif len(numbers) >= 5:
+                    details['machine_setup_time'] = numbers[0]
+                    details['cycle_time'] = numbers[1]
+                    details['man_hours'] = numbers[2]
+                    details['length'] = numbers[3]
+                    details['breadth'] = numbers[4]
+                    print(f"  Rubber press 5-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Len={numbers[3]}, Breadth={numbers[4]}")
             else:
-                # Less than 4 numbers - use range-based logic
-                for num in numbers:
-                    if num > 1000:  # Work hours
-                        if details['man_hours'] is None:
+                # Standard handling for non-rubber operations
+                # Map numbers to fields based on position and context
+                # Table order typically: [Setup(min), Cycle(sec), Hours, Diameter, Length, Breadth, Height]
+                # OR for rectangular parts (milling): [Setup, Cycle, Hours, -, Length, Breadth, Height]
+                # OR for round parts: [Setup, Cycle, Hours, Diameter, Length, -, -]
+                
+                # Based on typical table structure, try to identify each value by position
+                # Column indices: 0=Setup, 1=Cycle, 2=Hours, 3=Diameter/Dash, 4=Length, 5=Breadth/Dash, 6=Height/Dash
+                if len(numbers) >= 7:
+                    # Full 7-column table: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
+                    details['machine_setup_time'] = numbers[0]  # Usually 15-60
+                    details['cycle_time'] = numbers[1]  # 60-650 (seconds)
+                    details['man_hours'] = numbers[2]  # Large: 1200-4200
+                    # Index 3 could be diameter or dash (represented as 0 or just skipped)
+                    if numbers[3] > 0:
+                        details['diameter'] = numbers[3]
+                    details['length'] = numbers[4]
+                    if numbers[5] > 0:
+                        details['breadth'] = numbers[5]
+                    if numbers[6] > 0:
+                        details['height'] = numbers[6]
+                elif len(numbers) >= 6:
+                    # 6-column table (common for milling): Setup, Cycle, Hours, Length, Breadth, Height
+                    # EXTRACT ALL VALUES regardless of shape
+                    details['machine_setup_time'] = numbers[0]
+                    details['cycle_time'] = numbers[1]
+                    details['man_hours'] = numbers[2]
+                    details['length'] = numbers[3]
+                    details['breadth'] = numbers[4]
+                    details['height'] = numbers[5]
+                    print(f"  6-column table detected: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Length={numbers[3]}, Breadth={numbers[4]}, Height={numbers[5]}")
+                elif len(numbers) >= 5:
+                    # Standard 5-column table: Setup, Cycle, Hours, Diameter, Length
+                    # OR for rectangular: Setup, Cycle, Hours, Length, Breadth (no height)
+                    # EXTRACT ALL VALUES regardless of shape - shape is just metadata
+                    details['machine_setup_time'] = numbers[0]
+                    details['cycle_time'] = numbers[1]
+                    details['man_hours'] = numbers[2]
+                    # For 5-column tables, indices 3 and 4 could be:
+                    # - Round parts: Diameter (3), Length (4)
+                    # - Rectangular parts: Length (3), Breadth (4) 
+                    # - Milling with L,B,H: might be Length (3), Breadth (4), Height missing
+                    # Store ALL values and let the frontend decide based on operation type
+                    details['diameter'] = numbers[3]  # Could also be Length for rectangular
+                    details['length'] = numbers[4]    # Could also be Breadth for rectangular
+                    # If we detect this might be milling (from operation name), also set breadth
+                    if detected_operation and ('mill' in detected_operation.lower() or 'surface' in detected_operation.lower() or 'grinding' in detected_operation.lower()):
+                        details['length'] = numbers[3]   # Position 3 is length for rectangular
+                        details['breadth'] = numbers[4]  # Position 4 is breadth for rectangular
+                        # If there's a 5th number, it might be height
+                        if len(numbers) >= 6:
+                            details['height'] = numbers[5]
+                elif len(numbers) >= 4:
+                    # 4 columns - could be without one field
+                    # Try to identify based on value ranges
+                    for num in numbers:
+                        if num > 1000 and details['man_hours'] is None:
                             details['man_hours'] = num
-                    elif 100 < num <= 1000:  # Cycle time or length
-                        if details['cycle_time'] is None:
-                            details['cycle_time'] = num
-                        elif details['length'] is None:
-                            details['length'] = num
-                    elif 20 <= num <= 100:  # Setup time or diameter
-                        if details['machine_setup_time'] is None:
-                            details['machine_setup_time'] = num
-                        elif details['diameter'] is None:
+                        elif 50 < num < 1000 and details['cycle_time'] is None:
+                            # Could be cycle time (50-650) or setup time (25-60)
+                            if num < 80 and details['machine_setup_time'] is None:
+                                details['machine_setup_time'] = num
+                            else:
+                                details['cycle_time'] = num
+                        elif num > 10 and details['diameter'] is None:
                             details['diameter'] = num
                         elif details['length'] is None:
                             details['length'] = num
-                    elif num > 0:  # Small numbers
-                        if details['diameter'] is None:
-                            details['diameter'] = num
-                        elif details['length'] is None:
-                            details['length'] = num
+                else:
+                    # Less than 4 numbers - use range-based logic
+                    for num in numbers:
+                        if num > 1000:  # Work hours
+                            if details['man_hours'] is None:
+                                details['man_hours'] = num
+                        elif 100 < num <= 1000:  # Cycle time or length
+                            if details['cycle_time'] is None:
+                                details['cycle_time'] = num
+                            elif details['length'] is None:
+                                details['length'] = num
+                        elif 20 <= num <= 100:  # Setup time or diameter
+                            if details['machine_setup_time'] is None:
+                                details['machine_setup_time'] = num
+                            elif details['diameter'] is None:
+                                details['diameter'] = num
+                            elif details['length'] is None:
+                                details['length'] = num
+                        elif num > 0:  # Small numbers
+                            if details['diameter'] is None:
+                                details['diameter'] = num
+                            elif details['length'] is None:
+                                details['length'] = num
         
         # Use the regular extraction as fallback/supplement
         regular = cls.extract_operation_details(text)

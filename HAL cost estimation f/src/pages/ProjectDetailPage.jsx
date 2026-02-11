@@ -311,11 +311,14 @@ function ProjectDetailPage({ onChange, projectId }) {
 
       // Prefer the new batch endpoint (single request). If it's missing, fall back to sequential.
       try {
-        const operationsPayload = ops.map((_, idx) => buildOperationPayload(partId, idx));
+        const operationsPayload = ops.map((op, idx) => buildOperationPayload(partId, idx));
+        console.log(`Calculating ${operationsPayload.length} operations in batch`);
         const res = await calculateCostEstimationBatch({ operations: operationsPayload });
         const data = res?.data;
+        console.log("Batch response:", data);
 
         const nextOps = Array.isArray(data?.operations) ? data.operations : [];
+        console.log(`Received ${nextOps.length} operation results from batch`);
         
         // Merge inputs from the form data into the results
         const opsWithInputs = nextOps.map((opResult, idx) => {
