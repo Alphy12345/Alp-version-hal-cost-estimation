@@ -592,13 +592,9 @@ function CostEstimationModal({
     if (!isOpen || !part) return null;
 
     const currentOpType = String(formState?.operation_type || "").trim().toLowerCase();
-    const roundOnlyOps = new Set(["turning", "boring"]);
-    const rectangularOnlyOps = new Set(["milling", "grinding", "surface_treatment"]);
-    const flexibleOps = new Set(["drilling", "heat_treatment", "welding"]);
-
-    const isRoundOnlyOp = roundOnlyOps.has(currentOpType);
-    const isRectangularOnlyOp = rectangularOnlyOps.has(currentOpType);
-    const isFlexibleOp = flexibleOps.has(currentOpType);
+    // ONLY milling gets length/breadth/height
+    // ALL other operations get diameter/length regardless of shape
+    const isMillingOnlyOp = currentOpType === "milling";
     const shapeValue = String(formState?.shape || "round").trim().toLowerCase() === "rectangular" ? "rectangular" : "round";
 
     const getOperationDisplayName = (operationTypeValue) => {
@@ -680,15 +676,18 @@ function CostEstimationModal({
             if (!opState?.machine_setup_time && opState?.machine_setup_time !== 0) opErrors.push('Machine Setup Time');
             if (!opState?.cycle_time && opState?.cycle_time !== 0) opErrors.push('Cycle Time');
             
-            // Shape-specific dimension checks
+            // Dimension checks - ONLY milling requires length/breadth/height
+            // ALL other operations require diameter/length only
             const opType = String(opState?.operation_type || "").trim().toLowerCase();
-            const isRectangular = opType === "milling" || opType === "grinding" || opType === "surface_treatment" || opState?.shape === "rectangular";
+            const isMillingOp = opType === "milling";
             
-            if (isRectangular) {
+            if (isMillingOp) {
+                // Milling: Length, Breadth, Height (rectangular)
                 if (!opState?.length && opState?.length !== 0) opErrors.push('Length');
                 if (!opState?.breadth && opState?.breadth !== 0) opErrors.push('Breadth');
                 if (!opState?.height && opState?.height !== 0) opErrors.push('Height');
             } else {
+                // ALL other operations: Diameter, Length (round) - shape doesn't matter
                 if (!opState?.diameter && opState?.diameter !== 0) opErrors.push('Diameter');
                 if (!opState?.length && opState?.length !== 0) opErrors.push('Length');
             }
