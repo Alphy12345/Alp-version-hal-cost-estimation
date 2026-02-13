@@ -54,6 +54,9 @@ const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
 const MARGIN = 10;
 
+// Max operations per page for detailed breakdown
+const MAX_OPS_PER_PAGE = 5;
+
 const PdfReportExport = ({
   open,
   onClose,
@@ -156,6 +159,19 @@ const PdfReportExport = ({
   }, [operations, operationResults]);
 
   const metricsOps = getMetrics();
+  
+  // Split operations into chunks of MAX_OPS_PER_PAGE for detailed breakdown pages
+  const getOperationChunks = () => {
+    const chunks = [];
+    for (let i = 0; i < metricsOps.length; i += MAX_OPS_PER_PAGE) {
+      chunks.push(metricsOps.slice(i, i + MAX_OPS_PER_PAGE));
+    }
+    return chunks;
+  };
+  
+  const operationChunks = getOperationChunks();
+  const totalDetailPages = operationChunks.length;
+  
   // Filter out miscellaneous_amount from per-operation metrics since we have global misc now
   const filteredMetricKeys =
     metricsOps.length > 0
@@ -207,9 +223,6 @@ const PdfReportExport = ({
     content.style.margin = "0";
 
     try {
-      // Check if we need a second page
-      const page2Content = content.querySelector('[data-page="2"]');
-      
       // Capture first page
       const page1Element = content.querySelector('[data-page="1"]') || content;
       const canvas1 = await html2canvas(page1Element, {
@@ -230,10 +243,14 @@ const PdfReportExport = ({
       const imgData1 = canvas1.toDataURL("image/png", 1.0);
       pdf.addImage(imgData1, "PNG", MARGIN, MARGIN, imgWidth, Math.min(imgHeight1, A4_HEIGHT - 2 * MARGIN));
 
-      // Add second page if detailed metrics exist
-      if (page2Content && page2Content.children.length > 0) {
+      // Capture all detail pages (pages 2, 3, 4, etc.)
+      let pageNum = 2;
+      while (true) {
+        const pageContent = content.querySelector(`[data-page="${pageNum}"]`);
+        if (!pageContent || pageContent.children.length === 0) break;
+        
         pdf.addPage();
-        const canvas2 = await html2canvas(page2Content, {
+        const canvas = await html2canvas(pageContent, {
           scale: 2,
           useCORS: true,
           allowTaint: true,
@@ -242,9 +259,11 @@ const PdfReportExport = ({
           windowWidth: 794,
           windowHeight: 1123,
         });
-        const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width;
-        const imgData2 = canvas2.toDataURL("image/png", 1.0);
-        pdf.addImage(imgData2, "PNG", MARGIN, MARGIN, imgWidth, Math.min(imgHeight2, A4_HEIGHT - 2 * MARGIN));
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        pdf.addImage(imgData, "PNG", MARGIN, MARGIN, imgWidth, Math.min(imgHeight, A4_HEIGHT - 2 * MARGIN));
+        
+        pageNum++;
       }
 
       // Restore transform
@@ -751,261 +770,269 @@ const PdfReportExport = ({
                   HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
                 </Typography>
                 <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
-                  Page 1 of {metricsOps.length > 0 ? "2" : "1"}
+                  Page 1 of {metricsOps.length > 0 ? 1 + totalDetailPages : "1"}
                 </Typography>
               </Box>
             </Box>
           </Box>
 
-          {/* PAGE 2: Detailed Cost Breakdown */}
-          {metricsOps.length > 0 && (
-            <Box data-page="2" sx={{ minHeight: "1123px", bgcolor: "#ffffff", display: "flex", flexDirection: "column" }}>
-              {/* Header for Page 2 */}
-              <Box
-                sx={{
-                  p: "15mm",
-                  pb: "10mm",
-                  borderBottom: "4pt solid #d4af37",
-                  bgcolor: "#1e3a5f",
-                }}
-              >
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: "18pt",
-                        fontWeight: "bold",
-                        color: "#ffffff",
-                        letterSpacing: "0.5pt",
-                      }}
-                    >
-                      {title}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "10pt",
-                        color: "#d4af37",
-                        fontWeight: 500,
-                      }}
-                    >
-                      Detailed Cost Breakdown
-                    </Typography>
-                  </Box>
-                  <Box sx={{ textAlign: "right" }}>
-                    <Box sx={{ bgcolor: "#d4af37", color: "#1e3a5f", px: "10pt", py: "4pt", borderRadius: "3pt", mb: 0.5 }}>
-                      <Typography sx={{ fontSize: "10pt", fontWeight: "bold" }}>
-                        Part: {part?.part_number || "N/A"}
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: "8pt", color: "#94a3b8", mt: 0.5 }}>
-                      Page 2
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* DETAILED METRICS SECTION */}
-              <Box sx={{ px: "15mm", py: "8mm", flex: 1 }}>
-                {/* Section Header with Color */}
-                <Box 
-                  sx={{ 
-                    mb: 3, 
-                    p: "10pt", 
-                    bgcolor: "#f0f9ff", 
-                    borderRadius: "4pt",
-                    border: "1pt solid #38bdf8",
-                    borderLeft: "4pt solid #38bdf8"
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: "13pt",
-                      fontWeight: "bold",
-                      color: "#1e3a5f",
-                      textAlign: "center",
-                    }}
-                  >
-                    DETAILED COST BREAKDOWN
-                  </Typography>
-                </Box>
-
-                {/* Metrics Table with Professional Styling */}
+          {/* DETAILED BREAKDOWN PAGES: Split operations into chunks of 10 per page */}
+          {operationChunks.map((chunkOps, chunkIndex) => {
+            const pageNumber = chunkIndex + 2; // Page 2, 3, 4, etc.
+            const startOpNum = chunkIndex * MAX_OPS_PER_PAGE + 1;
+            const endOpNum = startOpNum + chunkOps.length - 1;
+            
+            return (
+              <Box key={`detail-page-${chunkIndex}`} data-page={pageNumber} sx={{ minHeight: "1123px", bgcolor: "#ffffff", display: "flex", flexDirection: "column" }}>
+                {/* Header for Detail Page */}
                 <Box
                   sx={{
-                    border: "1pt solid #d4af37",
-                    borderRadius: "4pt",
-                    overflow: "hidden",
-                    boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                    p: "15mm",
+                    pb: "10mm",
+                    borderBottom: "4pt solid #d4af37",
+                    bgcolor: "#1e3a5f",
                   }}
                 >
-                  {/* Header */}
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: `180px repeat(${metricsOps.length}, 1fr)`,
-                      bgcolor: "#1e3a5f",
-                      color: "#d4af37",
-                    }}
-                  >
-                    <Box sx={{ p: "6pt" }}>
-                      <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
-                        COST COMPONENT
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontSize: "18pt",
+                          fontWeight: "bold",
+                          color: "#ffffff",
+                          letterSpacing: "0.5pt",
+                        }}
+                      >
+                        {title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "10pt",
+                          color: "#d4af37",
+                          fontWeight: 500,
+                        }}
+                      >
+                        Detailed Cost Breakdown ({startOpNum}-{endOpNum})
                       </Typography>
                     </Box>
-                    {metricsOps.map((op) => (
-                      <Box key={op.idx} sx={{ p: "6pt", textAlign: "center" }}>
-                        <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
-                          {op.label}
+                    <Box sx={{ textAlign: "right" }}>
+                      <Box sx={{ bgcolor: "#d4af37", color: "#1e3a5f", px: "10pt", py: "4pt", borderRadius: "3pt", mb: 0.5 }}>
+                        <Typography sx={{ fontSize: "10pt", fontWeight: "bold" }}>
+                          Part: {part?.part_number || "N/A"}
                         </Typography>
                       </Box>
-                    ))}
+                      <Typography sx={{ fontSize: "8pt", color: "#94a3b8", mt: 0.5 }}>
+                        Page {pageNumber}
+                      </Typography>
+                    </Box>
                   </Box>
+                </Box>
 
-                  {/* Body with Alternating Colors */}
-                  {metricKeys.map((k, idx) => (
-                    <Box
-                      key={k}
+                {/* DETAILED METRICS SECTION */}
+                <Box sx={{ px: "15mm", py: "8mm", flex: 1 }}>
+                  {/* Section Header with Color */}
+                  <Box 
+                    sx={{ 
+                      mb: 3, 
+                      p: "10pt", 
+                      bgcolor: "#f0f9ff", 
+                      borderRadius: "4pt",
+                      border: "1pt solid #38bdf8",
+                      borderLeft: "4pt solid #38bdf8"
+                    }}
+                  >
+                    <Typography
                       sx={{
-                        display: "grid",
-                        gridTemplateColumns: `180px repeat(${metricsOps.length}, 1fr)`,
-                        bgcolor: idx % 2 === 0 ? "#ffffff" : "#f1f5f9",
-                        borderTop: "1pt solid #e2e8f0",
+                        fontSize: "13pt",
+                        fontWeight: "bold",
+                        color: "#1e3a5f",
+                        textAlign: "center",
                       }}
                     >
-                      <Box sx={{ p: "5pt 6pt", bgcolor: "#f8fafc" }}>
-                        <Typography
-                          sx={{
-                            fontSize: "8pt",
-                            color: "#1e3a5f",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {k}
+                      DETAILED COST BREAKDOWN
+                    </Typography>
+                  </Box>
+
+                  {/* Metrics Table with Professional Styling */}
+                  <Box
+                    sx={{
+                      border: "1pt solid #d4af37",
+                      borderRadius: "4pt",
+                      overflow: "hidden",
+                      boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    {/* Header */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                        bgcolor: "#1e3a5f",
+                        color: "#d4af37",
+                      }}
+                    >
+                      <Box sx={{ p: "6pt" }}>
+                        <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
+                          COST COMPONENT
                         </Typography>
                       </Box>
-                      {metricsOps.map((op) => (
-                        <Box
-                          key={`${k}-${op.idx}`}
-                          sx={{ p: "5pt 6pt", textAlign: "right" }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: "8pt",
-                              color: "#475569",
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            {op.map.get(k) ?? "-"}
+                      {chunkOps.map((op) => (
+                        <Box key={op.idx} sx={{ p: "6pt", textAlign: "center" }}>
+                          <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
+                            {op.label}
                           </Typography>
                         </Box>
                       ))}
                     </Box>
-                  ))}
-                  
-                  {/* Global Miscellaneous Row - Gold Highlight */}
-                  {partMiscTotal > 0 && (
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: `180px repeat(${metricsOps.length}, 1fr)`,
-                        bgcolor: "#fef3c7",
-                        borderTop: "2pt solid #d4af37",
-                      }}
-                    >
-                      <Box sx={{ p: "6pt", bgcolor: "#fcd34d" }}>
-                        <Typography
-                          sx={{
-                            fontSize: "9pt",
-                            color: "#92400e",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          Global Miscellaneous
-                        </Typography>
+
+                    {/* Body with Alternating Colors */}
+                    {filteredMetricKeys.map((k, idx) => (
+                      <Box
+                        key={k}
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                          bgcolor: idx % 2 === 0 ? "#ffffff" : "#f1f5f9",
+                          borderTop: "1pt solid #e2e8f0",
+                        }}
+                      >
+                        <Box sx={{ p: "5pt 6pt", bgcolor: "#f8fafc" }}>
+                          <Typography
+                            sx={{
+                              fontSize: "8pt",
+                              color: "#1e3a5f",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {k}
+                          </Typography>
+                        </Box>
+                        {chunkOps.map((op) => (
+                          <Box
+                            key={`${k}-${op.idx}`}
+                            sx={{ p: "5pt 6pt", textAlign: "right" }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: "8pt",
+                                color: "#475569",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {op.map.get(k) ?? "-"}
+                            </Typography>
+                          </Box>
+                        ))}
                       </Box>
-                      {metricsOps.map((op) => (
-                        <Box
-                          key={`misc-${op.idx}`}
-                          sx={{ p: "6pt", textAlign: "right" }}
-                        >
+                    ))}
+                    
+                    {/* Global Miscellaneous Row - Gold Highlight */}
+                    {partMiscTotal > 0 && (
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                          bgcolor: "#fef3c7",
+                          borderTop: "2pt solid #d4af37",
+                        }}
+                      >
+                        <Box sx={{ p: "6pt", bgcolor: "#fcd34d" }}>
                           <Typography
                             sx={{
                               fontSize: "9pt",
                               color: "#92400e",
-                              fontFamily: "monospace",
                               fontWeight: "bold",
                             }}
                           >
-                            {formatCurrency(partMiscTotal)}
+                            Global Miscellaneous
                           </Typography>
                         </Box>
-                      ))}
+                        {chunkOps.map((op) => (
+                          <Box
+                            key={`misc-${op.idx}`}
+                            sx={{ p: "6pt", textAlign: "right" }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: "9pt",
+                                color: "#92400e",
+                                fontFamily: "monospace",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {formatCurrency(partMiscTotal)}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Definitions Box - only on last page */}
+                  {chunkIndex === operationChunks.length - 1 && (
+                    <Box sx={{ mt: 3, p: "10pt", bgcolor: "#f0f9ff", borderRadius: "4pt", border: "1pt solid #38bdf8", borderLeft: "4pt solid #38bdf8" }}>
+                      <Typography
+                        sx={{
+                          fontSize: "8pt",
+                          color: "#64748b",
+                          fontWeight: "bold",
+                          mb: 1,
+                        }}
+                      >
+                        DEFINITIONS:
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, 1fr)",
+                          gap: "4pt 16pt",
+                        }}
+                      >
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>Basic Cost:</strong> Raw material + Machine cost base
+                        </Typography>
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>Overheads:</strong> Indirect operational costs
+                        </Typography>
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>Profit:</strong> Margin applied to unit cost
+                        </Typography>
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>MHR:</strong> Machine Hour Rate (₹/hour)
+                        </Typography>
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>Misc:</strong> Miscellaneous additional costs
+                        </Typography>
+                        <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
+                          • <strong>Total with Misc:</strong> Final cost including all items
+                        </Typography>
+                      </Box>
                     </Box>
                   )}
                 </Box>
 
-                {/* Definitions Box with Professional Color */}
-                <Box sx={{ mt: 3, p: "10pt", bgcolor: "#f0f9ff", borderRadius: "4pt", border: "1pt solid #38bdf8", borderLeft: "4pt solid #38bdf8" }}>
-                  <Typography
-                    sx={{
-                      fontSize: "8pt",
-                      color: "#64748b",
-                      fontWeight: "bold",
-                      mb: 1,
-                    }}
-                  >
-                    DEFINITIONS:
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(2, 1fr)",
-                      gap: "4pt 16pt",
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>Basic Cost:</strong> Raw material + Machine cost base
+                {/* Page Footer */}
+                <Box
+                  sx={{
+                    mt: "auto",
+                    p: "15mm",
+                    pt: "8mm",
+                    borderTop: "3pt solid #d4af37",
+                    bgcolor: "#1e3a5f",
+                  }}
+                >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: "8pt", color: "#94a3b8" }}>
+                      HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
                     </Typography>
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>Overheads:</strong> Indirect operational costs
-                    </Typography>
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>Profit:</strong> Margin applied to unit cost
-                    </Typography>
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>MHR:</strong> Machine Hour Rate (₹/hour)
-                    </Typography>
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>Misc:</strong> Miscellaneous additional costs
-                    </Typography>
-                    <Typography sx={{ fontSize: "7pt", color: "#64748b" }}>
-                      • <strong>Total with Misc:</strong> Final cost including all items
+                    <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
+                      Page {pageNumber} of {1 + totalDetailPages}
                     </Typography>
                   </Box>
                 </Box>
               </Box>
-
-              {/* PAGE 2 FOOTER */}
-              <Box
-                sx={{
-                  mt: "auto",
-                  p: "15mm",
-                  pt: "8mm",
-                  borderTop: "3pt solid #d4af37",
-                  bgcolor: "#1e3a5f",
-                }}
-              >
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "8pt", color: "#94a3b8" }}>
-                    HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
-                  </Typography>
-                  <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
-                    Page 2 of 2
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-          )}
+            );
+          })}
         </Box>
       </DialogContent>
 

@@ -399,11 +399,14 @@ function ProjectDetailPage({ onChange, projectId }) {
       }
     } catch (err) {
       console.error("Cost calculation failed:", err);
-      setCostError(
-        err.response?.data?.detail ||
-        err.message ||
-        "Failed to calculate cost. Please check inputs."
-      );
+      // Ensure error is always a string - handle all possible object cases
+      let errorMessage = err.response?.data?.detail || err.message || "Failed to calculate cost. Please check inputs.";
+      if (typeof errorMessage === 'object' && errorMessage !== null) {
+        errorMessage = JSON.stringify(errorMessage);
+      } else if (typeof errorMessage !== 'string') {
+        errorMessage = String(errorMessage);
+      }
+      setCostError(errorMessage);
     } finally {
       setCostLoading(false);
     }
@@ -515,12 +518,8 @@ function ProjectDetailPage({ onChange, projectId }) {
     const flexibleOps = new Set(["drilling", "heat_treatment", "welding"]);
 
     const dimensions = { length };
-    if (roundOnlyOps.has(opType)) {
-      if (!Number.isFinite(diameter) || diameter <= 0) {
-        throw new Error("Please enter a valid Diameter");
-      }
-      dimensions.diameter = diameter;
-    } else if (rectangularOnlyOps.has(opType)) {
+    if (opType === "milling") {
+      // ONLY milling requires breadth and height
       if (!Number.isFinite(breadth) || breadth <= 0) {
         throw new Error("Please enter a valid Breadth");
       }
@@ -529,25 +528,12 @@ function ProjectDetailPage({ onChange, projectId }) {
       }
       dimensions.breadth = breadth;
       dimensions.height = height;
-    } else if (flexibleOps.has(opType)) {
-      const shape = String(formData.shape || "round").trim().toLowerCase();
-      if (shape === "rectangular") {
-        if (!Number.isFinite(breadth) || breadth <= 0) {
-          throw new Error("Please enter a valid Breadth");
-        }
-        if (!Number.isFinite(height) || height <= 0) {
-          throw new Error("Please enter a valid Height");
-        }
-        dimensions.breadth = breadth;
-        dimensions.height = height;
-      } else {
-        if (!Number.isFinite(diameter) || diameter <= 0) {
-          throw new Error("Please enter a valid Diameter");
-        }
-        dimensions.diameter = diameter;
-      }
     } else {
-      throw new Error("Invalid operation type");
+      // ALL other operations require diameter and length only
+      if (!Number.isFinite(diameter) || diameter <= 0) {
+        throw new Error("Please enter a valid Diameter");
+      }
+      dimensions.diameter = diameter;
     }
 
     const dutyCategory = String(formData?.duty_category || "").trim().toLowerCase();
@@ -770,11 +756,14 @@ function ProjectDetailPage({ onChange, projectId }) {
       });
     } catch (err) {
       console.error("Cost calculation failed:", err);
-      setCostError(
-        err.response?.data?.detail ||
-        err.message ||
-        "Failed to calculate cost. Please check inputs."
-      );
+      // Ensure error is always a string - handle all possible object cases
+      let errorMessage = err.response?.data?.detail || err.message || "Failed to calculate cost. Please check inputs.";
+      if (typeof errorMessage === 'object' && errorMessage !== null) {
+        errorMessage = JSON.stringify(errorMessage);
+      } else if (typeof errorMessage !== 'string') {
+        errorMessage = String(errorMessage);
+      }
+      setCostError(errorMessage);
     } finally {
       setCostLoading(false);
     }

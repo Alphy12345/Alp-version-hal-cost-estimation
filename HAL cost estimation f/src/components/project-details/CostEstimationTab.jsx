@@ -141,7 +141,9 @@ function CostEstimationTab({
                         </Box>
 
                         {costError && (
-                            <Alert severity="error">{costError}</Alert>
+                            <Alert severity="error">
+                                {typeof costError === 'object' ? JSON.stringify(costError) : costError}
+                            </Alert>
                         )}
                     </Stack>
                 </CardContent>

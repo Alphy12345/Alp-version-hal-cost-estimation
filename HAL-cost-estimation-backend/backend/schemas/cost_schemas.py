@@ -96,37 +96,31 @@ class CostEstimationRequest(BaseModel):
         if not operation:
             return v
         
-        # Operations that require round dimensions (diameter + length)
-        round_operations = ['turning', 'boring']
+        # ONLY milling requires rectangular dimensions (length + breadth + height)
+        # ALL other operations require round dimensions (diameter + length)
         
-        # Operations that require rectangular dimensions (length + breadth + height)
-        rectangular_operations = ['milling', 'grinding', 'surface_treatment', 'rubber_press']
-        
-        if operation.value in round_operations:
-            # Must have diameter and length, should NOT have breadth and height
-            if v.diameter is None:
-                raise ValueError(f"For {operation.value} operation, 'diameter' is required")
-            if v.breadth is not None or v.height is not None:
-                raise ValueError(f"For {operation.value} operation, only 'diameter' and 'length' are needed (round part)")
-        
-        elif operation.value in rectangular_operations:
-            # Must have length, breadth, and height, should NOT have diameter
-            if v.breadth is None or v.height is None:
-                raise ValueError(f"For {operation.value} operation, 'length', 'breadth', and 'height' are required")
-            if v.diameter is not None:
+        if operation.value == 'milling':
+            # Milling: Must have length, breadth, and height
+            if v.length is None or v.length <= 0:
+                raise ValueError(f"For {operation.value} operation, 'length' is required")
+            if v.breadth is None or v.breadth <= 0:
+                raise ValueError(f"For {operation.value} operation, 'breadth' is required")
+            if v.height is None or v.height <= 0:
+                raise ValueError(f"For {operation.value} operation, 'height' is required")
+            # Milling should NOT have diameter
+            if v.diameter is not None and v.diameter > 0:
                 raise ValueError(f"For {operation.value} operation, only 'length', 'breadth', and 'height' are needed (rectangular part)")
-        
         else:
-            # For drilling, welding, heat_treatment - allow both types
-            # Check that either (diameter + length) OR (length + breadth + height) is provided
-            has_round = v.diameter is not None
-            has_rectangular = v.breadth is not None and v.height is not None
-            
-            if not (has_round or has_rectangular):
-                raise ValueError(f"For {operation.value} operation, provide either (diameter + length) for round parts OR (length + breadth + height) for rectangular parts")
-            
-            if has_round and has_rectangular:
-                raise ValueError(f"For {operation.value} operation, provide EITHER round dimensions (diameter + length) OR rectangular dimensions (length + breadth + height), not both")
+            # ALL other operations (turning, grinding, drilling, etc.): Must have diameter and length
+            if v.length is None or v.length <= 0:
+                raise ValueError(f"For {operation.value} operation, 'length' is required")
+            if v.diameter is None or v.diameter <= 0:
+                raise ValueError(f"For {operation.value} operation, 'diameter' is required")
+            # Other operations should NOT have breadth or height
+            if v.breadth is not None and v.breadth > 0:
+                raise ValueError(f"For {operation.value} operation, only 'diameter' and 'length' are needed (round part)")
+            if v.height is not None and v.height > 0:
+                raise ValueError(f"For {operation.value} operation, only 'diameter' and 'length' are needed (round part)")
         
         return v
 
