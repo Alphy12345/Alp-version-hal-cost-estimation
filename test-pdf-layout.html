@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Layout Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #status { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>PDF Layout Test</h1>
+    <button onclick="generateTestPDF()">Generate Test PDF</button>
+    <div id="status"></div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        function generateTestPDF() {
+            const status = document.getElementById('status');
+            status.textContent = 'Generating PDF...';
+
+            try {
+                const pdf = new jsPDF("p", "mm", "a4");
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                const contentWidth = pageWidth - 2 * margin - 20; // 170mm usable
+                
+                let currentY = margin;
+                let pageNum = 1;
+
+                // Test operations data
+                const operations = [
+                    {
+                        operation_type: "drilling",
+                        material: "steel",
+                        machine_name: "Drilling machine",
+                        man_hours_per_unit: 1800,
+                        duty_category: "heavy",
+                        machine_setup_time: 25,
+                        cycle_time: 120,
+                        diameter: 22,
+                        length: 65,
+                        shape: "rectangular"
+                    },
+                    {
+                        operation_type: "turning",
+                        material: "aluminium",
+                        machine_name: "CNC",
+                        man_hours_per_unit: 2400,
+                        duty_category: "medium",
+                        machine_setup_time: 30,
+                        cycle_time: 90,
+                        diameter: 40,
+                        length: 120,
+                        shape: "round"
+                    },
+                    {
+                        operation_type: "milling",
+                        material: "steel",
+                        machine_name: "CNC Milling Center",
+                        man_hours_per_unit: 1500,
+                        duty_category: "light",
+                        machine_setup_time: 45,
+                        cycle_time: 180,
+                        length: 100,
+                        breadth: 50,
+                        height: 25,
+                        shape: "rectangular"
+                    }
+                ];
+
+                // Helper to add header
+                const addHeader = () => {
+                    pdf.setFillColor(30, 58, 95);
+                    pdf.rect(0, 0, pageWidth, 35, "F");
+                    
+                    pdf.setDrawColor(212, 175, 55);
+                    pdf.setLineWidth(1);
+                    pdf.line(0, 35, pageWidth, 35);
+                    
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.setFontSize(16);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text("HAL Cost Estimation - Operations Report", margin, 15);
+                    
+                    pdf.setTextColor(212, 175, 55);
+                    pdf.setFontSize(10);
+                    pdf.text("Part: TEST-001 - Test Part", margin, 25);
+                    
+                    pdf.setTextColor(148, 163, 184);
+                    pdf.setFontSize(8);
+                    pdf.text(`Page ${pageNum}`, pageWidth - margin - 20, 30);
+                    
+                    currentY = 45;
+                };
+
+                // Helper to add footer
+                const addFooter = () => {
+                    pdf.setFillColor(30, 58, 95);
+                    pdf.rect(0, pageHeight - 15, pageWidth, 15, "F");
+                    
+                    pdf.setDrawColor(212, 175, 55);
+                    pdf.setLineWidth(0.5);
+                    pdf.line(0, pageHeight - 15, pageWidth, pageHeight - 15);
+                    
+                    pdf.setTextColor(148, 163, 184);
+                    pdf.setFontSize(8);
+                    pdf.setFont("helvetica", "normal");
+                    pdf.text("HAL Cost Estimation System", margin, pageHeight - 5);
+                };
+
+                // Helper to check and add new page
+                const checkNewPage = (neededSpace) => {
+                    if (currentY + neededSpace > pageHeight - 25) {
+                        addFooter();
+                        pdf.addPage();
+                        pageNum++;
+                        addHeader();
+                        return true;
+                    }
+                    return false;
+                };
+
+                const getOperationDisplayName = (type) => {
+                    const names = {
+                        "turning": "Turning",
+                        "milling": "Milling",
+                        "drilling": "Drilling",
+                        "boring": "Boring",
+                        "grinding": "Grinding"
+                    };
+                    return names[type] || type;
+                };
+
+                // Start first page
+                addHeader();
+
+                // Add summary section
+                pdf.setFillColor(240, 249, 255);
+                pdf.setDrawColor(56, 189, 248);
+                pdf.setLineWidth(0.5);
+                pdf.roundedRect(margin, currentY, contentWidth, 25, 3, 3, "FD");
+                
+                pdf.setTextColor(30, 58, 95);
+                pdf.setFontSize(12);
+                pdf.setFont("helvetica", "bold");
+                pdf.text("OPERATIONS SUMMARY", margin + 5, currentY + 10);
+                
+                pdf.setFontSize(9);
+                pdf.setFont("helvetica", "normal");
+                pdf.text(`Total Operations: ${operations.length}`, margin + 5, currentY + 20);
+                pdf.text(`Part Number: TEST-001`, margin + contentWidth/2, currentY + 20);
+                
+                currentY += 35;
+
+                // Loop through each operation
+                operations.forEach((op, idx) => {
+                    const opName = getOperationDisplayName(op?.operation_type);
+                    
+                    checkNewPage(70);
+                    
+                    // Operation header box - fit within content width
+                    const headerWidth = contentWidth;
+                    pdf.setFillColor(56, 189, 248); // #38bdf8 blue
+                    pdf.setDrawColor(56, 189, 248);
+                    pdf.roundedRect(margin, currentY, headerWidth, 9, 1.5, 1.5, "F");
+                    
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.setFontSize(10);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text(`Operation ${idx + 1}: ${opName}`, margin + 4, currentY + 6);
+                    
+                    currentY += 12;
+                    
+                    // Define table columns
+                    const tableWidth = contentWidth;
+                    const labelColWidth = 45;  // Width for label column
+                    const valueColWidth = 35;  // Width for value column
+                    const gapBetweenCols = 8;  // Gap between left and right sections
+                    
+                    // Left section starts at margin
+                    const leftLabelX = margin + 3;
+                    const leftValueX = leftLabelX + labelColWidth;
+                    
+                    // Right section
+                    const rightStartX = margin + tableWidth/2 + gapBetweenCols/2;
+                    const rightLabelX = rightStartX;
+                    const rightValueX = rightLabelX + labelColWidth;
+                    
+                    // Operation details - 2 column layout with fixed positions
+                    const rowHeight = 5.5;
+                    const linePadding = 1.5;
+                    
+                    const detailRows = [
+                        // Row 1: Material | Machine
+                        { left: ["Material:", op?.material || "-"], right: ["Machine:", op?.machine_name || "-"] },
+                        // Row 2: Man Hours | Duty Category
+                        { left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"], right: ["Duty Category:", op?.duty_category || "-"] },
+                        // Row 3: Setup Time | Cycle Time
+                        { left: ["Setup Time (min):", op?.machine_setup_time !== undefined ? String(op.machine_setup_time) : "-"], right: ["Cycle Time (min):", op?.cycle_time !== undefined ? String(op.cycle_time) : "-"] },
+                    ];
+                    
+                    // Add dimension fields based on operation type
+                    const isMillingOp = String(op?.operation_type).toLowerCase() === "milling";
+                    if (isMillingOp) {
+                        detailRows.push(
+                            { left: ["Length:", op?.length !== undefined ? String(op.length) : "-"], right: ["Breadth:", op?.breadth !== undefined ? String(op.breadth) : "-"] },
+                            { left: ["Height:", op?.height !== undefined ? String(op.height) : "-"], right: null }
+                        );
+                    } else {
+                        detailRows.push(
+                            { left: ["Diameter:", op?.diameter !== undefined ? String(op.diameter) : "-"], right: ["Length:", op?.length !== undefined ? String(op.length) : "-"] }
+                        );
+                    }
+                    
+                    // Add Shape row
+                    detailRows.push({ left: ["Shape:", op?.shape || "-"], right: null });
+                    
+                    // Calculate total table height
+                    const tableHeight = detailRows.length * rowHeight + linePadding * 2;
+                    
+                    // Draw table background
+                    pdf.setFillColor(248, 250, 252); // Light gray background
+                    pdf.rect(margin, currentY, tableWidth, tableHeight, "F");
+                    
+                    // Draw horizontal lines for each row
+                    pdf.setDrawColor(226, 232, 240);
+                    pdf.setLineWidth(0.2);
+                    for (let i = 0; i <= detailRows.length; i++) {
+                        const lineY = currentY + linePadding + i * rowHeight;
+                        pdf.line(margin + 2, lineY, margin + tableWidth - 2, lineY);
+                    }
+                    
+                    // Draw vertical separator line in middle
+                    const midX = margin + tableWidth/2;
+                    pdf.line(midX, currentY + linePadding, midX, currentY + tableHeight - linePadding);
+                    
+                    // Draw row data
+                    detailRows.forEach((row, rowIndex) => {
+                        const y = currentY + linePadding + (rowIndex + 0.7) * rowHeight;
+                        
+                        // Left column
+                        pdf.setTextColor(30, 58, 95);
+                        pdf.setFontSize(8);
+                        pdf.setFont("helvetica", "bold");
+                        pdf.text(row.left[0], leftLabelX, y);
+                        
+                        pdf.setTextColor(71, 85, 105);
+                        pdf.setFont("helvetica", "normal");
+                        pdf.text(String(row.left[1]), leftValueX, y);
+                        
+                        // Right column (if exists)
+                        if (row.right) {
+                            pdf.setTextColor(30, 58, 95);
+                            pdf.setFont("helvetica", "bold");
+                            pdf.text(row.right[0], rightLabelX, y);
+                            
+                            pdf.setTextColor(71, 85, 105);
+                            pdf.setFont("helvetica", "normal");
+                            pdf.text(String(row.right[1]), rightValueX, y);
+                        }
+                    });
+                    
+                    currentY += tableHeight + 4;
+                    
+                    // Separator line
+                    pdf.setDrawColor(200, 200, 200);
+                    pdf.setLineWidth(0.3);
+                    pdf.line(margin, currentY, margin + contentWidth, currentY);
+                    currentY += 4;
+                });
+
+                // Add final footer
+                addFooter();
+
+                // Save PDF
+                pdf.save("Test-Operations.pdf");
+                status.textContent = 'PDF generated successfully! Check your downloads.';
+            } catch (error) {
+                status.textContent = 'Error: ' + error.message;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

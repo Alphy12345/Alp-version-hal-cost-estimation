@@ -127,13 +127,16 @@ function CostEstimationModal({
             // Extract data from response
             const extractedData = response.data?.extracted_data;
             console.log("Extracted data from file:", extractedData);
-            console.log("Is array?:", Array.isArray(extractedData));
             
-            // Handle multiple operations (array) or single operation (object)
-            const operationsToProcess = Array.isArray(extractedData) ? extractedData : [extractedData];
-            const validOperations = operationsToProcess.filter(op => op && Object.keys(op).some(k => op[k] !== null));
+            // Handle the nested operations array structure
+            const operationsArray = extractedData?.operations || [];
+            console.log("Operations array:", operationsArray);
+            console.log("Is array?:", Array.isArray(operationsArray));
             
-            console.log("Operations to process:", operationsToProcess.length);
+            // Filter valid operations (those with at least one non-null field)
+            const validOperations = operationsArray.filter(op => op && Object.keys(op).some(k => op[k] !== null && op[k] !== undefined));
+            
+            console.log("Operations to process:", operationsArray.length);
             console.log("Valid operations:", validOperations.length);
             console.log("Current operations count:", operations.length);
             
@@ -713,6 +716,256 @@ function CostEstimationModal({
         if (onSubmitAll) {
             onSubmitAll(part.id);
         }
+    };
+
+    // Download all operations as PDF
+    const handleDownloadAllOperations = async () => {
+        if (!operations || operations.length === 0) {
+            alert("No operations to download");
+            return;
+        }
+
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const contentWidth = pageWidth - 2 * margin - 15; // 175mm usable (210 - 20 - 15)
+        
+        let currentY = margin;
+        let pageNum = 1;
+        let totalPages = 1; // Will be updated after rendering
+
+        // Helper to add header
+        const addHeader = () => {
+            // Dark blue header background
+            pdf.setFillColor(30, 58, 95); // #1e3a5f
+            pdf.rect(0, 0, pageWidth, 35, "F");
+            
+            // Gold border
+            pdf.setDrawColor(212, 175, 55); // #d4af37
+            pdf.setLineWidth(1);
+            pdf.line(0, 35, pageWidth, 35);
+            
+            // Title
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(16);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("HAL Cost Estimation - Operations Report", margin, 15);
+            
+            // Subtitle
+            pdf.setTextColor(212, 175, 55); // Gold
+            pdf.setFontSize(10);
+            pdf.text(`Part: ${part?.part_number || "N/A"} - ${part?.part_name || ""}`, margin, 25);
+            
+            // Project info
+            pdf.setTextColor(148, 163, 184); // Light gray
+            pdf.setFontSize(8);
+            pdf.text(`Project: ${projectData?.project_name || "N/A"}`, pageWidth - margin - 60, 15);
+            pdf.text(`Date: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin - 60, 20);
+            pdf.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin - 25, 30);
+            
+            currentY = 45;
+        };
+
+        // Helper to add footer
+        const addFooter = () => {
+            pdf.setFillColor(30, 58, 95); // #1e3a5f
+            pdf.rect(0, pageHeight - 15, pageWidth, 15, "F");
+            
+            pdf.setDrawColor(212, 175, 55); // Gold border
+            pdf.setLineWidth(0.5);
+            pdf.line(0, pageHeight - 15, pageWidth, pageHeight - 15);
+            
+            pdf.setTextColor(148, 163, 184);
+            pdf.setFontSize(8);
+            pdf.setFont("helvetica", "normal");
+            pdf.text("HAL Cost Estimation System", margin, pageHeight - 5);
+        };
+
+        // Helper to check and add new page if needed
+        const checkNewPage = (neededSpace) => {
+            if (currentY + neededSpace > pageHeight - 20) {
+                addFooter();
+                pdf.addPage();
+                pageNum++;
+                totalPages = pageNum;
+                addHeader();
+                currentY = 45; // Reset to content start after header
+                return true;
+            }
+            return false;
+        };
+
+        // Start first page
+        addHeader();
+
+        // Add summary section
+        const summaryBoxWidth = contentWidth;
+        pdf.setFillColor(240, 249, 255); // Light blue bg
+        pdf.setDrawColor(56, 189, 248); // #38bdf8
+        pdf.setLineWidth(0.5);
+        pdf.roundedRect(margin, currentY, summaryBoxWidth, 22, 2, 2, "FD");
+        
+        pdf.setTextColor(30, 58, 95);
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("OPERATIONS SUMMARY", margin + 4, currentY + 8);
+        
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Total Operations: ${operations.length}`, margin + 4, currentY + 17);
+        pdf.text(`Part Number: ${part?.part_number || "N/A"}`, margin + summaryBoxWidth/2, currentY + 17);
+        
+        currentY += 30;
+
+        // Loop through each operation
+        operations.forEach((op, idx) => {
+            const opResult = operationResults?.[idx];
+            const opName = getOperationDisplayName(op?.operation_type);
+            
+            checkNewPage(70);
+            
+            // Operation header box - fit within content width
+            const headerWidth = contentWidth;
+            pdf.setFillColor(56, 189, 248); // #38bdf8 blue
+            pdf.setDrawColor(56, 189, 248);
+            pdf.roundedRect(margin, currentY, headerWidth, 9, 1.5, 1.5, "F");
+            
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(10);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`Operation ${idx + 1}: ${opName}`, margin + 4, currentY + 6);
+            
+            currentY += 12;
+            
+            // Define table columns - adjusted for longer machine names
+            const tableWidth = contentWidth;
+            const labelColWidth = 38;  // Reduced label width
+            const valueColWidth = 48;  // Increased value width for machine names
+            const gapBetweenCols = 4;  // Reduced gap between sections
+            
+            // Left section starts at margin
+            const leftLabelX = margin + 3;
+            const leftValueX = leftLabelX + labelColWidth;
+            
+            // Right section
+            const rightStartX = margin + tableWidth/2 + gapBetweenCols/2;
+            const rightLabelX = rightStartX;
+            const rightValueX = rightLabelX + labelColWidth;
+            
+            // Maximum width for values before truncation
+            const maxValueWidth = valueColWidth - 2;
+            
+            // Operation details - 2 column layout with fixed positions
+            const rowHeight = 5.5;
+            const linePadding = 1.5;
+            
+            const detailRows = [
+                // Row 1: Material | Machine
+                { left: ["Material:", op?.material || "-"], right: ["Machine:", op?.machine_name || "-"] },
+                // Row 2: Man Hours | Duty Category
+                { left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"], right: ["Duty Category:", op?.duty_category || "-"] },
+                // Row 3: Setup Time | Cycle Time
+                { left: ["Setup Time (min):", op?.machine_setup_time !== undefined ? String(op.machine_setup_time) : "-"], right: ["Cycle Time (min):", op?.cycle_time !== undefined ? String(op.cycle_time) : "-"] },
+            ];
+            
+            // Add dimension fields based on operation type
+            const isMillingOp = String(op?.operation_type).toLowerCase() === "milling";
+            if (isMillingOp) {
+                detailRows.push(
+                    { left: ["Length:", op?.length !== undefined ? String(op.length) : "-"], right: ["Breadth:", op?.breadth !== undefined ? String(op.breadth) : "-"] },
+                    { left: ["Height:", op?.height !== undefined ? String(op.height) : "-"], right: null }
+                );
+            } else {
+                detailRows.push(
+                    { left: ["Diameter:", op?.diameter !== undefined ? String(op.diameter) : "-"], right: ["Length:", op?.length !== undefined ? String(op.length) : "-"] }
+                );
+            }
+            
+            // Add Shape row
+            detailRows.push({ left: ["Shape:", op?.shape || "-"], right: null });
+            
+            // Calculate total table height
+            const tableHeight = detailRows.length * rowHeight + linePadding * 2;
+            
+            // Draw table background
+            pdf.setFillColor(248, 250, 252); // Light gray background
+            pdf.rect(margin, currentY, tableWidth, tableHeight, "F");
+            
+            // Draw horizontal lines for each row
+            pdf.setDrawColor(226, 232, 240);
+            pdf.setLineWidth(0.2);
+            for (let i = 0; i <= detailRows.length; i++) {
+                const lineY = currentY + linePadding + i * rowHeight;
+                pdf.line(margin + 2, lineY, margin + tableWidth - 2, lineY);
+            }
+            
+            // Draw vertical separator line in middle
+            const midX = margin + tableWidth/2;
+            pdf.line(midX, currentY + linePadding, midX, currentY + tableHeight - linePadding);
+            
+            // Draw row data with truncation for long values
+            detailRows.forEach((row, rowIndex) => {
+                const y = currentY + linePadding + (rowIndex + 0.7) * rowHeight;
+                
+                // Helper to truncate text
+                const truncateText = (text, maxWidth) => {
+                    let str = String(text);
+                    const textWidth = pdf.getTextWidth(str);
+                    if (textWidth <= maxWidth) return str;
+                    
+                    // Binary search for max length that fits
+                    let low = 0, high = str.length;
+                    while (low < high) {
+                        const mid = Math.ceil((low + high) / 2);
+                        const truncated = str.substring(0, mid) + "...";
+                        if (pdf.getTextWidth(truncated) <= maxWidth) {
+                            low = mid;
+                        } else {
+                            high = mid - 1;
+                        }
+                    }
+                    return str.substring(0, low) + "...";
+                };
+                
+                // Left column
+                pdf.setTextColor(30, 58, 95);
+                pdf.setFontSize(8);
+                pdf.setFont("helvetica", "bold");
+                pdf.text(row.left[0], leftLabelX, y);
+                
+                pdf.setTextColor(71, 85, 105);
+                pdf.setFont("helvetica", "normal");
+                pdf.text(truncateText(row.left[1], maxValueWidth), leftValueX, y);
+                
+                // Right column (if exists)
+                if (row.right) {
+                    pdf.setTextColor(30, 58, 95);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text(row.right[0], rightLabelX, y);
+                    
+                    pdf.setTextColor(71, 85, 105);
+                    pdf.setFont("helvetica", "normal");
+                    pdf.text(truncateText(row.right[1], maxValueWidth), rightValueX, y);
+                }
+            });
+            
+            currentY += tableHeight + 4;
+            
+            // Separator line
+            pdf.setDrawColor(200, 200, 200);
+            pdf.setLineWidth(0.3);
+            pdf.line(margin, currentY, margin + contentWidth, currentY);
+            currentY += 4;
+        });
+
+        // Add final footer
+        addFooter();
+
+        // Save PDF
+        const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
+        const safePart = String(part?.part_number || "Part").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Part";
+        pdf.save(`${safeProject}-${safePart}-Operations.pdf`);
     };
 
     return (
@@ -1511,6 +1764,28 @@ function CostEstimationModal({
                                                     sx={{ textTransform: "none", fontWeight: 800, px: 4, py: 1.5 }}
                                                 >
                                                     {loading ? "Calculating..." : "Calculate All Operations"}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="contained"
+                                                    size="large"
+                                                    color="secondary"
+                                                    startIcon={<DownloadIcon />}
+                                                    disabled={!Array.isArray(operations) || operations.length === 0}
+                                                    onClick={handleDownloadAllOperations}
+                                                    sx={{ 
+                                                        textTransform: "none", 
+                                                        fontWeight: 800, 
+                                                        px: 4, 
+                                                        py: 1.5,
+                                                        background: "linear-gradient(135deg, #d4af37 0%, #b8860b 100%)",
+                                                        color: "#ffffff",
+                                                        "&:hover": {
+                                                            background: "linear-gradient(135deg, #c4a030 0%, #a67600 100%)",
+                                                        }
+                                                    }}
+                                                >
+                                                    Download Operations
                                                 </Button>
                                             </Box>
 

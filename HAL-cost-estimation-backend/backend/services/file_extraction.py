@@ -63,10 +63,48 @@ except Exception as e:
     TESSERACT_AVAILABLE = False
     print(f"WARNING: OCR libraries not available: {e}")
 
+try:
+    import pytesseract
+    from pdf2image import convert_from_path
+    from PIL import Image
+    TESSERACT_AVAILABLE = True
+    print("Tesseract OCR available")
+except ImportError as e:
+    TESSERACT_AVAILABLE = False
+    print(f"WARNING: OCR libraries not available: {e}")
+
+try:
+    import pdfplumber
+    print("PDFPlumber available for text-based PDF extraction")
+except ImportError as e:
+    pdfplumber = None
+    print(f"WARNING: pdfplumber not available: {e}")
+
+try:
+    import docx
+    print("python-docx available for Word document extraction")
+except ImportError as e:
+    docx = None
+    print(f"WARNING: python-docx not available: {e}")
+
+try:
+    import openpyxl
+    print("openpyxl available for Excel .xlsx extraction")
+except ImportError as e:
+    openpyxl = None
+    print(f"WARNING: openpyxl not available: {e}")
+
+try:
+    import xlrd
+    print("xlrd available for Excel .xls extraction")
+except ImportError as e:
+    xlrd = None
+    print(f"WARNING: xlrd not available: {e}")
+
 class FileExtractionService:
     """Service to extract operation details from uploaded files."""
     
-    SUPPORTED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.txt', '.csv'}
+    SUPPORTED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx'}
     
     # Keywords to search for in extracted text - expanded
     OPERATION_KEYWORDS = ['operation', 'operation type', 'op type', 'process', 'op:', 'operation:', 'opn', 'op.']
@@ -99,34 +137,46 @@ class FileExtractionService:
             return ""
         
         if ext == '.pdf':
-            return cls._extract_from_pdf(file_path)
+            # First, try to extract text directly using pdfplumber (for text-based PDFs)
+            text = cls._extract_text_from_pdf(file_path)
+            # If no text found, fall back to OCR (for scanned/image-based PDFs)
+            if not text.strip() and TESSERACT_AVAILABLE:
+                print("No text extracted via pdfplumber, trying OCR...")
+                text = cls._extract_from_pdf(file_path)
+            return text
+        elif ext in ['.doc', '.docx']:
+            return cls._extract_from_word(file_path)
+        elif ext in ['.xls', '.xlsx']:
+            return cls._extract_from_excel(file_path)
         else:
             return cls._extract_from_image(file_path)
     
     @classmethod
-    def _extract_from_pdf(cls, pdf_path: str) -> str:
-        """Extract text from PDF using OCR."""
+    def _extract_text_from_pdf(cls, pdf_path: str) -> str:
+        """Extract text directly from text-based PDF using pdfplumber."""
+        if pdfplumber is None:
+            print("PDFPlumber not available, skipping text extraction")
+            return ""
+        
         text_parts = []
         try:
-            images = convert_from_path(pdf_path, dpi=200)
-            print(f"PDF has {len(images)} pages")
-            for i, image in enumerate(images):
-                print(f"Processing page {i+1}/{len(images)}")
-                text = pytesseract.image_to_string(image)
-                text_parts.append(text)
-                page_lines = text.split('\n')
-                non_empty = [l for l in page_lines if l.strip()]
-                print(f"Page {i+1}: {len(page_lines)} lines, {len(non_empty)} non-empty")
-                # Print first 20 non-empty lines of each page for debugging
-                for j, line in enumerate(non_empty[:20]):
-                    print(f"  Page{i+1} Line{j}: {line[:100]}")
+            with pdfplumber.open(pdf_path) as pdf:
+                print(f"PDF has {len(pdf.pages)} pages (pdfplumber)")
+                for i, page in enumerate(pdf.pages):
+                    text = page.extract_text()
+                    if text:
+                        text_parts.append(text)
+                        lines = text.split('\n')
+                        non_empty = [l for l in lines if l.strip()]
+                        print(f"Page {i+1} (pdfplumber): {len(non_empty)} non-empty lines")
+                    else:
+                        print(f"Page {i+1} (pdfplumber): No text extracted")
         except Exception as e:
-            print(f"PDF extraction error: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"PDFPlumber extraction error: {e}")
+            return ""
         
         full_text = "\n".join(text_parts)
-        print(f"\nTotal extracted text: {len(full_text)} chars, {len(full_text.split(chr(10)))} lines")
+        print(f"\nPDFPlumber total text: {len(full_text)} chars")
         return full_text
     
     @classmethod
@@ -144,10 +194,106 @@ class FileExtractionService:
             import traceback
             traceback.print_exc()
             return ""
+
+    @classmethod
+    def _extract_from_word(cls, file_path: str) -> str:
+        """Extract text from Word document (.doc, .docx)."""
+        try:
+            if docx is None:
+                print("python-docx not available, cannot extract Word document")
+                return ""
+            
+            print(f"Extracting text from Word: {file_path}")
+            doc = docx.Document(file_path)
+            
+            text_parts = []
+            # Extract from paragraphs
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    text_parts.append(para.text.strip())
+            
+            # Extract from tables (important for operation data)
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = []
+                    for cell in row.cells:
+                        cell_text = cell.text.strip()
+                        if cell_text:
+                            row_text.append(cell_text)
+                    if row_text:
+                        text_parts.append(' '.join(row_text))
+            
+            full_text = '\n'.join(text_parts)
+            print(f"Word document extracted: {len(full_text)} chars, {len(text_parts)} lines/rows")
+            return full_text
+            
+        except Exception as e:
+            print(f"Word extraction error: {e}")
+            import traceback
+            traceback.print_exc()
+            return ""
+
+    @classmethod
+    def _extract_from_excel(cls, file_path: str) -> str:
+        """Extract text from Excel file (.xls, .xlsx)."""
+        try:
+            print(f"Extracting text from Excel: {file_path}")
+            text_parts = []
+            
+            # Try openpyxl first for .xlsx
+            if file_path.endswith('.xlsx') and openpyxl is not None:
+                print("Using openpyxl for .xlsx extraction")
+                wb = openpyxl.load_workbook(file_path, data_only=True)
+                for sheet_name in wb.sheetnames:
+                    sheet = wb[sheet_name]
+                    print(f"Processing sheet: {sheet_name}")
+                    for row in sheet.iter_rows():
+                        row_values = []
+                        for cell in row:
+                            if cell.value is not None:
+                                row_values.append(str(cell.value).strip())
+                        if row_values:
+                            text_parts.append(' '.join(row_values))
+                            
+            # Try xlrd for .xls
+            elif file_path.endswith('.xls') and xlrd is not None:
+                print("Using xlrd for .xls extraction")
+                wb = xlrd.open_workbook(file_path)
+                for sheet_idx in range(wb.nsheets):
+                    sheet = wb.sheet_by_index(sheet_idx)
+                    print(f"Processing sheet: {sheet.name}")
+                    for row_idx in range(sheet.nrows):
+                        row_values = []
+                        for col_idx in range(sheet.ncols):
+                            cell_value = sheet.cell_value(row_idx, col_idx)
+                            if cell_value is not None and str(cell_value).strip():
+                                row_values.append(str(cell_value).strip())
+                        if row_values:
+                            text_parts.append(' '.join(row_values))
+            else:
+                print(f"No Excel library available for {file_path}")
+                return ""
+            
+            full_text = '\n'.join(text_parts)
+            print(f"Excel file extracted: {len(full_text)} chars, {len(text_parts)} rows")
+            return full_text
+            
+        except Exception as e:
+            print(f"Excel extraction error: {e}")
+            import traceback
+            traceback.print_exc()
+            return ""
     
     @classmethod
     def extract_multiple_operations(cls, text: str) -> list:
         """Extract multiple operations from text - detects table rows and operation sections."""
+        
+        # First, try the new PDF format extraction (for "Operation X: Name" with two-column tables)
+        pdf_format_ops = cls.extract_operations_from_pdf_format(text)
+        if pdf_format_ops:
+            print(f"\n✓ Extracted {len(pdf_format_ops)} operations using PDF format parser")
+            return pdf_format_ops
+        
         operations = []
         lines = text.split('\n')
         
@@ -719,46 +865,6 @@ class FileExtractionService:
                         # Normalize aluminium spelling
                         if value.lower() in ['aluminium', 'aluminum']:
                             return 'aluminium'
-                        return value.lower()
-        return None
-    
-    @classmethod
-    def _extract_machine(cls, text: str, lines: list) -> Optional[str]:
-        """Extract machine name from text - case insensitive."""
-        text_lower = text.lower()
-        
-        # First try to match rubber press sizes with descriptions (BEFORE any other checks)
-        # Look for the size descriptors that appear in the table - handle OCR errors
-        rubber_press_patterns = [
-            (r'small\s*\(?\s*less\s+than\s*650', 'Small (less than 650 MMX 650 MM)'),
-            (r'medium\s*\(?\s*more\s+than\s*650', 'Medium (more than 650 MMX 650 MM)'),
-            (r'small\s*\([^)]*650[^)]*mm[^)]*\)', 'Small (less than 650 MMX 650 MM)'),
-            (r'medium\s*\([^)]*650[^)]*mm[^)]*\)', 'Medium (more than 650 MMX 650 MM)'),
-            (r'large\s*\([^)]*mm[^)]*\)', 'Large'),
-            # Handle OCR errors where 'Small' becomes 'Shel', etc.
-            (r'she[l1]\b', 'Small (less than 650 MMX 650 MM)'),
-            (r'med[i1]um\b', 'Medium (more than 650 MMX 650 MM)'),
-            (r'small\b', 'Small (less than 650 MMX 650 MM)'),  # Just "Small"
-            (r'medium\b', 'Medium (more than 650 MMX 650 MM)'),  # Just "Medium"
-            (r'large\b', 'Large'),  # Just "Large"
-        ]
-        
-        is_rubber_press = 'rubber' in text_lower
-        
-        for pattern, default_name in rubber_press_patterns:
-            match = re.search(pattern, text_lower, re.IGNORECASE)
-            if match:
-                # If this is a rubber press line, return the size
-                if is_rubber_press:
-                    return default_name
-        
-        # Check for specific CNC patterns FIRST (before standalone CNC)
-        multi_axis_match = re.search(r'\b(?:3|4|5)\s*axis\s+cnc\b', text_lower, re.IGNORECASE)
-        if multi_axis_match:
-            # Extract the full pattern like "3 axis CNC"
-            return multi_axis_match.group(0).title()
-        
-        # Check for standalone CNC (but not part of other words) - AFTER multi-axis check
         if re.search(r'\bcnc\b', text_lower):
             # Make sure it's not already part of a longer machine name we extracted
             return 'CNC'
@@ -824,39 +930,362 @@ class FileExtractionService:
                         continue
         return None
 
+    @classmethod
+    def extract_operations_from_pdf_format(cls, text: str) -> list:
+        """Extract operations from PDF with 'Operation X: Name' header format and two-column tables."""
+        operations = []
+        lines = text.split('\n')
+        
+        print(f"\n=== PDF Format Extraction: {len(lines)} lines ===")
+        
+        # Pattern to match "Operation X: Name" - more flexible
+        operation_header_pattern = re.compile(
+            r'operation\s*(\d+)\s*[:\-]?\s*(turning|milling|drilling|grinding|boring|welding|heat treatment|surface treatment|jig boring|rubber press|rubber)',
+            re.IGNORECASE
+        )
+        
+        # Alternative: just match "Operation X" and capture next words
+        simple_op_pattern = re.compile(
+            r'operation\s*(\d+)',
+            re.IGNORECASE
+        )
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            line_lower = line.lower()
+            
+            if not line:
+                i += 1
+                continue
+            
+            # Check for operation header with operation type
+            op_match = operation_header_pattern.search(line)
+            
+            # If not found, try simple pattern and look for operation type in same line
+            if not op_match:
+                simple_match = simple_op_pattern.search(line)
+                if simple_match:
+                    op_num = simple_match.group(1)
+                    # Look for operation type in the rest of the line
+                    op_type = None
+                    for opt in ['turning', 'milling', 'drilling', 'grinding', 'boring', 'welding', 'heat', 'surface', 'jig', 'rubber']:
+                        if opt in line_lower:
+                            op_type = opt
+                            break
+                    if op_type:
+                        op_match = simple_match
+            
+            if op_match:
+                op_num = op_match.group(1)
+                # Try to get operation type from the match, otherwise detect from line
+                try:
+                    op_type = op_match.group(2).lower() if hasattr(op_match, 'group') and len(op_match.groups()) > 1 else None
+                except:
+                    op_type = None
+                
+                if not op_type:
+                    # Detect from the line
+                    for opt in ['turning', 'milling', 'drilling', 'grinding', 'boring', 'welding', 'heat', 'surface', 'jig', 'rubber']:
+                        if opt in line_lower:
+                            op_type = opt
+                            break
+                
+                # Normalize operation type
+                if op_type:
+                    if 'jig' in op_type:
+                        op_type = 'boring'
+                    elif 'rubber' in op_type:
+                        op_type = 'rubber_press'
+                    elif 'heat' in op_type:
+                        op_type = 'heat_treatment'
+                    elif 'surface' in op_type:
+                        op_type = 'surface_treatment'
+                    elif 'mill' in op_type:
+                        op_type = 'milling'
+                    elif ' ' in op_type:
+                        op_type = op_type.replace(' ', '_')
+                else:
+                    op_type = 'unknown'
+                
+                print(f"\n--- Found Operation {op_num}: {op_type} at line {i} ---")
+                print(f"  Line content: {line[:100]}")
+                
+                # Collect all lines until next operation header or end
+                operation_lines = []
+                j = i + 1
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    # Check if next line is a new operation header
+                    if simple_op_pattern.search(next_line.lower()):
+                        break
+                    if next_line:
+                        operation_lines.append(next_line)
+                    j += 1
+                
+                print(f"  Collected {len(operation_lines)} lines for operation")
+                
+                # Parse operation details from collected lines
+                details = cls._parse_generated_pdf_table('\n'.join(operation_lines), op_type)
+                
+                if details:
+                    operations.append(details)
+                    print(f"  ✓ Extracted: {details}")
+                else:
+                    print(f"  ✗ Failed to parse operation details")
+                
+                i = j  # Skip to next operation
+            else:
+                i += 1
+        
+        print(f"\n=== Total operations extracted: {len(operations)} ===")
+        return operations
+
+    @classmethod
+    def _parse_generated_pdf_table(cls, text: str, operation_type: str) -> Optional[dict]:
+        """Parse generated PDF table format with two-column Label: Value pairs."""
+        lines = text.split('\n')
+        
+        details = {
+            'operation_type': operation_type,
+            'material': None,
+            'machine': None,
+            'man_hours': None,
+            'duty_category': None,
+            'machine_setup_time': None,
+            'cycle_time': None,
+            'diameter': None,
+            'length': None,
+            'breadth': None,
+            'height': None,
+            'shape': None
+        }
+        
+        # Join all lines and also keep individual lines for pattern matching
+        full_text = ' '.join(lines)
+        full_text_lower = full_text.lower()
+        
+        print(f"  Parsing PDF table: {len(lines)} lines")
+        print(f"  Full text preview: {full_text[:200]}...")
+        
+        # Extract Material - look for "Material:" followed by value
+        material_patterns = [
+            r'material[:\s]+(\w+)',
+            r'material\s+(\w+)',
+        ]
+        for pattern in material_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                mat = match.group(1).lower()
+                if mat in ['steel', 'aluminium', 'aluminum', 'titanium', 'brass', 'copper']:
+                    details['material'] = mat if mat != 'aluminum' else 'aluminium'
+                    print(f"    Found material: {details['material']}")
+                    break
+        
+        # Extract Machine - look for "Machine:" followed by machine name
+        machine_patterns = [
+            r'machine[:\s]+([^\n]+?)(?:\s+(?:duty|setup|cycle|man|diameter|length|shape|$))',
+            r'machine[:\s]+([^\n,]+)',
+        ]
+        for pattern in machine_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                machine = match.group(1).strip()
+                if machine and machine not in ['', 'duty', 'setup', 'cycle']:
+                    details['machine'] = machine
+                    print(f"    Found machine: {details['machine']}")
+                    break
+        
+        # If pattern didn't work, try simple search
+        if not details['machine']:
+            # Look for common machine names in the text
+            machine_keywords = ['drilling machine', 'cnc', 'lathe', 'milling machine', '3 axis cnc', '5 axis cnc', 
+                              'grinding machine', 'welding machine', 'boring machine', 'press', 'heat treatment']
+            for keyword in machine_keywords:
+                if keyword in full_text_lower:
+                    details['machine'] = keyword.title()
+                    print(f"    Found machine (keyword): {details['machine']}")
+                    break
+        
+        # Extract Man Hours/Unit - handle "Man Hours/Unit:" format
+        man_hours_patterns = [
+            r'man\s+hours?[/\s]+unit[:\s]+(\d+(?:\.\d+)?)',
+            r'man\s+hours?[:\s]+(\d+(?:\.\d+)?)',
+            r'hours?[/\s]+unit[:\s]+(\d+(?:\.\d+)?)',
+            r'man\s+hrs?[:\s]+(\d+(?:\.\d+)?)',
+        ]
+        for pattern in man_hours_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                details['man_hours'] = float(match.group(1))
+                print(f"    Found man_hours: {details['man_hours']}")
+                break
+        
+        # Extract Duty Category
+        duty_patterns = [
+            r'duty\s+category[:\s]+(light|medium|heavy)',
+            r'duty[:\s]+(light|medium|heavy)',
+        ]
+        for pattern in duty_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                details['duty_category'] = match.group(1).lower()
+                print(f"    Found duty_category: {details['duty_category']}")
+                break
+        
+        # If no duty category found, search in full text
+        if not details['duty_category']:
+            for duty in ['heavy duty', 'medium duty', 'light duty']:
+                if duty in full_text_lower:
+                    details['duty_category'] = duty.split()[0]
+                    print(f"    Found duty_category (text): {details['duty_category']}")
+                    break
+            # Also check for standalone duty words
+            if not details['duty_category']:
+                for duty in ['heavy', 'medium', 'light']:
+                    pattern = rf'\b{duty}\b'
+                    if re.search(pattern, full_text_lower):
+                        # Make sure it's not part of machine name or material
+                        if duty not in ['material', 'machine']:
+                            details['duty_category'] = duty
+                            print(f"    Found duty_category (word): {details['duty_category']}")
+                            break
+        
+        # Extract Setup Time (min)
+        setup_patterns = [
+            r'setup\s+time\s*\(?min\)?[:\s]+(\d+(?:\.\d+)?)',
+            r'setup\s+time[:\s]+(\d+(?:\.\d+)?)',
+            r'setup[:\s]+(\d+(?:\.\d+)?)',
+        ]
+        for pattern in setup_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                details['machine_setup_time'] = float(match.group(1))
+                print(f"    Found setup_time: {details['machine_setup_time']}")
+                break
+        
+        # Extract Cycle Time (min)
+        cycle_patterns = [
+            r'cycle\s+time\s*\(?min\)?[:\s]+(\d+(?:\.\d+)?)',
+            r'cycle\s+time[:\s]+(\d+(?:\.\d+)?)',
+            r'cycle[:\s]+(\d+(?:\.\d+)?)',
+        ]
+        for pattern in cycle_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                details['cycle_time'] = float(match.group(1))
+                print(f"    Found cycle_time: {details['cycle_time']}")
+                break
+        
+        # Extract dimensions based on operation type
+        is_milling = 'mill' in operation_type.lower()
+        
+        if is_milling:
+            # For milling: Length, Breadth, Height (no diameter)
+            length_match = re.search(r'length[:\s]+(\d+(?:\.\d+)?)', full_text_lower)
+            if length_match:
+                details['length'] = float(length_match.group(1))
+                print(f"    Found length: {details['length']}")
+            
+            breadth_match = re.search(r'breadth[:\s]+(\d+(?:\.\d+)?)', full_text_lower)
+            if breadth_match:
+                details['breadth'] = float(breadth_match.group(1))
+                print(f"    Found breadth: {details['breadth']}")
+            
+            height_match = re.search(r'height[:\s]+(\d+(?:\.\d+)?)', full_text_lower)
+            if height_match:
+                details['height'] = float(height_match.group(1))
+                print(f"    Found height: {details['height']}")
+        else:
+            # For other operations: Diameter, Length
+            diameter_match = re.search(r'diameter[:\s]+(\d+(?:\.\d+)?)', full_text_lower)
+            if diameter_match:
+                details['diameter'] = float(diameter_match.group(1))
+                print(f"    Found diameter: {details['diameter']}")
+            
+            length_match = re.search(r'length[:\s]+(\d+(?:\.\d+)?)', full_text_lower)
+            if length_match:
+                details['length'] = float(length_match.group(1))
+                print(f"    Found length: {details['length']}")
+        
+        # Extract Shape
+        shape_patterns = [
+            r'shape[:\s]+(round|rectangular|square|cylindrical)',
+            r'shape\s+(round|rectangular|square|cylindrical)',
+        ]
+        for pattern in shape_patterns:
+            match = re.search(pattern, full_text_lower)
+            if match:
+                details['shape'] = match.group(1).lower()
+                print(f"    Found shape: {details['shape']}")
+                break
+        
+        # If shape not found via pattern, search in text
+        if not details['shape']:
+            for shape in ['round', 'rectangular', 'square', 'cylindrical']:
+                if shape in full_text_lower:
+                    details['shape'] = shape
+                    print(f"    Found shape (text): {details['shape']}")
+                    break
+        
+        # Debug output
+        print(f"  Parsed details: material={details['material']}, machine={details['machine']}, "
+              f"man_hours={details['man_hours']}, duty={details['duty_category']}")
+        
+        # If we have at least material or machine or man_hours, consider it valid
+        if any([details['material'], details['machine'], details['man_hours']]):
+            return details
+        
+        print(f"  ✗ Not enough data extracted - rejecting operation")
+        return None
+
 
 def extract_from_uploaded_file(file_path: str) -> dict:
-    """Main function to extract operation details from uploaded file."""
+    """Extract operation details from an uploaded file."""
+    print(f"\n{'='*60}")
+    print(f"EXTRACTING FROM FILE: {file_path}")
+    print(f"File exists: {os.path.exists(file_path)}")
+    print(f"File size: {os.path.getsize(file_path) if os.path.exists(file_path) else 'N/A'} bytes")
+    print(f"PDFPlumber available: {pdfplumber is not None}")
+    print(f"Tesseract available: {TESSERACT_AVAILABLE}")
+    print(f"{'='*60}\n")
+    
+    result = {
+        "text_preview": "",
+        "extracted_data": {},
+        "success": False,  # Changed from extraction_success to success
+        "operations": []
+    }
+    
     try:
+        # Extract text from file
         text = FileExtractionService.extract_text_from_file(file_path)
-        print(f"\n{'='*60}")
-        print(f"EXTRACTED TEXT (first 1000 chars):")
-        print(f"{'='*60}")
-        print(text[:1000] if text else "NO TEXT EXTRACTED")
-        print(f"\n{'='*60}")
-        print(f"Total text length: {len(text)} characters")
-        print(f"{'='*60}\n")
+        result["text_preview"] = text[:500] if text else ""
         
-        # Extract multiple operations instead of single operation
+        print(f"\n--- Extracted text length: {len(text)} chars ---")
+        print(f"First 200 chars: {text[:200]}")
+        print(f"Last 200 chars: {text[-200:] if len(text) > 200 else text}")
+        
+        if not text or not text.strip():
+            print("ERROR: No text extracted from file!")
+            result["error"] = "No text could be extracted from the file"
+            return result
+        
+        # Try to extract operations
         operations = FileExtractionService.extract_multiple_operations(text)
-        print(f"EXTRACTED {len(operations)} OPERATIONS: {operations}")
+        print(f"\n--- Extracted {len(operations)} operations ---")
+        for i, op in enumerate(operations):
+            print(f"  Op {i+1}: {op.get('operation_type', 'unknown')} - {op.get('material', 'no material')}")
         
-        # Return array if multiple operations, or single object if only one
-        extracted_data = operations if len(operations) > 1 else (operations[0] if operations else {})
+        result["operations"] = operations
+        result["extracted_data"] = {"operation_count": len(operations), "operations": operations}
+        result["success"] = len(operations) > 0  # Changed from extraction_success to success
         
-        return {
-            'success': True,
-            'text': text[:2000] if len(text) > 2000 else text,
-            'text_length': len(text),
-            'operation_count': len(operations),
-            'extracted_data': extracted_data
-        }
     except Exception as e:
+        print(f"ERROR during extraction: {e}")
         import traceback
-        print(f"EXTRACTION ERROR: {e}")
         traceback.print_exc()
-        return {
-            'success': False,
-            'error': str(e),
-            'extracted_data': {}
-        }
+        result["error"] = str(e)
+    
+    print(f"\n--- Final result: success={result['success']}, operations={len(result.get('operations', []))}")
+    return result

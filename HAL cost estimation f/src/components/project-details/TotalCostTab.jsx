@@ -167,59 +167,48 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                     <TableRow sx={{ bgcolor: "rgba(30,41,59,0.85)" }}>
                                         <TableCell>Cost Component</TableCell>
                                         <TableCell>Total Value</TableCell>
-                                        <TableCell>Average per Part</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     <TableRow>
                                         <TableCell>Total Man Hours</TableCell>
                                         <TableCell>{totalCosts.man_hours_total.toFixed(2)}</TableCell>
-                                        <TableCell>{(totalCosts.man_hours_total / partCount).toFixed(2)}</TableCell>
                                     </TableRow>
                                     <TableRow sx={{ bgcolor: "rgba(30,41,59,0.45)" }}>
                                         <TableCell>Machine Hour Rate (Avg)</TableCell>
                                         <TableCell>{formatValue("machine_hour_rate", totalCosts.machine_hour_rate / partCount)}</TableCell>
-                                        <TableCell>per hour</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>Wage Rate (Avg)</TableCell>
                                         <TableCell>{formatValue("wage_rate", totalCosts.wage_rate / partCount)}</TableCell>
-                                        <TableCell>per hour</TableCell>
                                     </TableRow>
                                     <TableRow sx={{ bgcolor: "rgba(30,41,59,0.45)" }}>
                                         <TableCell>Total Basic Cost</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("basic_cost", totalCosts.basic_cost)}</TableCell>
-                                        <TableCell>{formatValue("basic_cost", totalCosts.basic_cost / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>Total Overheads</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("overheads", totalCosts.overheads)}</TableCell>
-                                        <TableCell>{formatValue("overheads", totalCosts.overheads / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow sx={{ bgcolor: "rgba(30,41,59,0.45)" }}>
                                         <TableCell>Total Profit</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("profit", totalCosts.profit)}</TableCell>
-                                        <TableCell>{formatValue("profit", totalCosts.profit / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>Total Packing & Forwarding</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("packing", totalCosts.packing_forwarding)}</TableCell>
-                                        <TableCell>{formatValue("packing", totalCosts.packing_forwarding / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow sx={{ bgcolor: "rgba(30,41,59,0.45)" }}>
                                         <TableCell>Total Miscellaneous</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("miscellaneous_amount", totalCosts.miscellaneous_amount)}</TableCell>
-                                        <TableCell>{formatValue("miscellaneous_amount", totalCosts.miscellaneous_amount / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>Total Project Cost</TableCell>
                                         <TableCell fontWeight="bold">{formatValue("total_cost", totalCosts.unit_cost)}</TableCell>
-                                        <TableCell>{formatValue("total_cost", totalCosts.unit_cost / partCount)}</TableCell>
                                     </TableRow>
                                     <TableRow sx={{ bgcolor: "rgba(34,197,94,0.15)" }}>
                                         <TableCell sx={{ fontWeight: "bold" }}>Total Project Cost with Misc</TableCell>
                                         <TableCell sx={{ fontWeight: "bold", color: "success.main", fontSize: "1.05rem" }}>{formatValue("total_cost", totalCosts.total_unit_cost_with_misc)}</TableCell>
-                                        <TableCell>{formatValue("total_cost", totalCosts.total_unit_cost_with_misc / partCount)}</TableCell>
                                     </TableRow>
                                 </TableBody>
                             </Table>
