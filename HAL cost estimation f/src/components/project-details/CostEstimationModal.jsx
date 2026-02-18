@@ -1115,7 +1115,7 @@ function CostEstimationModal({
                                 "&:hover": { bgcolor: "rgba(15,23,42,0.25)" },
                             }}
                         >
-                            Download PDF
+                            Download Report
                         </Button>
                         <Button autoFocus color="inherit" onClick={onClose} sx={{ textTransform: "none", fontWeight: 700 }}>
                             Close
@@ -1379,7 +1379,7 @@ function CostEstimationModal({
                                                                         pt: 1
                                                                     }}
                                                                 >
-                                                                    <Grid item sx={{ minWidth: 120, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "1.3 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             select
                                                                             label="Operation Type"
@@ -1391,7 +1391,7 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="small"
                                                                             InputLabelProps={{ shrink: true }}
-                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
                                                                         >
                                                                             {operationTypeOptions.map((opt) => (
                                                                                 <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)} sx={{ fontSize: '0.8rem' }}>
@@ -1401,7 +1401,7 @@ function CostEstimationModal({
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item sx={{ minWidth: 90, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             select
                                                                             label="Material"
@@ -1410,7 +1410,7 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="small"
                                                                             InputLabelProps={{ shrink: true }}
-                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
                                                                         >
                                                                             <MenuItem value="steel" sx={{ fontSize: '0.8rem' }}>Steel</MenuItem>
                                                                             <MenuItem value="aluminium" sx={{ fontSize: '0.8rem' }}>Aluminium</MenuItem>
@@ -1418,7 +1418,7 @@ function CostEstimationModal({
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item sx={{ minWidth: 120, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "2 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             select
                                                                             label="Machine"
@@ -1427,7 +1427,7 @@ function CostEstimationModal({
                                                                             fullWidth
                                                                             size="small"
                                                                             InputLabelProps={{ shrink: true }}
-                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
                                                                         >
                                                                             <MenuItem value="" sx={{ fontSize: '0.8rem' }}>Select</MenuItem>
                                                                             {machinesForOp.map((m) => (
@@ -1438,7 +1438,7 @@ function CostEstimationModal({
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item sx={{ minWidth: 80, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             label="Man Hours"
                                                                             type="number"
@@ -1453,7 +1453,7 @@ function CostEstimationModal({
                                                                         />
                                                                     </Grid>
 
-                                                                    <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             select
                                                                             label="Duty"
@@ -1463,7 +1463,7 @@ function CostEstimationModal({
                                                                             size="small"
                                                                             required={Boolean(needsManualDutyForOp)}
                                                                             InputLabelProps={{ shrink: true }}
-                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
                                                                         >
                                                                             <MenuItem value="" sx={{ fontSize: '0.8rem' }}>Select</MenuItem>
                                                                             <MenuItem value="light" sx={{ fontSize: '0.8rem' }}>Light</MenuItem>
@@ -1473,7 +1473,7 @@ function CostEstimationModal({
                                                                     </Grid>
 
                                                                     {showRoundDims && (
-                                                                        <Grid item sx={{ minWidth: 80, flex: "0 0 auto" }}>
+                                                                        <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                             <TextField
                                                                                 select
                                                                                 label="Shape"
@@ -1482,7 +1482,7 @@ function CostEstimationModal({
                                                                                 fullWidth
                                                                                 size="small"
                                                                                 InputLabelProps={{ shrink: true }}
-                                                                                sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                                sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
                                                                             >
                                                                                 <MenuItem value="round" sx={{ fontSize: '0.8rem' }}>Round</MenuItem>
                                                                                 <MenuItem value="rectangular" sx={{ fontSize: '0.8rem' }}>Rectangular</MenuItem>
@@ -1490,7 +1490,7 @@ function CostEstimationModal({
                                                                         </Grid>
                                                                     )}
 
-                                                                    <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                         <TextField
                                                                             label="Length"
                                                                             type="number"
@@ -1506,7 +1506,7 @@ function CostEstimationModal({
                                                                     </Grid>
 
                                                                     {showRoundDims && (
-                                                                        <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                        <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                             <TextField
                                                                                 label="Diameter"
                                                                                 type="number"
@@ -1524,7 +1524,7 @@ function CostEstimationModal({
 
                                                                     {showRectangularDims && (
                                                                         <>
-                                                                            <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                            <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                                 <TextField
                                                                                     label="Breadth"
                                                                                     type="number"
@@ -1538,7 +1538,7 @@ function CostEstimationModal({
                                                                                     sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                                 />
                                                                             </Grid>
-                                                                            <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                            <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                                 <TextField
                                                                                     label="Height"
                                                                                     type="number"
@@ -1683,7 +1683,7 @@ function CostEstimationModal({
                                             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
                                                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                                                     <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
-                                                        Global Miscellaneous Costs
+                                                        Miscellaneous Costs
                                                     </Typography>
                                                     <Button
                                                         size="small"
@@ -1866,7 +1866,7 @@ function CostEstimationModal({
                                                         ))}
                                                         {partMiscTotal > 0 && (
                                                             <TableRow sx={{ bgcolor: "rgba(30,64,175,0.08)" }}>
-                                                                <TableCell sx={{ color: "#38bdf8", fontWeight: 800 }}>Global Miscellaneous</TableCell>
+                                                                <TableCell sx={{ color: "#38bdf8", fontWeight: 800 }}>Miscellaneous</TableCell>
                                                                 <TableCell align="right" sx={{ color: "#38bdf8", fontWeight: 800 }}>
                                                                     {formatValue("miscellaneous_amount", partMiscTotal)}
                                                                 </TableCell>
@@ -2018,7 +2018,7 @@ function CostEstimationModal({
                         </Box>
                     </Paper>
 
-                    {/* Global Misc Summary */}
+                    {/* Miscellaneous Summary */}
                     {partMiscTotal > 0 && (
                         <Paper
                             variant="outlined"
@@ -2030,7 +2030,7 @@ function CostEstimationModal({
                             }}
                         >
                             <Typography variant="subtitle2" sx={{ color: "#38bdf8", mb: 1 }}>
-                                Global Miscellaneous
+                                Miscellaneous
                             </Typography>
                             <Typography variant="h6" fontWeight={900} sx={{ color: "#38bdf8" }}>
                                 {formatValue("miscellaneous_amount", partMiscTotal)}
@@ -2173,12 +2173,12 @@ function CostEstimationModal({
                             </TableContainer>
                         </Box>
 
-                        {/* Global Miscellaneous Section in PDF */}
+                        {/* Miscellaneous Section in PDF */}
                         {partMiscTotal > 0 && (
                             <Box sx={{ mt: 2.5 }}>
                                 <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)", borderRadius: 1.5 }}>
                                     <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
-                                        Global Miscellaneous Costs
+                                        Miscellaneous Costs
                                     </Typography>
                                 </Box>
                                 <TableContainer sx={{ mt: 1.5, border: "1px solid rgba(148,163,184,0.18)", borderRadius: 1.5, overflow: "hidden" }}>
@@ -2320,7 +2320,7 @@ function CostEstimationModal({
                         startIcon={<DownloadIcon />}
                         sx={{ textTransform: "none", fontWeight: 900, bgcolor: "#38bdf8", "&:hover": { bgcolor: "#0ea5e9" } }}
                     >
-                        Download PDF
+                        Download Report
                     </Button>
                 </DialogActions>
             </Dialog>

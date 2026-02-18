@@ -57,6 +57,9 @@ const MARGIN = 10;
 // Max operations per page for detailed breakdown
 const MAX_OPS_PER_PAGE = 5;
 
+// Max operations per page for summary table
+const SUMMARY_OPS_PER_PAGE = 10;
+
 const PdfReportExport = ({
   open,
   onClose,
@@ -102,6 +105,22 @@ const PdfReportExport = ({
 
   const summaryRows = getOperationSummary();
   const totalAmount = summaryRows.reduce((sum, r) => sum + r.value, 0);
+  const totalUnitCost = (Array.isArray(operationResults) ? operationResults : []).reduce((sum, r) => {
+    const n = Number(r?.cost_breakdown?.unit_cost);
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+
+  const getSummaryChunks = () => {
+    const rows = Array.isArray(summaryRows) ? summaryRows : [];
+    const chunks = [];
+    for (let i = 0; i < rows.length; i += SUMMARY_OPS_PER_PAGE) {
+      chunks.push(rows.slice(i, i + SUMMARY_OPS_PER_PAGE));
+    }
+    return chunks.length ? chunks : [[]];
+  };
+
+  const summaryChunks = getSummaryChunks();
+  const summaryPages = summaryChunks.length;
 
   // Get metrics for all operations
   const getMetrics = useCallback(() => {
@@ -161,6 +180,8 @@ const PdfReportExport = ({
   
   const operationChunks = getOperationChunks();
   const totalDetailPages = operationChunks.length;
+
+  const totalPages = 1 + summaryPages + totalDetailPages;
   
   // Filter out miscellaneous_amount from per-operation metrics since we have global misc now
   const filteredMetricKeys =
@@ -299,7 +320,7 @@ const PdfReportExport = ({
             boxSizing: "border-box",
           }}
         >
-          {/* PAGE 1: Header, Drawing, Operation Summary */}
+          {/* PAGE 1: Header + Full 2D Drawing only */}
           <Box data-page="1" sx={{ minHeight: "1123px", bgcolor: "#ffffff", display: "flex", flexDirection: "column" }}>
             {/* HEADER SECTION */}
             <Box
@@ -454,8 +475,8 @@ const PdfReportExport = ({
               </Box>
             </Box>
 
-            {/* 2D DRAWING SECTION */}
-            <Box sx={{ p: "15mm", pt: "12mm" }}>
+            {/* 2D DRAWING SECTION - Full Page */}
+            <Box sx={{ p: "15mm", pt: "12mm", flex: 1, display: "flex", flexDirection: "column" }}>
               <Box
                 sx={{
                   mb: 3,
@@ -482,7 +503,7 @@ const PdfReportExport = ({
                   border: "1pt solid #e2e8f0",
                   borderRadius: "4pt",
                   overflow: "hidden",
-                  height: "320px",
+                  flex: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -521,43 +542,117 @@ const PdfReportExport = ({
               </Box>
             </Box>
 
-            {/* OPERATION SUMMARY SECTION */}
-            <Box sx={{ px: "15mm", py: "8mm", flex: 1 }}>
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  sx={{
-                    fontSize: "13pt",
-                    fontWeight: "bold",
-                    color: "#1e3a5f",
-                    textAlign: "center",
-                    pb: 1,
-                    borderBottom: "2pt solid #38bdf8",
-                    display: "inline-block",
-                    width: "100%",
-                  }}
-                >
-                  OPERATION COST SUMMARY
+            {/* PAGE 1 FOOTER */}
+            <Box
+              sx={{
+                mt: "auto",
+                p: "15mm",
+                pt: "8mm",
+                borderTop: "3pt solid #d4af37",
+                bgcolor: "#1e3a5f",
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography sx={{ fontSize: "8pt", color: "#94a3b8" }}>
+                  HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
+                </Typography>
+                <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
+                  Page 1 of {totalPages}
                 </Typography>
               </Box>
+            </Box>
+          </Box>
 
-              {/* Summary Table */}
-              <Box
-                sx={{
-                  border: "1pt solid #d4af37",
-                  borderRadius: "4pt",
-                  overflow: "hidden",
-                  boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
-                }}
-              >
-                {/* Table Header */}
+          {/* OPERATION COST SUMMARY PAGES (10 ops per page) */}
+          {summaryChunks.map((pageRows, summaryIndex) => {
+            const pageNumber = 2 + summaryIndex; // Page 2..(1+summaryPages)
+            const isLastSummaryPage = summaryIndex === summaryChunks.length - 1;
+            const startOp = summaryIndex * SUMMARY_OPS_PER_PAGE + 1;
+            const endOp = startOp + Math.max(0, pageRows.length - 1);
+            return (
+              <Box key={`summary-page-${summaryIndex}`} data-page={pageNumber} sx={{ minHeight: "1123px", bgcolor: "#ffffff", display: "flex", flexDirection: "column" }}>
+                {/* Header */}
                 <Box
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: "50px 1.5fr 1fr 1fr 1.2fr",
+                    p: "15mm",
+                    pb: "10mm",
+                    borderBottom: "4pt solid #d4af37",
                     bgcolor: "#1e3a5f",
-                    color: "#d4af37",
                   }}
                 >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontSize: "18pt",
+                          fontWeight: "bold",
+                          color: "#ffffff",
+                          letterSpacing: "0.5pt",
+                        }}
+                      >
+                        {title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "10pt",
+                          color: "#d4af37",
+                          fontWeight: 500,
+                        }}
+                      >
+                        Operation Cost Summary{summaryRows.length > SUMMARY_OPS_PER_PAGE ? ` (${startOp}-${endOp})` : ""}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right" }}>
+                      <Box sx={{ bgcolor: "#d4af37", color: "#1e3a5f", px: "10pt", py: "4pt", borderRadius: "3pt", mb: 0.5 }}>
+                        <Typography sx={{ fontSize: "10pt", fontWeight: "bold" }}>
+                          Part: {part?.part_number || "N/A"}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: "8pt", color: "#94a3b8", mt: 0.5 }}>
+                        Page {pageNumber}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* SUMMARY SECTION */}
+                <Box sx={{ px: 0, py: "12mm", flex: 1 }}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "13pt",
+                        fontWeight: "bold",
+                        color: "#1e3a5f",
+                        textAlign: "center",
+                        pb: 1,
+                        borderBottom: "2pt solid #38bdf8",
+                        display: "inline-block",
+                        width: "100%",
+                      }}
+                    >
+                      OPERATION COST SUMMARY
+                    </Typography>
+                  </Box>
+
+                  {/* Summary Table */}
+                  <Box
+                    sx={{
+                      border: "1pt solid #d4af37",
+                      overflow: "hidden",
+                      boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                      width: "100%",
+                    }}
+                  >
+                    {/* Table Header */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                        bgcolor: "#1e3a5f",
+                        color: "#d4af37",
+                        alignItems: "center",
+                      }}
+                    >
                   <Box sx={{ p: "8pt", textAlign: "center" }}>
                     <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
                       S.No
@@ -584,178 +679,167 @@ const PdfReportExport = ({
                     </Typography>
                   </Box>
                 </Box>
+                    {/* Table Body */}
+                    {pageRows.length === 0 ? (
+                      <Box sx={{ p: "12pt", textAlign: "center", bgcolor: "#f8fafc" }}>
+                        <Typography sx={{ color: "#64748b", fontSize: "10pt" }}>
+                          No operations calculated yet
+                        </Typography>
+                      </Box>
+                    ) : (
+                      pageRows.map((row, idx) => {
+                        const unitCost = Number(operationResults?.[row.idx]?.cost_breakdown?.unit_cost);
+                        const baseCost = Number.isFinite(unitCost) ? unitCost : row.value;
+                        const serialNo = summaryIndex * SUMMARY_OPS_PER_PAGE + idx + 1;
+                        return (
+                          <Box
+                            key={row.idx}
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                              bgcolor: serialNo % 2 === 1 ? "#ffffff" : "#f1f5f9",
+                              borderTop: "1pt solid #e2e8f0",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Box sx={{ p: "8pt", textAlign: "center" }}>
+                              <Typography sx={{ fontSize: "10pt", color: "#475569", fontWeight: 600 }}>
+                                {serialNo}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ p: "8pt", minWidth: 0 }}>
+                              <Typography
+                                sx={{
+                                  fontSize: "10pt",
+                                  color: "#1e293b",
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {row.label}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                              <Typography sx={{ fontSize: "10pt", color: "#475569", fontFamily: "monospace" }}>
+                                {formatCurrency(baseCost)}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                              <Typography sx={{ fontSize: "10pt", color: "#1e3a5f", fontWeight: 600 }}>—</Typography>
+                            </Box>
+                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                              <Typography
+                                sx={{
+                                  fontSize: "10pt",
+                                  color: "#1e3a5f",
+                                  fontFamily: "monospace",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {formatCurrency(baseCost)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        );
+                      })
+                    )}
 
-                {/* Table Body */}
-                {summaryRows.length === 0 ? (
-                  <Box sx={{ p: "12pt", textAlign: "center", bgcolor: "#f8fafc" }}>
-                    <Typography sx={{ color: "#64748b", fontSize: "10pt" }}>
-                      No operations calculated yet
-                    </Typography>
-                  </Box>
-                ) : (
-                  summaryRows.map((row, idx) => {
-                    const miscPerOp = partMiscTotal / summaryRows.length;
-                    const baseCost = row.value - miscPerOp;
-                    return (
+                    {/* Misc + Grand total only on last summary page */}
+                    {isLastSummaryPage && partMiscTotal > 0 && summaryRows.length > 0 && (
                       <Box
-                        key={row.idx}
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: "50px 1.5fr 1fr 1fr 1.2fr",
-                          bgcolor: idx % 2 === 0 ? "#ffffff" : "#f1f5f9",
-                          borderTop: "1pt solid #e2e8f0",
+                          gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                          bgcolor: "#fef3c7",
+                          borderTop: "2pt solid #d4af37",
+                          alignItems: "center",
                         }}
                       >
-                        <Box sx={{ p: "8pt", textAlign: "center" }}>
-                          <Typography sx={{ fontSize: "10pt", color: "#475569", fontWeight: 600 }}>
-                            {idx + 1}
-                          </Typography>
-                        </Box>
+                        <Box sx={{ p: "8pt" }}></Box>
                         <Box sx={{ p: "8pt" }}>
-                          <Typography
-                            sx={{
-                              fontSize: "10pt",
-                              color: "#1e293b",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {row.label}
+                          <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#92400e" }}>
+                            MISCELLANEOUS TOTAL
                           </Typography>
                         </Box>
                         <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "10pt", color: "#475569" }}>
-                            {formatCurrency(baseCost)}
+                          <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
+                        </Box>
+                        <Box sx={{ p: "8pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#92400e", fontFamily: "monospace" }}>
+                            {formatCurrency(partMiscTotal)}
                           </Typography>
                         </Box>
                         <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "10pt", color: "#1e3a5f", fontWeight: 600 }}>
-                            {formatCurrency(miscPerOp)}
+                          <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {summaryRows.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                          bgcolor: "#1e3a5f",
+                          color: "#ffffff",
+                          borderTop: "3pt solid #d4af37",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Box sx={{ p: "8pt" }}></Box>
+                        <Box sx={{ p: "8pt" }}>
+                          <Typography sx={{ fontSize: "11pt", fontWeight: "bold", color: "#d4af37" }}>
+                            GRAND TOTAL
                           </Typography>
                         </Box>
                         <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography
-                            sx={{
-                              fontSize: "10pt",
-                              color: "#1e3a5f",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {formatCurrency(row.value)}
+                          <Typography sx={{ fontSize: "9pt", color: "#94a3b8", fontFamily: "monospace" }}>
+                            {formatCurrency(totalUnitCost)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ p: "8pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
+                            {formatCurrency(partMiscTotal)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ p: "8pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "12pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
+                            {formatCurrency(totalUnitCost + partMiscTotal)}
                           </Typography>
                         </Box>
                       </Box>
-                    );
-                  })
-                )}
-
-                {/* Global Misc Summary Row */}
-                {partMiscTotal > 0 && summaryRows.length > 0 && (
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "50px 1.5fr 1fr 1fr 1.2fr",
-                      bgcolor: "#fef3c7",
-                      borderTop: "2pt solid #d4af37",
-                    }}
-                  >
-                    <Box sx={{ p: "8pt" }}></Box>
-                    <Box sx={{ p: "8pt" }}>
-                      <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#92400e" }}>
-                        GLOBAL MISC TOTAL
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#92400e" }}>
-                        {formatCurrency(partMiscTotal)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
-                    </Box>
+                    )}
                   </Box>
-                )}
-
-                {/* Grand Total */}
-                {summaryRows.length > 0 && (
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "50px 1.5fr 1fr 1fr 1.2fr",
-                      bgcolor: "#1e3a5f",
-                      color: "#ffffff",
-                      borderTop: "3pt solid #d4af37",
-                    }}
-                  >
-                    <Box sx={{ p: "8pt" }}></Box>
-                    <Box sx={{ p: "8pt" }}>
-                      <Typography
-                        sx={{ fontSize: "11pt", fontWeight: "bold", color: "#d4af37" }}
-                      >
-                        GRAND TOTAL
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "9pt", color: "#94a3b8" }}>
-                        {formatCurrency(totalAmount - partMiscTotal)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
-                        {formatCurrency(partMiscTotal)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: "8pt", textAlign: "right" }}>
-                      <Typography
-                        sx={{
-                          fontSize: "12pt",
-                          fontWeight: "bold",
-                          color: "#d4af37",
-                        }}
-                      >
-                        {formatCurrency(totalAmount)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-
-              {/* Cost Calculation Note */}
-              {partMiscTotal > 0 && (
-                <Box sx={{ mt: 2, p: "8pt", bgcolor: "#f0f9ff", borderRadius: "4pt", border: "1pt solid #38bdf8" }}>
-                  <Typography sx={{ fontSize: "8pt", color: "#0369a1", textAlign: "center" }}>
-                    <strong>Calculation:</strong> Base Cost + Misc Cost ({formatCurrency(partMiscTotal)} distributed equally across {summaryRows.length} operations) = Total Cost
-                  </Typography>
                 </Box>
-              )}
-            </Box>
 
-            {/* PAGE 1 FOOTER */}
-            <Box
-              sx={{
-                mt: "auto",
-                p: "15mm",
-                pt: "8mm",
-                borderTop: "3pt solid #d4af37",
-                bgcolor: "#1e3a5f",
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ fontSize: "8pt", color: "#94a3b8" }}>
-                  HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
-                </Typography>
-                <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
-                  Page 1 of {metricsOps.length > 0 ? 1 + totalDetailPages : "1"}
-                </Typography>
+                {/* Footer */}
+                <Box
+                  sx={{
+                    mt: "auto",
+                    p: "15mm",
+                    pt: "8mm",
+                    borderTop: "3pt solid #d4af37",
+                    bgcolor: "#1e3a5f",
+                  }}
+                >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: "8pt", color: "#94a3b8" }}>
+                      HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
+                    </Typography>
+                    <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
+                      Page {pageNumber} of {totalPages}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
-            </Box>
-          </Box>
+            );
+          })}
 
-          {/* DETAILED BREAKDOWN PAGES: Split operations into chunks of 10 per page */}
+          {/* DETAILED BREAKDOWN PAGES: Split operations into chunks of 5 per page */}
           {operationChunks.map((chunkOps, chunkIndex) => {
-            const pageNumber = chunkIndex + 2; // Page 2, 3, 4, etc.
+            const pageNumber = 2 + summaryPages + chunkIndex; // starts immediately after summary pages
             const startOpNum = chunkIndex * MAX_OPS_PER_PAGE + 1;
             const endOpNum = startOpNum + chunkOps.length - 1;
             
@@ -806,7 +890,7 @@ const PdfReportExport = ({
                 </Box>
 
                 {/* DETAILED METRICS SECTION */}
-                <Box sx={{ px: "15mm", py: "8mm", flex: 1 }}>
+                <Box sx={{ px: 0, py: "8mm", flex: 1 }}>
                   {/* Section Header with Color */}
                   <Box 
                     sx={{ 
@@ -830,20 +914,20 @@ const PdfReportExport = ({
                     </Typography>
                   </Box>
 
-                  {/* Metrics Table with Professional Styling */}
-                  <Box
-                    sx={{
+                  {/* Metrics Table */}
+                  <Box 
+                    sx={{ 
                       border: "1pt solid #d4af37",
-                      borderRadius: "4pt",
                       overflow: "hidden",
                       boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                      width: "100%",
                     }}
                   >
                     {/* Header */}
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                        gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
                         bgcolor: "#1e3a5f",
                         color: "#d4af37",
                       }}
@@ -868,7 +952,7 @@ const PdfReportExport = ({
                         key={k}
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                          gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
                           bgcolor: idx % 2 === 0 ? "#ffffff" : "#f1f5f9",
                           borderTop: "1pt solid #e2e8f0",
                         }}
@@ -903,12 +987,12 @@ const PdfReportExport = ({
                       </Box>
                     ))}
                     
-                    {/* Global Miscellaneous Row - Gold Highlight */}
+                    {/* Miscellaneous Costs - Gold Highlight */}
                     {partMiscTotal > 0 && (
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: `180px repeat(${chunkOps.length}, 1fr)`,
+                          gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
                           bgcolor: "#fef3c7",
                           borderTop: "2pt solid #d4af37",
                         }}
@@ -921,7 +1005,7 @@ const PdfReportExport = ({
                               fontWeight: "bold",
                             }}
                           >
-                            Global Miscellaneous
+                            Miscellaneous
                           </Typography>
                         </Box>
                         {chunkOps.map((op) => (
@@ -1003,7 +1087,7 @@ const PdfReportExport = ({
                       HAL Cost Estimation System | Generated on {new Date().toLocaleString("en-IN")}
                     </Typography>
                     <Typography sx={{ fontSize: "8pt", color: "#d4af37", fontWeight: "bold" }}>
-                      Page {pageNumber} of {1 + totalDetailPages}
+                      Page {pageNumber} of {totalPages}
                     </Typography>
                   </Box>
                 </Box>
