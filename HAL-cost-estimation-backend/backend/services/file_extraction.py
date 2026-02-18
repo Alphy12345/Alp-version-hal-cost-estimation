@@ -112,8 +112,6 @@ class FileExtractionService:
     MACHINE_KEYWORDS = ['machine', 'equipment', 'machine name', 'mach:', 'machine:', 'mach', 'mach.']
     MAN_HOURS_KEYWORDS = ['man hours', 'manhours', 'man hrs', 'hours per unit', 'hrs/unit', 'hrs', 'hours', 'man hr', 'hr/unit']
     DUTY_KEYWORDS = ['duty', 'duty category', 'load', 'duty:', 'duty cat', 'category']
-    SETUP_TIME_KEYWORDS = ['setup time', 'machine setup time', 'set up time', 'setup:', 's/t', 'setup', 'setup_time']
-    CYCLE_TIME_KEYWORDS = ['cycle time', 'cycle', 'cycle:', 'c/t', 'cycletime']
     DIAMETER_KEYWORDS = ['diameter', 'dia', 'diam', 'd:', 'dia:', 'dia.', 'Ø', 'phi']
     LENGTH_KEYWORDS = ['length', 'len', 'l', 'len:', 'length:', 'l.']
     BREADTH_KEYWORDS = ['breadth', 'width', 'b', 'w', 'breadth:', 'width:', 'b.', 'w.']
@@ -473,8 +471,6 @@ class FileExtractionService:
             'machine': None,
             'man_hours': None,
             'duty_category': None,
-            'machine_setup_time': None,
-            'cycle_time': None,
             'diameter': None,
             'length': None,
             'breadth': None,
@@ -604,126 +600,104 @@ class FileExtractionService:
                     print(f"  Extracted rubber press machine: {details['machine']}")
                 
                 print(f"  Rubber press detected - processing {len(numbers)} numbers")
-                # Rubber press format: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
-                # or: Setup, Cycle, Hours, Length, Breadth, Height (no diameter)
-                if len(numbers) >= 7:
-                    details['machine_setup_time'] = numbers[0]
-                    details['cycle_time'] = numbers[1]
-                    details['man_hours'] = numbers[2]
-                    details['diameter'] = numbers[3]
-                    details['length'] = numbers[4]
-                    details['breadth'] = numbers[5] if numbers[5] > 0 else None
-                    details['height'] = numbers[6] if numbers[6] > 0 else None
-                    print(f"  Rubber press 7-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={numbers[3]}, Len={numbers[4]}, Breadth={numbers[5]}, Height={numbers[6]}")
-                elif len(numbers) >= 6:
-                    details['machine_setup_time'] = numbers[0]
-                    details['cycle_time'] = numbers[1]
-                    details['man_hours'] = numbers[2]
-                    # Check if position 3 looks like diameter (typically <100 for rubber press)
-                    if numbers[3] < 200:
-                        details['diameter'] = numbers[3]
-                        details['length'] = numbers[4]
-                        details['breadth'] = numbers[5] if numbers[5] > 0 else None
-                    else:
-                        details['length'] = numbers[3]
-                        details['breadth'] = numbers[4]
-                        details['height'] = numbers[5]
-                    print(f"  Rubber press 6-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={details.get('diameter')}, Len={details['length']}")
-                elif len(numbers) >= 5:
-                    # For rubber press: Setup, Cycle, Hours, Diameter, Length (no breadth/height for basic rubber press)
-                    details['machine_setup_time'] = numbers[0]
-                    details['cycle_time'] = numbers[1]
-                    details['man_hours'] = numbers[2]
-                    details['diameter'] = numbers[3]  # Position 3 is diameter
-                    details['length'] = numbers[4]      # Position 4 is length
-                    print(f"  Rubber press 5-col: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={numbers[3]}, Len={numbers[4]}")
+                # Rubber press format: Hours, Diameter, Length, Breadth, Height (no setup/cycle time)
+                if len(numbers) >= 5:
+                    details['man_hours'] = numbers[0]
+                    details['diameter'] = numbers[1]
+                    details['length'] = numbers[2]
+                    details['breadth'] = numbers[3] if numbers[3] > 0 else None
+                    details['height'] = numbers[4] if numbers[4] > 0 else None
+                    print(f"  Rubber press 5-col: Hours={numbers[0]}, Dia={numbers[1]}, Len={numbers[2]}, Breadth={numbers[3]}, Height={numbers[4]}")
+                elif len(numbers) >= 4:
+                    details['man_hours'] = numbers[0]
+                    details['diameter'] = numbers[1]
+                    details['length'] = numbers[2]
+                    details['breadth'] = numbers[3] if numbers[3] > 0 else None
+                    print(f"  Rubber press 4-col: Hours={numbers[0]}, Dia={numbers[1]}, Len={numbers[2]}, Breadth={numbers[3]}")
+                elif len(numbers) >= 3:
+                    details['man_hours'] = numbers[0]
+                    details['diameter'] = numbers[1]
+                    details['length'] = numbers[2]
+                    print(f"  Rubber press 3-col: Hours={numbers[0]}, Dia={numbers[1]}, Len={numbers[2]}")
             else:
                 # Standard handling for non-rubber operations
                 # Map numbers to fields based on position and context
-                # Table order typically: [Setup(min), Cycle(sec), Hours, Diameter, Length, Breadth, Height]
-                # OR for rectangular parts (milling): [Setup, Cycle, Hours, -, Length, Breadth, Height]
-                # OR for round parts: [Setup, Cycle, Hours, Diameter, Length, -, -]
+                # Table order typically: [Hours, Diameter, Length, Breadth, Height]
+                # OR for rectangular parts (milling): [Hours, -, Length, Breadth, Height]
+                # OR for round parts: [Hours, Diameter, Length, -, -]
                 
                 # Based on typical table structure, try to identify each value by position
-                # Column indices: 0=Setup, 1=Cycle, 2=Hours, 3=Diameter/Dash, 4=Length, 5=Breadth/Dash, 6=Height/Dash
-                if len(numbers) >= 7:
-                    # Full 7-column table: Setup, Cycle, Hours, Diameter, Length, Breadth, Height
-                    details['machine_setup_time'] = numbers[0]  # Usually 15-60
-                    details['cycle_time'] = numbers[1]  # 60-650 (seconds)
-                    details['man_hours'] = numbers[2]  # Large: 1200-4200
-                    # Index 3 could be diameter or dash (represented as 0 or just skipped)
+                # Column indices: 0=Hours, 1=Diameter/Dash, 2=Length, 3=Breadth/Dash, 4=Height/Dash
+                if len(numbers) >= 5:
+                    # Full 5-column table: Hours, Diameter, Length, Breadth, Height
+                    details['man_hours'] = numbers[0]  # Large: 1200-4200
+                    # Index 1 could be diameter or dash (represented as 0 or just skipped)
+                    if numbers[1] > 0:
+                        details['diameter'] = numbers[1]
+                    details['length'] = numbers[2]
                     if numbers[3] > 0:
-                        details['diameter'] = numbers[3]
-                    details['length'] = numbers[4]
-                    if numbers[5] > 0:
-                        details['breadth'] = numbers[5]
-                    if numbers[6] > 0:
-                        details['height'] = numbers[6]
-                elif len(numbers) >= 6:
-                    # 6-column table: Setup, Cycle, Hours, Dim1, Dim2, Dim3
+                        details['breadth'] = numbers[3]
+                    if numbers[4] > 0:
+                        details['height'] = numbers[4]
+                elif len(numbers) >= 4:
+                    # 4-column table: Hours, Dim1, Dim2, Dim3
                     # ONLY milling gets length/breadth/height (rectangular)
                     # ALL other operations get diameter/length (round) - shape doesn't matter
                     is_milling = detected_operation and 'mill' in detected_operation.lower()
                     
-                    details['machine_setup_time'] = numbers[0]
-                    details['cycle_time'] = numbers[1]
-                    details['man_hours'] = numbers[2]
+                    details['man_hours'] = numbers[0]
                     
                     if is_milling:
                         # Milling rectangular: Length, Breadth, Height
-                        details['length'] = numbers[3]
-                        details['breadth'] = numbers[4]
-                        details['height'] = numbers[5]
-                        print(f"  6-column MILLING: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Length={numbers[3]}, Breadth={numbers[4]}, Height={numbers[5]}")
+                        details['length'] = numbers[1]
+                        details['breadth'] = numbers[2]
+                        details['height'] = numbers[3]
+                        print(f"  4-column MILLING: Hours={numbers[0]}, Length={numbers[1]}, Breadth={numbers[2]}, Height={numbers[3]}")
                     else:
                         # ALL other operations: Diameter, Length (round)
-                        details['diameter'] = numbers[3]
-                        details['length'] = numbers[4]
-                        print(f"  6-column NON-MILLING: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Diameter={numbers[3]}, Length={numbers[4]}")
-                elif len(numbers) >= 5:
-                    # Standard 5-column table: Setup, Cycle, Hours, Diameter, Length
-                    # For round parts (most operations except milling): Diameter is at index 3
-                    # For rectangular parts: Length is at index 3, Breadth at index 4
-                    details['machine_setup_time'] = numbers[0]
-                    details['cycle_time'] = numbers[1]
-                    details['man_hours'] = numbers[2]
-                    # ALWAYS set diameter and length for 5-column tables
-                    # Position 3 is always diameter for round parts
-                    # Position 4 is always length
-                    details['diameter'] = numbers[3]
-                    details['length'] = numbers[4]
-                    print(f"  5-col ROUND: Setup={numbers[0]}, Cycle={numbers[1]}, Hours={numbers[2]}, Dia={numbers[3]}, Len={numbers[4]}")
-                elif len(numbers) >= 4:
-                    # 4 columns - could be without one field
+                        details['diameter'] = numbers[1]
+                        details['length'] = numbers[2]
+                        print(f"  4-column NON-MILLING: Hours={numbers[0]}, Diameter={numbers[1]}, Length={numbers[2]}")
+                elif len(numbers) >= 3:
+                    # Standard 3-column table: Hours, Diameter, Length
+                    # For round parts (most operations except milling): Diameter is at index 1
+                    # For rectangular parts: Length is at index 1, Breadth at index 2
+                    details['man_hours'] = numbers[0]
+                    # ALWAYS set diameter and length for 3-column tables
+                    # Position 1 is always diameter for round parts
+                    # Position 2 is always length
+                    details['diameter'] = numbers[1]
+                    details['length'] = numbers[2]
+                    print(f"  3-col ROUND: Hours={numbers[0]}, Dia={numbers[1]}, Len={numbers[2]}")
+                elif len(numbers) >= 2:
+                    # 2 columns - could be without several fields
                     # Try to identify based on value ranges
                     for num in numbers:
                         if num > 1000 and details['man_hours'] is None:
                             details['man_hours'] = num
-                        elif 50 < num < 1000 and details['cycle_time'] is None:
-                            # Could be cycle time (50-650) or setup time (25-60)
-                            if num < 80 and details['machine_setup_time'] is None:
-                                details['machine_setup_time'] = num
-                            else:
-                                details['cycle_time'] = num
+                        elif 50 < num < 1000:
+                            # Could be length or diameter
+                            if details['length'] is None:
+                                details['length'] = num
+                            elif details['diameter'] is None:
+                                details['diameter'] = num
                         elif num > 10 and details['diameter'] is None:
                             details['diameter'] = num
                         elif details['length'] is None:
                             details['length'] = num
                 else:
-                    # Less than 4 numbers - use range-based logic
+                    # Less than 2 numbers - use range-based logic
                     for num in numbers:
                         if num > 1000:  # Work hours
                             if details['man_hours'] is None:
                                 details['man_hours'] = num
-                        elif 100 < num <= 1000:  # Cycle time or length
-                            if details['cycle_time'] is None:
-                                details['cycle_time'] = num
-                            elif details['length'] is None:
+                        elif 100 < num <= 1000:  # Length or diameter
+                            if details['length'] is None:
                                 details['length'] = num
-                        elif 20 <= num <= 100:  # Setup time or diameter
-                            if details['machine_setup_time'] is None:
-                                details['machine_setup_time'] = num
                             elif details['diameter'] is None:
+                                details['diameter'] = num
+                        elif 20 <= num <= 100:  # Diameter
+                            if details['diameter'] is None:
                                 details['diameter'] = num
                             elif details['length'] is None:
                                 details['length'] = num
@@ -810,8 +784,6 @@ class FileExtractionService:
             'machine': None,
             'man_hours': None,
             'duty_category': None,
-            'machine_setup_time': None,
-            'cycle_time': None,
             'diameter': None,
             'length': None,
             'breadth': None,
@@ -831,8 +803,6 @@ class FileExtractionService:
         details['man_hours'] = cls._extract_numeric_value(text, lines, cls.MAN_HOURS_KEYWORDS)
         details['duty_category'] = cls._extract_value(text, lines, cls.DUTY_KEYWORDS,
                                                       ['light', 'medium', 'heavy'])
-        details['machine_setup_time'] = cls._extract_numeric_value(text, lines, cls.SETUP_TIME_KEYWORDS)
-        details['cycle_time'] = cls._extract_numeric_value(text, lines, cls.CYCLE_TIME_KEYWORDS)
         details['diameter'] = cls._extract_numeric_value(text, lines, cls.DIAMETER_KEYWORDS)
         details['length'] = cls._extract_numeric_value(text, lines, cls.LENGTH_KEYWORDS)
         details['breadth'] = cls._extract_numeric_value(text, lines, cls.BREADTH_KEYWORDS)
@@ -1052,8 +1022,6 @@ class FileExtractionService:
             'machine': None,
             'man_hours': None,
             'duty_category': None,
-            'machine_setup_time': None,
-            'cycle_time': None,
             'diameter': None,
             'length': None,
             'breadth': None,

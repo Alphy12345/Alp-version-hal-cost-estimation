@@ -214,16 +214,6 @@ function CostEstimationModal({
                         onChangeForm(part.id, newOpIndex, "duty_category", opData.duty_category);
                         fields.push("duty_category");
                     }
-                    // Support both "machine_setup_time" and "setup_time" field names
-                    const setupTimeValue = opData.machine_setup_time !== undefined ? opData.machine_setup_time : opData.setup_time;
-                    if (setupTimeValue !== null && setupTimeValue !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "machine_setup_time", setupTimeValue);
-                        fields.push("machine_setup_time");
-                    }
-                    if (opData.cycle_time !== null && opData.cycle_time !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "cycle_time", opData.cycle_time);
-                        fields.push("cycle_time");
-                    }
                     if (opData.diameter !== null && opData.diameter !== undefined) {
                         onChangeForm(part.id, newOpIndex, "diameter", opData.diameter);
                         fields.push("diameter");
@@ -676,8 +666,6 @@ function CostEstimationModal({
             if (!opState?.machine_name) opErrors.push('Machine');
             if (!opState?.man_hours_per_unit && opState?.man_hours_per_unit !== 0) opErrors.push('Man Hours');
             if (!opState?.duty_category) opErrors.push('Duty Category');
-            if (!opState?.machine_setup_time && opState?.machine_setup_time !== 0) opErrors.push('Machine Setup Time');
-            if (!opState?.cycle_time && opState?.cycle_time !== 0) opErrors.push('Cycle Time');
             
             // Dimension checks - ONLY milling requires length/breadth/height
             // ALL other operations require diameter/length only
@@ -865,8 +853,6 @@ function CostEstimationModal({
                 { left: ["Material:", op?.material || "-"], right: ["Machine:", op?.machine_name || "-"] },
                 // Row 2: Man Hours | Duty Category
                 { left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"], right: ["Duty Category:", op?.duty_category || "-"] },
-                // Row 3: Setup Time | Cycle Time
-                { left: ["Setup Time (min):", op?.machine_setup_time !== undefined ? String(op.machine_setup_time) : "-"], right: ["Cycle Time (min):", op?.cycle_time !== undefined ? String(op.cycle_time) : "-"] },
             ];
             
             // Add dimension fields based on operation type
@@ -1288,8 +1274,18 @@ function CostEstimationModal({
                                                             </Box>
 
                                                             <form onSubmit={(e) => onSubmit(e, part.id, opIndex)}>
-                                                                <Grid container spacing={2.5} alignItems="stretch">
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                <Grid 
+                                                                    container 
+                                                                    spacing={1} 
+                                                                    alignItems="flex-start" 
+                                                                    sx={{ 
+                                                                        flexWrap: "nowrap", 
+                                                                        overflowX: "hidden",
+                                                                        pb: 1,
+                                                                        pt: 1
+                                                                    }}
+                                                                >
+                                                                    <Grid item sx={{ minWidth: 120, flex: "0 0 auto" }}>
                                                                         <TextField
                                                                             select
                                                                             label="Operation Type"
@@ -1299,250 +1295,195 @@ function CostEstimationModal({
                                                                                 onChangeForm(part.id, opIndex, "machine_name", "");
                                                                             }}
                                                                             fullWidth
-                                                                            size="medium"
-                                                                            sx={{
-                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                                minWidth: 280,
-                                                                            }}
+                                                                            size="small"
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         >
                                                                             {operationTypeOptions.map((opt) => (
-                                                                                <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)} sx={{ fontSize: '1.05rem', py: 1.5 }}>
+                                                                                <MenuItem key={`${opt.value}-${opt.label}`} value={opt.value} disabled={Boolean(opt.disabled)} sx={{ fontSize: '0.8rem' }}>
                                                                                     {opt.label}
                                                                                 </MenuItem>
                                                                             ))}
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                    <Grid item sx={{ minWidth: 90, flex: "0 0 auto" }}>
                                                                         <TextField
                                                                             select
                                                                             label="Material"
                                                                             value={opState?.material || "steel"}
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "material", e.target.value)}
                                                                             fullWidth
-                                                                            size="medium"
-                                                                            sx={{
-                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                                minWidth: 280,
-                                                                            }}
+                                                                            size="small"
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         >
-                                                                            <MenuItem value="steel" sx={{ fontSize: '1.05rem', py: 1.5 }}>Steel</MenuItem>
-                                                                            <MenuItem value="aluminium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Aluminium</MenuItem>
-                                                                            <MenuItem value="titanium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Titanium</MenuItem>
+                                                                            <MenuItem value="steel" sx={{ fontSize: '0.8rem' }}>Steel</MenuItem>
+                                                                            <MenuItem value="aluminium" sx={{ fontSize: '0.8rem' }}>Aluminium</MenuItem>
+                                                                            <MenuItem value="titanium" sx={{ fontSize: '0.8rem' }}>Titanium</MenuItem>
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                    <Grid item sx={{ minWidth: 120, flex: "0 0 auto" }}>
                                                                         <TextField
                                                                             select
                                                                             label="Machine"
                                                                             value={machineValueForOp}
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "machine_name", String(e.target.value || "").trim())}
                                                                             fullWidth
-                                                                            size="medium"
-                                                                            sx={{
-                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                                minWidth: 280,
-                                                                            }}
+                                                                            size="small"
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         >
-                                                                            <MenuItem value="" sx={{ fontSize: '1.05rem', py: 1.5 }}>Select Machine</MenuItem>
+                                                                            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>Select</MenuItem>
                                                                             {machinesForOp.map((m) => (
-                                                                                <MenuItem key={m.id} value={String(m?.name || "").trim()} sx={{ fontSize: '1.05rem', py: 1.5 }}>
+                                                                                <MenuItem key={m.id} value={String(m?.name || "").trim()} sx={{ fontSize: '0.8rem' }}>
                                                                                     {String(m?.name || "").trim()}
                                                                                 </MenuItem>
                                                                             ))}
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                    <Grid item sx={{ minWidth: 80, flex: "0 0 auto" }}>
                                                                         <TextField
-                                                                            label="Man Hours / Unit"
+                                                                            label="Man Hours"
                                                                             type="number"
                                                                             inputProps={{ step: "0.01" }}
                                                                             value={opState?.man_hours_per_unit || ""}
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "man_hours_per_unit", e.target.value)}
                                                                             fullWidth
-                                                                            size="medium"
+                                                                            size="small"
                                                                             required
-                                                                            sx={{
-                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                            }}
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         />
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                    <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
                                                                         <TextField
                                                                             select
-                                                                            label="Duty Category"
+                                                                            label="Duty"
                                                                             value={opState?.duty_category || ""}
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "duty_category", e.target.value)}
                                                                             fullWidth
-                                                                            size="medium"
+                                                                            size="small"
                                                                             required={Boolean(needsManualDutyForOp)}
-                                                                            sx={{
-                                                                                '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                                minWidth: 280,
-                                                                            }}
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         >
-                                                                            <MenuItem value="" sx={{ fontSize: '1.05rem', py: 1.5 }}>Select Duty</MenuItem>
-                                                                            <MenuItem value="light" sx={{ fontSize: '1.05rem', py: 1.5 }}>Light</MenuItem>
-                                                                            <MenuItem value="medium" sx={{ fontSize: '1.05rem', py: 1.5 }}>Medium</MenuItem>
-                                                                            <MenuItem value="heavy" sx={{ fontSize: '1.05rem', py: 1.5 }}>Heavy</MenuItem>
+                                                                            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>Select</MenuItem>
+                                                                            <MenuItem value="light" sx={{ fontSize: '0.8rem' }}>Light</MenuItem>
+                                                                            <MenuItem value="medium" sx={{ fontSize: '0.8rem' }}>Medium</MenuItem>
+                                                                            <MenuItem value="heavy" sx={{ fontSize: '0.8rem' }}>Heavy</MenuItem>
                                                                         </TextField>
                                                                     </Grid>
 
-                                                                    {/* Machine Setup Time */}
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
-                                                                        <TextField
-                                                                            label="Machine Setup Time (min)"
-                                                                            type="number"
-                                                                            inputProps={{ step: "0.01", min: "0" }}
-                                                                            value={opState?.machine_setup_time || ""}
-                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "machine_setup_time", e.target.value)}
-                                                                            fullWidth
-                                                                            size="medium"
-                                                                            sx={{
-                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                            }}
-                                                                        />
-                                                                    </Grid>
-
-                                                                    {/* Cycle Time */}
-                                                                    <Grid item xs={12} sm={6} md={5} lg={4}>
-                                                                        <TextField
-                                                                            label="Cycle Time (min)"
-                                                                            type="number"
-                                                                            inputProps={{ step: "0.01", min: "0" }}
-                                                                            value={opState?.cycle_time || ""}
-                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "cycle_time", e.target.value)}
-                                                                            fullWidth
-                                                                            size="medium"
-                                                                            sx={{
-                                                                                '& .MuiInputBase-input': { py: 2.5, px: 2.5, fontSize: '1.15rem' },
-                                                                                '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                            }}
-                                                                        />
-                                                                    </Grid>
-
                                                                     {showRoundDims && (
-                                                                        <Grid item xs={12} sm={6} md={5} lg={4}>
+                                                                        <Grid item sx={{ minWidth: 80, flex: "0 0 auto" }}>
                                                                             <TextField
                                                                                 select
                                                                                 label="Shape"
                                                                                 value={shapeValueForOp}
                                                                                 onChange={(e) => onChangeForm(part.id, opIndex, "shape", e.target.value)}
                                                                                 fullWidth
-                                                                                size="medium"
-                                                                                sx={{
-                                                                                    '& .MuiSelect-select': { py: 2.5, px: 2.5, fontSize: '1.15rem', fontWeight: 500 },
-                                                                                    '& .MuiInputLabel-root': { fontSize: '1.05rem' },
-                                                                                    minWidth: 280,
-                                                                                }}
+                                                                                size="small"
+                                                                                InputLabelProps={{ shrink: true }}
+                                                                                sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                             >
-                                                                                <MenuItem value="round" sx={{ fontSize: '1.05rem', py: 1.5 }}>Round</MenuItem>
-                                                                                <MenuItem value="rectangular" sx={{ fontSize: '1.05rem', py: 1.5 }}>Rectangular</MenuItem>
+                                                                                <MenuItem value="round" sx={{ fontSize: '0.8rem' }}>Round</MenuItem>
+                                                                                <MenuItem value="rectangular" sx={{ fontSize: '0.8rem' }}>Rectangular</MenuItem>
                                                                             </TextField>
                                                                         </Grid>
                                                                     )}
-                                                                </Grid>
 
-                                                                {/* Second row - Dimensions */}
-                                                                <Grid container spacing={2.5} sx={{ mt: 0 }}>
-                                                                    <Grid item xs={12} md={5} lg={4}>
-                                                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.5)", height: "100%" }}>
-                                                                            <Typography variant="subtitle2" sx={{ mb: 2, color: "#e5e7eb" }}>
-                                                                                Dimensions
-                                                                            </Typography>
-                                                                            <Grid container spacing={2}>
-                                                                                <Grid item xs={4}>
-                                                                                    <TextField
-                                                                                        label="Length (mm)"
-                                                                                        type="number"
-                                                                                        inputProps={{ step: "0.01" }}
-                                                                                        value={opState?.length || ""}
-                                                                                        onChange={(e) => onChangeForm(part.id, opIndex, "length", e.target.value)}
-                                                                                        fullWidth
-                                                                                        size="medium"
-                                                                                        required
-                                                                                    />
-                                                                                </Grid>
-
-                                                                                {showRoundDims && (
-                                                                                    <Grid item xs={4}>
-                                                                                        <TextField
-                                                                                            label="Diameter (mm)"
-                                                                                            type="number"
-                                                                                            inputProps={{ step: "0.01" }}
-                                                                                            value={opState?.diameter || ""}
-                                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "diameter", e.target.value)}
-                                                                                            fullWidth
-                                                                                            size="medium"
-                                                                                            required
-                                                                                        />
-                                                                                    </Grid>
-                                                                                )}
-
-                                                                                {showRectangularDims && (
-                                                                                    <>
-                                                                                        <Grid item xs={4}>
-                                                                                            <TextField
-                                                                                                label="Breadth (mm)"
-                                                                                                type="number"
-                                                                                                inputProps={{ step: "0.01" }}
-                                                                                                value={opState?.breadth || ""}
-                                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "breadth", e.target.value)}
-                                                                                                fullWidth
-                                                                                                size="medium"
-                                                                                                required
-                                                                                            />
-                                                                                        </Grid>
-                                                                                        <Grid item xs={4}>
-                                                                                            <TextField
-                                                                                                label="Height (mm)"
-                                                                                                type="number"
-                                                                                                inputProps={{ step: "0.01" }}
-                                                                                                value={opState?.height || ""}
-                                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "height", e.target.value)}
-                                                                                                fullWidth
-                                                                                                size="medium"
-                                                                                                required
-                                                                                            />
-                                                                                        </Grid>
-                                                                                    </>
-                                                                                )}
-                                                                            </Grid>
-                                                                        </Paper>
+                                                                    <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                        <TextField
+                                                                            label="Length"
+                                                                            type="number"
+                                                                            inputProps={{ step: "0.01" }}
+                                                                            value={opState?.length || ""}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "length", e.target.value)}
+                                                                            fullWidth
+                                                                            size="small"
+                                                                            required
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                        />
                                                                     </Grid>
+
+                                                                    {showRoundDims && (
+                                                                        <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                            <TextField
+                                                                                label="Diameter"
+                                                                                type="number"
+                                                                                inputProps={{ step: "0.01" }}
+                                                                                value={opState?.diameter || ""}
+                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "diameter", e.target.value)}
+                                                                                fullWidth
+                                                                                size="small"
+                                                                                required
+                                                                                InputLabelProps={{ shrink: true }}
+                                                                                sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                            />
+                                                                        </Grid>
+                                                                    )}
+
+                                                                    {showRectangularDims && (
+                                                                        <>
+                                                                            <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                                <TextField
+                                                                                    label="Breadth"
+                                                                                    type="number"
+                                                                                    inputProps={{ step: "0.01" }}
+                                                                                    value={opState?.breadth || ""}
+                                                                                    onChange={(e) => onChangeForm(part.id, opIndex, "breadth", e.target.value)}
+                                                                                    fullWidth
+                                                                                    size="small"
+                                                                                    required
+                                                                                    InputLabelProps={{ shrink: true }}
+                                                                                    sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                                />
+                                                                            </Grid>
+                                                                            <Grid item sx={{ minWidth: 70, flex: "0 0 auto" }}>
+                                                                                <TextField
+                                                                                    label="Height"
+                                                                                    type="number"
+                                                                                    inputProps={{ step: "0.01" }}
+                                                                                    value={opState?.height || ""}
+                                                                                    onChange={(e) => onChangeForm(part.id, opIndex, "height", e.target.value)}
+                                                                                    fullWidth
+                                                                                    size="small"
+                                                                                    required
+                                                                                    InputLabelProps={{ shrink: true }}
+                                                                                    sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                                />
+                                                                            </Grid>
+                                                                        </>
+                                                                    )}
                                                                 </Grid>
 
-                                                                {/* Third row - Calculate Cost Buttons */}
-                                                                <Grid container spacing={2.5} sx={{ mt: 2 }}>
+                                                                {/* Second row - Calculate Cost Buttons */}
+                                                                <Grid container spacing={2} sx={{ mt: 1 }}>
                                                                     <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                                                                         <Stack direction="row" spacing={2}>
-                                                                            <Button 
-                                                                                type="submit" 
-                                                                                variant="contained" 
-                                                                                disabled={loading} 
-                                                                                sx={{ 
-                                                                                    minWidth: 150, 
-                                                                                    py: 1.5,
-                                                                                    px: 3,
-                                                                                    fontSize: '1rem'
+                                                                            <Button
+                                                                                type="submit"
+                                                                                variant="contained"
+                                                                                disabled={loading}
+                                                                                sx={{
+                                                                                    minWidth: 120,
+                                                                                    py: 1,
+                                                                                    px: 2,
+                                                                                    fontSize: '0.9rem'
                                                                                 }}
                                                                             >
                                                                                 {loading ? "Calculating..." : "Calculate Cost"}
                                                                             </Button>
                                                                             {opResult && (
-                                                                                <Button 
-                                                                                    variant="outlined" 
+                                                                                <Button
+                                                                                    variant="outlined"
                                                                                     onClick={() => onClear(part.id)}
-                                                                                    sx={{ py: 1.5, px: 2 }}
+                                                                                    sx={{ py: 1, px: 2 }}
                                                                                 >
                                                                                     Clear
                                                                                 </Button>
@@ -1590,14 +1531,6 @@ function CostEstimationModal({
                                                                                 </TableRow>
                                                                             </TableHead>
                                                                             <TableBody>
-                                                                                <TableRow>
-                                                                                    <TableCell sx={{ py: 1.55 }}>Machine Setup Time (min)</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.inputs?.machine_setup_time || "-"}</TableCell>
-                                                                                </TableRow>
-                                                                                <TableRow>
-                                                                                    <TableCell sx={{ py: 1.55 }}>Cycle Time (min)</TableCell>
-                                                                                    <TableCell align="right" sx={{ py: 1.55 }}>{opResult?.inputs?.cycle_time || "-"}</TableCell>
-                                                                                </TableRow>
                                                                                 <TableRow>
                                                                                     <TableCell sx={{ py: 1.55 }}>Basic Cost</TableCell>
                                                                                     <TableCell align="right" sx={{ py: 1.55 }}>

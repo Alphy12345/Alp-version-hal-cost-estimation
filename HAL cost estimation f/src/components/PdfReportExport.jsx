@@ -128,18 +128,8 @@ const PdfReportExport = ({
         const setupTime = opRes?.machine_setup_time;
         const cycleTime = opRes?.cycle_time;
         
-        if (setupTime !== undefined && setupTime !== null && setupTime !== "") {
-          rows.unshift({
-            key: "Machine Setup Time (min)",
-            value: String(setupTime)
-          });
-        }
-        if (cycleTime !== undefined && cycleTime !== null && cycleTime !== "") {
-          rows.unshift({
-            key: "Cycle Time (min)",
-            value: String(cycleTime)
-          });
-        }
+        // Note: These fields are no longer collected but kept for backward compatibility
+        // with old reports that may have them
         
         const map = new Map();
         rows.forEach((r) => {
@@ -188,20 +178,7 @@ const PdfReportExport = ({
         ).sort((a, b) => String(a).localeCompare(String(b)))
       : [];
   
-  // Ensure Machine Setup Time and Cycle Time appear at the top
-  const timeFields = [];
-  const hasSetupTime = filteredMetricKeys.some(k => k === "Machine Setup Time (min)");
-  const hasCycleTime = filteredMetricKeys.some(k => k === "Cycle Time (min)");
-  
-  if (hasSetupTime) {
-    timeFields.push("Machine Setup Time (min)");
-  }
-  if (hasCycleTime) {
-    timeFields.push("Cycle Time (min)");
-  }
-  
-  const otherKeys = filteredMetricKeys.filter(k => k !== "Machine Setup Time (min)" && k !== "Cycle Time (min)");
-  const metricKeys = [...timeFields, ...otherKeys];
+  const metricKeys = filteredMetricKeys;
 
   // Calculate scale for preview (fit to container)
   const calculateScale = useCallback(() => {

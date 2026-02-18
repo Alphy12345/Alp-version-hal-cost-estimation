@@ -80,10 +80,6 @@ class CostEstimationRequest(BaseModel):
     # Duty (optional - will use defaults if not provided)
     duty_category: Optional[DutyCategory] = Field(None, description="Optional: light, medium, heavy")
     
-    # Time fields (optional - for tracking only)
-    machine_setup_time: Optional[float] = Field(None, ge=0, description="Machine setup time in minutes (for reference)")
-    cycle_time: Optional[float] = Field(None, ge=0, description="Cycle time in minutes (for reference)")
-    
     # Miscellaneous amount (optional - additional costs)
     miscellaneous_amount: Optional[float] = Field(0, ge=0, description="Optional miscellaneous amount to add to total cost")
 
@@ -178,10 +174,6 @@ class CostEstimationResponse(BaseModel):
     # Input Echo
     material: MaterialType
     operation_type: OperationType
-    
-    # Time fields (echo from input)
-    machine_setup_time: Optional[float] = Field(None, description="Machine setup time in minutes")
-    cycle_time: Optional[float] = Field(None, description="Cycle time in minutes")
     
     # Calculation Explanation
     calculation_steps: dict = Field(..., description="Step-by-step calculation breakdown")

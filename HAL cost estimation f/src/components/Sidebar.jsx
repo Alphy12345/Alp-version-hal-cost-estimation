@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LogoutIcon from "@mui/icons-material/Logout";
+import halLogo from "../assets/download.jpg";
 
 function Sidebar({ active, onChange }) {
   const [isConfigOpen, setIsConfigOpen] = useState(
@@ -46,12 +47,17 @@ function Sidebar({ active, onChange }) {
     >
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <Box sx={{ px: 3, py: 2.25 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.2 }}>
-            Cost Estimation
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Admin Panel
-          </Typography>
+          <Box
+            component="img"
+            src={halLogo}
+            alt="HAL Logo"
+            sx={{
+              width: "100%",
+              maxWidth: 200,
+              height: "auto",
+              display: "block",
+            }}
+          />
         </Box>
         <Divider />
 

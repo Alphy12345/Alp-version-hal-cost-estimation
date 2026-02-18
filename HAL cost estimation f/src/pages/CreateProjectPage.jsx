@@ -321,12 +321,12 @@ function CreateProjectPage({ onChange, onCreate }) {
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
-                              bgcolor: "grey.50",
+                              bgcolor: "rgba(15, 23, 42, 0.6)",
                               px: 1.5,
                               py: 0.75,
                               borderRadius: 1,
                               border: 1,
-                              borderColor: "divider",
+                              borderColor: "rgba(30, 64, 175, 0.3)",
                             }}
                           >
                             <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
@@ -377,12 +377,12 @@ function CreateProjectPage({ onChange, onCreate }) {
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
-                              bgcolor: "grey.50",
+                              bgcolor: "rgba(15, 23, 42, 0.6)",
                               px: 1.5,
                               py: 0.75,
                               borderRadius: 1,
                               border: 1,
-                              borderColor: "divider",
+                              borderColor: "rgba(30, 64, 175, 0.3)",
                             }}
                           >
                             <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
@@ -489,12 +489,12 @@ function CreateProjectPage({ onChange, onCreate }) {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
-                                bgcolor: "grey.50",
+                                bgcolor: "rgba(15, 23, 42, 0.6)",
                                 px: 1.5,
                                 py: 0.75,
                                 borderRadius: 1,
                                 border: 1,
-                                borderColor: "divider",
+                                borderColor: "rgba(30, 64, 175, 0.3)",
                               }}
                             >
                               <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
