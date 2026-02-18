@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
+import * as XLSX from 'xlsx';
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
@@ -81,6 +82,101 @@ function CostEstimationModal({
     const [importLoading, setImportLoading] = useState(false);
     const fileInputRef = useRef(null);
 
+    const fillOperationsFromImportedData = async (validOperations, sourceLabel) => {
+        if (!Array.isArray(validOperations) || validOperations.length === 0) {
+            alert(`No operation data could be extracted from the ${sourceLabel}.`);
+            return;
+        }
+
+        const baseOpIndex = operations.length;
+        const createdOperations = [];
+
+        for (let i = 0; i < validOperations.length; i++) {
+            const opData = validOperations[i];
+            const newOpIndex = baseOpIndex + i;
+
+            onAddOperation(part.id);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            if (i === 0) {
+                onSetActiveOperation(part.id, newOpIndex);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+
+            const fields = [];
+
+            if (opData.operation_type) {
+                let mappedOpType = opData.operation_type;
+                if (mappedOpType === "jig_boring" || (mappedOpType.includes("jig") && mappedOpType.includes("boring"))) {
+                    mappedOpType = "boring";
+                }
+                onChangeForm(part.id, newOpIndex, "operation_type", mappedOpType);
+                fields.push("operation_type");
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+
+            if (opData.material) {
+                onChangeForm(part.id, newOpIndex, "material", opData.material);
+                fields.push("material");
+            }
+
+            if (opData.machine) {
+                const opType = opData.operation_type || "turning";
+                const availableMachines = getFilteredMachinesForOperation(opType);
+                const matchedMachine = findBestMatchingMachine(opData.machine, availableMachines);
+
+                if (matchedMachine) {
+                    onChangeForm(part.id, newOpIndex, "machine_name", matchedMachine);
+                    fields.push("machine_name");
+                } else {
+                    onChangeForm(part.id, newOpIndex, "machine_name", opData.machine);
+                    fields.push("machine_name (unmatched)");
+                }
+            }
+
+            if (opData.man_hours !== null && opData.man_hours !== undefined && opData.man_hours !== "") {
+                onChangeForm(part.id, newOpIndex, "man_hours_per_unit", opData.man_hours);
+                fields.push("man_hours_per_unit");
+            }
+            if (opData.duty_category) {
+                onChangeForm(part.id, newOpIndex, "duty_category", opData.duty_category);
+                fields.push("duty_category");
+            }
+            if (opData.diameter !== null && opData.diameter !== undefined && opData.diameter !== "") {
+                onChangeForm(part.id, newOpIndex, "diameter", opData.diameter);
+                fields.push("diameter");
+            }
+            if (opData.length !== null && opData.length !== undefined && opData.length !== "") {
+                onChangeForm(part.id, newOpIndex, "length", opData.length);
+                fields.push("length");
+            }
+            if (opData.breadth !== null && opData.breadth !== undefined && opData.breadth !== "") {
+                onChangeForm(part.id, newOpIndex, "breadth", opData.breadth);
+                fields.push("breadth");
+            }
+            if (opData.height !== null && opData.height !== undefined && opData.height !== "") {
+                onChangeForm(part.id, newOpIndex, "height", opData.height);
+                fields.push("height");
+            }
+            if (opData.shape) {
+                onChangeForm(part.id, newOpIndex, "shape", opData.shape);
+                fields.push("shape");
+            }
+
+            createdOperations.push({
+                index: newOpIndex + 1,
+                fields: fields.join(", "),
+            });
+        }
+
+        if (createdOperations.length === 1) {
+            alert(`Created 1 new operation and filled with extracted data!\n\nFields set:\n${createdOperations[0].fields}`);
+        } else {
+            const opDetails = createdOperations.map((op) => `Operation ${op.index}: ${op.fields}`).join("\n\n");
+            alert(`Created ${createdOperations.length} new operations from the ${sourceLabel}!\n\n${opDetails}`);
+        }
+    };
+
     const handleImportClick = () => {
         if (fileInputRef.current) {
             fileInputRef.current.click();
@@ -115,142 +211,112 @@ function CostEstimationModal({
         
         setImportLoading(true);
         try {
+            const ext = String(fileExtension || "").toLowerCase();
+
+            if (ext === "xls" || ext === "xlsx") {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: "array" });
+                const sheetName = workbook.SheetNames?.[0];
+                const sheet = sheetName ? workbook.Sheets[sheetName] : null;
+                if (!sheet) {
+                    alert("Excel file has no sheets.");
+                    return;
+                }
+
+                const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                const normalizeHeader = (h) =>
+                    String(h || "")
+                        .trim()
+                        .toLowerCase()
+                        .replace(/\(.*?\)/g, "")
+                        .replace(/[^a-z0-9]+/g, "_")
+                        .replace(/^_+|_+$/g, "");
+
+                const toNumberOrEmpty = (v) => {
+                    if (v === null || v === undefined) return "";
+                    const s = String(v).trim();
+                    if (!s) return "";
+                    const n = Number(s);
+                    return Number.isFinite(n) ? n : s;
+                };
+
+                const getField = (row, candidates) => {
+                    const keys = Object.keys(row || {});
+                    for (const c of candidates) {
+                        const normC = normalizeHeader(c);
+                        const foundKey = keys.find((k) => normalizeHeader(k) === normC);
+                        if (foundKey) return row[foundKey];
+                    }
+                    return "";
+                };
+
+                const normalizeOpTypeValue = (v) => {
+                    const raw = String(v || "").trim();
+                    if (!raw) return "";
+                    const normalized = raw.toLowerCase().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+                    if (normalized.includes("jig") && normalized.includes("bor")) return "boring";
+                    if (normalized.includes("bor")) return "boring";
+                    if (normalized.includes("rubber") && normalized.includes("press")) return "rubber_press";
+                    if (normalized.includes("heat")) return "heat_treatment";
+                    if (normalized.includes("surface")) return "surface_treatment";
+                    return normalized.replace(/\s+/g, "_");
+                };
+
+                const validOperations = rawRows
+                    .map((row) => {
+                        const operationRaw = getField(row, ["operation", "operation_type", "operation type", "op", "process"]);
+                        const material = getField(row, ["material"]);
+                        const machine = getField(row, ["machine", "machine_name", "machine name"]);
+                        const duty = getField(row, ["duty", "duty_category", "duty category"]);
+                        const manHours = getField(row, ["man_hours", "man hours", "man hours/unit", "work_hours", "work hours", "hours"]);
+                        const diameter = getField(row, ["diameter"]);
+                        const length = getField(row, ["length"]);
+                        const breadth = getField(row, ["breadth", "width"]);
+                        const height = getField(row, ["height"]);
+                        const shape = getField(row, ["shape"]);
+
+                        const opType = normalizeOpTypeValue(operationRaw);
+                        return {
+                            operation_type: opType,
+                            material: String(material || "").trim() || "",
+                            machine: String(machine || "").trim() || "",
+                            man_hours: toNumberOrEmpty(manHours),
+                            duty_category: String(duty || "").trim() || "",
+                            diameter: toNumberOrEmpty(diameter),
+                            length: toNumberOrEmpty(length),
+                            breadth: toNumberOrEmpty(breadth),
+                            height: toNumberOrEmpty(height),
+                            shape: String(shape || "").trim() || "",
+                        };
+                    })
+                    .filter((op) =>
+                        op &&
+                        Object.keys(op).some((k) => {
+                            const v = op[k];
+                            return v !== null && v !== undefined && String(v).trim() !== "";
+                        })
+                    );
+
+                await fillOperationsFromImportedData(validOperations, "Excel");
+                return;
+            }
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("project_id", projectData?.id);
             formData.append("part_id", part?.id);
-            
+
             const response = await api.post("/files/import/file", formData, {
-                headers: { "Content-Type": "multipart/form-data" }
+                headers: { "Content-Type": "multipart/form-data" },
             });
-            
-            // Extract data from response
+
             const extractedData = response.data?.extracted_data;
-            console.log("Extracted data from file:", extractedData);
-            
-            // Handle the nested operations array structure
             const operationsArray = extractedData?.operations || [];
-            console.log("Operations array:", operationsArray);
-            console.log("Is array?:", Array.isArray(operationsArray));
-            
-            // Filter valid operations (those with at least one non-null field)
-            const validOperations = operationsArray.filter(op => op && Object.keys(op).some(k => op[k] !== null && op[k] !== undefined));
-            
-            console.log("Operations to process:", operationsArray.length);
-            console.log("Valid operations:", validOperations.length);
-            console.log("Current operations count:", operations.length);
-            
-            if (validOperations.length > 0) {
-                // Capture the base index once at the start
-                const baseOpIndex = operations.length;
-                let createdOperations = [];
-                
-                console.log(`Creating ${validOperations.length} operations in PDF order:`);
-                validOperations.forEach((op, idx) => {
-                    console.log(`  ${idx + 1}. ${op.operation_type || 'Unknown'} - ${op.machine || 'No machine'}`);
-                });
-                
-                for (let i = 0; i < validOperations.length; i++) {
-                    const opData = validOperations[i];
-                    
-                    // Calculate the new operation index
-                    const newOpIndex = baseOpIndex + i;
-                    
-                    // Create a new operation for each valid operation
-                    onAddOperation(part.id);
-                    
-                    // Wait longer for state update and operation creation
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    
-                    // Switch to the new operation (only switch to the first one)
-                    if (i === 0) {
-                        onSetActiveOperation(part.id, newOpIndex);
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                    
-                    // Fill the new operation with extracted data
-                    const fields = [];
-                    
-                    // First set operation type so machine filtering works
-                    if (opData.operation_type) {
-                        // Map backend operation types to frontend supported values
-                        let mappedOpType = opData.operation_type;
-                        if (mappedOpType === 'jig_boring' || mappedOpType.includes('jig') && mappedOpType.includes('boring')) {
-                            mappedOpType = 'boring';
-                        }
-                        onChangeForm(part.id, newOpIndex, "operation_type", mappedOpType);
-                        fields.push("operation_type");
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    }
-                    
-                    if (opData.material) {
-                        onChangeForm(part.id, newOpIndex, "material", opData.material);
-                        fields.push("material");
-                    }
-                    
-                    // Use smart machine matching to find best match from available machines
-                    if (opData.machine) {
-                        // Get available machines for the selected operation type
-                        const opType = opData.operation_type || "turning";
-                        const availableMachines = getFilteredMachinesForOperation(opType);
-                        
-                        // Find best matching machine
-                        const matchedMachine = findBestMatchingMachine(opData.machine, availableMachines);
-                        
-                        if (matchedMachine) {
-                            onChangeForm(part.id, newOpIndex, "machine_name", matchedMachine);
-                            fields.push("machine_name");
-                        } else {
-                            // Fallback: just set the extracted value directly
-                            onChangeForm(part.id, newOpIndex, "machine_name", opData.machine);
-                            fields.push("machine_name (unmatched)");
-                        }
-                    }
-                    if (opData.man_hours !== null && opData.man_hours !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "man_hours_per_unit", opData.man_hours);
-                        fields.push("man_hours_per_unit");
-                    }
-                    if (opData.duty_category) {
-                        onChangeForm(part.id, newOpIndex, "duty_category", opData.duty_category);
-                        fields.push("duty_category");
-                    }
-                    if (opData.diameter !== null && opData.diameter !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "diameter", opData.diameter);
-                        fields.push("diameter");
-                    }
-                    if (opData.length !== null && opData.length !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "length", opData.length);
-                        fields.push("length");
-                    }
-                    if (opData.breadth !== null && opData.breadth !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "breadth", opData.breadth);
-                        fields.push("breadth");
-                    }
-                    if (opData.height !== null && opData.height !== undefined) {
-                        onChangeForm(part.id, newOpIndex, "height", opData.height);
-                        fields.push("height");
-                    }
-                    if (opData.shape) {
-                        onChangeForm(part.id, newOpIndex, "shape", opData.shape);
-                        fields.push("shape");
-                    }
-                    
-                    createdOperations.push({
-                        index: newOpIndex + 1,
-                        fields: fields.join(', ')
-                    });
-                }
-                
-                // Show appropriate message based on number of operations created
-                if (createdOperations.length === 1) {
-                    alert(`Created 1 new operation and filled with extracted data!\n\nFields set:\n${createdOperations[0].fields}`);
-                } else {
-                    const opDetails = createdOperations.map(op => `Operation ${op.index}: ${op.fields}`).join('\n\n');
-                    alert(`Created ${createdOperations.length} new operations from the PDF!\n\n${opDetails}`);
-                }
-            } else {
-                alert("File uploaded but no operation data could be extracted from the file.");
-            }
+            const validOperations = operationsArray.filter(
+                (op) => op && Object.keys(op).some((k) => op[k] !== null && op[k] !== undefined)
+            );
+
+            await fillOperationsFromImportedData(validOperations, "PDF");
         } catch (err) {
             console.error("Upload failed:", err);
             alert("Failed to upload file: " + (err?.response?.data?.detail || err.message));
@@ -706,8 +772,58 @@ function CostEstimationModal({
         }
     };
 
-    // Download all operations as PDF
-    const handleDownloadAllOperations = async () => {
+    const downloadOperationsAsExcel = async () => {
+        if (!operations || operations.length === 0) {
+            alert("No operations to download");
+            return;
+        }
+
+        const excelData = operations.map((op, idx) => {
+            const opResult = operationResults?.[idx];
+            const opName = getOperationDisplayName(op?.operation_type);
+
+            return {
+                "Operation No": idx + 1,
+                "Operation Type": opName,
+                Material: op?.material || "-",
+                Machine: op?.machine_name || "-",
+                "Man Hours/Unit": op?.man_hours_per_unit !== undefined ? op.man_hours_per_unit : "-",
+                "Duty Category": op?.duty_category || "-",
+                Diameter: op?.diameter !== undefined ? op.diameter : "-",
+                Length: op?.length !== undefined ? op.length : "-",
+                Breadth: op?.breadth !== undefined ? op.breadth : "-",
+                Height: op?.height !== undefined ? op.height : "-",
+                Shape: op?.shape || "-",
+                "Total Cost": opResult?.total_cost !== undefined ? `₹${opResult.total_cost.toFixed(2)}` : "-",
+            };
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+
+        ws["!cols"] = [
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 20 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 10 },
+            { wch: 15 },
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Operations");
+
+        const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
+        const safePart = String(part?.part_number || "Part").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Part";
+        XLSX.writeFile(wb, `${safeProject}-${safePart}-Operations.xlsx`);
+    };
+
+    const downloadOperationsAsPdf = async () => {
         if (!operations || operations.length === 0) {
             alert("No operations to download");
             return;
@@ -717,60 +833,52 @@ function CostEstimationModal({
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         const margin = 10;
-        const contentWidth = pageWidth - 2 * margin - 15; // 175mm usable (210 - 20 - 15)
-        
+        const contentWidth = pageWidth - 2 * margin - 15;
+
         let currentY = margin;
         let pageNum = 1;
-        let totalPages = 1; // Will be updated after rendering
+        let totalPages = 1;
 
-        // Helper to add header
         const addHeader = () => {
-            // Dark blue header background
-            pdf.setFillColor(30, 58, 95); // #1e3a5f
+            pdf.setFillColor(30, 58, 95);
             pdf.rect(0, 0, pageWidth, 35, "F");
-            
-            // Gold border
-            pdf.setDrawColor(212, 175, 55); // #d4af37
+
+            pdf.setDrawColor(212, 175, 55);
             pdf.setLineWidth(1);
             pdf.line(0, 35, pageWidth, 35);
-            
-            // Title
+
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(16);
             pdf.setFont("helvetica", "bold");
             pdf.text("HAL Cost Estimation - Operations Report", margin, 15);
-            
-            // Subtitle
-            pdf.setTextColor(212, 175, 55); // Gold
+
+            pdf.setTextColor(212, 175, 55);
             pdf.setFontSize(10);
             pdf.text(`Part: ${part?.part_number || "N/A"} - ${part?.part_name || ""}`, margin, 25);
-            
-            // Project info
-            pdf.setTextColor(148, 163, 184); // Light gray
+
+            pdf.setTextColor(148, 163, 184);
             pdf.setFontSize(8);
             pdf.text(`Project: ${projectData?.project_name || "N/A"}`, pageWidth - margin - 60, 15);
             pdf.text(`Date: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin - 60, 20);
             pdf.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin - 25, 30);
-            
+
             currentY = 45;
         };
 
-        // Helper to add footer
         const addFooter = () => {
-            pdf.setFillColor(30, 58, 95); // #1e3a5f
+            pdf.setFillColor(30, 58, 95);
             pdf.rect(0, pageHeight - 15, pageWidth, 15, "F");
-            
-            pdf.setDrawColor(212, 175, 55); // Gold border
+
+            pdf.setDrawColor(212, 175, 55);
             pdf.setLineWidth(0.5);
             pdf.line(0, pageHeight - 15, pageWidth, pageHeight - 15);
-            
+
             pdf.setTextColor(148, 163, 184);
             pdf.setFontSize(8);
             pdf.setFont("helvetica", "normal");
             pdf.text("HAL Cost Estimation System", margin, pageHeight - 5);
         };
 
-        // Helper to check and add new page if needed
         const checkNewPage = (neededSpace) => {
             if (currentY + neededSpace > pageHeight - 20) {
                 addFooter();
@@ -778,180 +886,166 @@ function CostEstimationModal({
                 pageNum++;
                 totalPages = pageNum;
                 addHeader();
-                currentY = 45; // Reset to content start after header
+                currentY = 45;
                 return true;
             }
             return false;
         };
 
-        // Start first page
         addHeader();
 
-        // Add summary section
         const summaryBoxWidth = contentWidth;
-        pdf.setFillColor(240, 249, 255); // Light blue bg
-        pdf.setDrawColor(56, 189, 248); // #38bdf8
+        pdf.setFillColor(240, 249, 255);
+        pdf.setDrawColor(56, 189, 248);
         pdf.setLineWidth(0.5);
         pdf.roundedRect(margin, currentY, summaryBoxWidth, 22, 2, 2, "FD");
-        
+
         pdf.setTextColor(30, 58, 95);
         pdf.setFontSize(11);
         pdf.setFont("helvetica", "bold");
         pdf.text("OPERATIONS SUMMARY", margin + 4, currentY + 8);
-        
+
         pdf.setFontSize(9);
         pdf.setFont("helvetica", "normal");
         pdf.text(`Total Operations: ${operations.length}`, margin + 4, currentY + 17);
-        pdf.text(`Part Number: ${part?.part_number || "N/A"}`, margin + summaryBoxWidth/2, currentY + 17);
-        
+        pdf.text(`Part Number: ${part?.part_number || "N/A"}`, margin + summaryBoxWidth / 2, currentY + 17);
+
         currentY += 30;
 
-        // Loop through each operation
         operations.forEach((op, idx) => {
-            const opResult = operationResults?.[idx];
-            const opName = getOperationDisplayName(op?.operation_type);
-            
             checkNewPage(70);
-            
-            // Operation header box - fit within content width
+
+            const opName = getOperationDisplayName(op?.operation_type);
+
             const headerWidth = contentWidth;
-            pdf.setFillColor(56, 189, 248); // #38bdf8 blue
+            pdf.setFillColor(56, 189, 248);
             pdf.setDrawColor(56, 189, 248);
             pdf.roundedRect(margin, currentY, headerWidth, 9, 1.5, 1.5, "F");
-            
+
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(10);
             pdf.setFont("helvetica", "bold");
             pdf.text(`Operation ${idx + 1}: ${opName}`, margin + 4, currentY + 6);
-            
+
             currentY += 12;
-            
-            // Define table columns - adjusted for longer machine names
+
             const tableWidth = contentWidth;
-            const labelColWidth = 38;  // Reduced label width
-            const valueColWidth = 48;  // Increased value width for machine names
-            const gapBetweenCols = 4;  // Reduced gap between sections
-            
-            // Left section starts at margin
+            const labelColWidth = 38;
+            const valueColWidth = 48;
+            const gapBetweenCols = 4;
+
             const leftLabelX = margin + 3;
             const leftValueX = leftLabelX + labelColWidth;
-            
-            // Right section
-            const rightStartX = margin + tableWidth/2 + gapBetweenCols/2;
+
+            const rightStartX = margin + tableWidth / 2 + gapBetweenCols / 2;
             const rightLabelX = rightStartX;
             const rightValueX = rightLabelX + labelColWidth;
-            
-            // Maximum width for values before truncation
+
             const maxValueWidth = valueColWidth - 2;
-            
-            // Operation details - 2 column layout with fixed positions
             const rowHeight = 5.5;
             const linePadding = 1.5;
-            
+
             const detailRows = [
-                // Row 1: Material | Machine
                 { left: ["Material:", op?.material || "-"], right: ["Machine:", op?.machine_name || "-"] },
-                // Row 2: Man Hours | Duty Category
-                { left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"], right: ["Duty Category:", op?.duty_category || "-"] },
+                {
+                    left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"],
+                    right: ["Duty Category:", op?.duty_category || "-"],
+                },
             ];
-            
-            // Add dimension fields based on operation type
+
             const isMillingOp = String(op?.operation_type).toLowerCase() === "milling";
             if (isMillingOp) {
                 detailRows.push(
-                    { left: ["Length:", op?.length !== undefined ? String(op.length) : "-"], right: ["Breadth:", op?.breadth !== undefined ? String(op.breadth) : "-"] },
+                    {
+                        left: ["Length:", op?.length !== undefined ? String(op.length) : "-"],
+                        right: ["Breadth:", op?.breadth !== undefined ? String(op.breadth) : "-"],
+                    },
                     { left: ["Height:", op?.height !== undefined ? String(op.height) : "-"], right: null }
                 );
             } else {
-                detailRows.push(
-                    { left: ["Diameter:", op?.diameter !== undefined ? String(op.diameter) : "-"], right: ["Length:", op?.length !== undefined ? String(op.length) : "-"] }
-                );
+                detailRows.push({
+                    left: ["Diameter:", op?.diameter !== undefined ? String(op.diameter) : "-"],
+                    right: ["Length:", op?.length !== undefined ? String(op.length) : "-"],
+                });
             }
-            
-            // Add Shape row
+
             detailRows.push({ left: ["Shape:", op?.shape || "-"], right: null });
-            
-            // Calculate total table height
+
             const tableHeight = detailRows.length * rowHeight + linePadding * 2;
-            
-            // Draw table background
-            pdf.setFillColor(248, 250, 252); // Light gray background
+
+            pdf.setFillColor(248, 250, 252);
             pdf.rect(margin, currentY, tableWidth, tableHeight, "F");
-            
-            // Draw horizontal lines for each row
+
             pdf.setDrawColor(226, 232, 240);
             pdf.setLineWidth(0.2);
             for (let i = 0; i <= detailRows.length; i++) {
                 const lineY = currentY + linePadding + i * rowHeight;
                 pdf.line(margin + 2, lineY, margin + tableWidth - 2, lineY);
             }
-            
-            // Draw vertical separator line in middle
-            const midX = margin + tableWidth/2;
+
+            const midX = margin + tableWidth / 2;
             pdf.line(midX, currentY + linePadding, midX, currentY + tableHeight - linePadding);
-            
-            // Draw row data with truncation for long values
+
+            const truncateText = (text, maxWidth) => {
+                let str = String(text);
+                const textWidth = pdf.getTextWidth(str);
+                if (textWidth <= maxWidth) return str;
+
+                let low = 0;
+                let high = str.length;
+                while (low < high) {
+                    const mid = Math.ceil((low + high) / 2);
+                    const truncated = str.substring(0, mid) + "...";
+                    if (pdf.getTextWidth(truncated) <= maxWidth) low = mid;
+                    else high = mid - 1;
+                }
+                return str.substring(0, low) + "...";
+            };
+
             detailRows.forEach((row, rowIndex) => {
                 const y = currentY + linePadding + (rowIndex + 0.7) * rowHeight;
-                
-                // Helper to truncate text
-                const truncateText = (text, maxWidth) => {
-                    let str = String(text);
-                    const textWidth = pdf.getTextWidth(str);
-                    if (textWidth <= maxWidth) return str;
-                    
-                    // Binary search for max length that fits
-                    let low = 0, high = str.length;
-                    while (low < high) {
-                        const mid = Math.ceil((low + high) / 2);
-                        const truncated = str.substring(0, mid) + "...";
-                        if (pdf.getTextWidth(truncated) <= maxWidth) {
-                            low = mid;
-                        } else {
-                            high = mid - 1;
-                        }
-                    }
-                    return str.substring(0, low) + "...";
-                };
-                
-                // Left column
+
                 pdf.setTextColor(30, 58, 95);
                 pdf.setFontSize(8);
                 pdf.setFont("helvetica", "bold");
                 pdf.text(row.left[0], leftLabelX, y);
-                
+
                 pdf.setTextColor(71, 85, 105);
                 pdf.setFont("helvetica", "normal");
                 pdf.text(truncateText(row.left[1], maxValueWidth), leftValueX, y);
-                
-                // Right column (if exists)
+
                 if (row.right) {
                     pdf.setTextColor(30, 58, 95);
                     pdf.setFont("helvetica", "bold");
                     pdf.text(row.right[0], rightLabelX, y);
-                    
+
                     pdf.setTextColor(71, 85, 105);
                     pdf.setFont("helvetica", "normal");
                     pdf.text(truncateText(row.right[1], maxValueWidth), rightValueX, y);
                 }
             });
-            
+
             currentY += tableHeight + 4;
-            
-            // Separator line
+
             pdf.setDrawColor(200, 200, 200);
             pdf.setLineWidth(0.3);
             pdf.line(margin, currentY, margin + contentWidth, currentY);
             currentY += 4;
         });
 
-        // Add final footer
         addFooter();
 
-        // Save PDF
         const safeProject = String(projectData?.project_name || "Project").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Project";
         const safePart = String(part?.part_number || "Part").replace(/[^a-z0-9-_ ]/gi, "").trim() || "Part";
         pdf.save(`${safeProject}-${safePart}-Operations.pdf`);
+    };
+
+    const handleSaveOperationsPdf = async () => {
+        await downloadOperationsAsPdf();
+    };
+
+    const handleSaveOperationsExcel = async () => {
+        await downloadOperationsAsExcel();
     };
 
     return (
@@ -1705,20 +1799,43 @@ function CostEstimationModal({
                                                     color="secondary"
                                                     startIcon={<DownloadIcon />}
                                                     disabled={!Array.isArray(operations) || operations.length === 0}
-                                                    onClick={handleDownloadAllOperations}
-                                                    sx={{ 
-                                                        textTransform: "none", 
-                                                        fontWeight: 800, 
-                                                        px: 4, 
+                                                    onClick={handleSaveOperationsPdf}
+                                                    sx={{
+                                                        textTransform: "none",
+                                                        fontWeight: 800,
+                                                        px: 4,
                                                         py: 1.5,
                                                         background: "linear-gradient(135deg, #d4af37 0%, #b8860b 100%)",
                                                         color: "#ffffff",
                                                         "&:hover": {
                                                             background: "linear-gradient(135deg, #c4a030 0%, #a67600 100%)",
-                                                        }
+                                                        },
                                                     }}
                                                 >
-                                                    Download Operations
+                                                    Save as PDF
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outlined"
+                                                    size="large"
+                                                    color="secondary"
+                                                    startIcon={<DownloadIcon />}
+                                                    disabled={!Array.isArray(operations) || operations.length === 0}
+                                                    onClick={handleSaveOperationsExcel}
+                                                    sx={{
+                                                        textTransform: "none",
+                                                        fontWeight: 800,
+                                                        px: 4,
+                                                        py: 1.5,
+                                                        borderColor: "rgba(212, 175, 55, 0.8)",
+                                                        color: "#d4af37",
+                                                        "&:hover": {
+                                                            borderColor: "rgba(212, 175, 55, 1)",
+                                                            backgroundColor: "rgba(212, 175, 55, 0.08)",
+                                                        },
+                                                    }}
+                                                >
+                                                    Save in Excel
                                                 </Button>
                                             </Box>
 
