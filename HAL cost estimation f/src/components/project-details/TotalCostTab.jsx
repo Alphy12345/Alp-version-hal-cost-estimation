@@ -98,6 +98,8 @@ function TotalCostTab({ costResults, parts, formatValue }) {
     const partCount = partSummaries.length;
     const opCount = partSummaries.reduce((sum, s) => sum + (Array.isArray(s.operations) ? s.operations.length : 0), 0);
 
+    const partsTotalWithMisc = partSummaries.reduce((sum, s) => sum + (Number(s.combined_total_unit_cost_with_misc) || 0), 0);
+
     return (
         <Card
             variant="outlined"
@@ -215,65 +217,45 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                         </TableContainer>
                     </Box>
 
-                    {/* Individual Parts Summary */}
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            Individual Parts Cost Summary
+                            Individual Parts
                         </Typography>
-                        <Stack spacing={2}>
-                            {partSummaries.map((summary) => {
-                                const part = summary.part;
-                                return (
-                                    <Card
-                                        key={summary.partId}
-                                        variant="outlined"
-                                        sx={{ bgcolor: "rgba(15,23,42,0.65)", borderColor: "rgba(148,163,184,0.25)", borderRadius: 2 }}
-                                    >
-                                        <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "rgba(30,41,59,0.55)" }}>
-                                            <Box>
-                                                <Typography variant="subtitle2">{part?.part_number || 'Unknown Part'}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{part?.part_name || 'No name'}</Typography>
-                                            </Box>
-                                            <Box sx={{ textAlign: "right" }}>
-                                                <Typography variant="caption" color="text.secondary">Unit Cost (with Misc)</Typography>
-                                                <Typography variant="body1" fontWeight="bold" color="primary">
-                                                    {formatValue("total_cost", summary.combined_total_unit_cost_with_misc)}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                        <Divider sx={{ borderColor: "rgba(148,163,184,0.18)" }} />
-                                        <Box sx={{ p: 2 }}>
-                                            <Table size="small" sx={{ "& th, & td": { borderColor: "rgba(148,163,184,0.18)" } }}>
-                                                <TableHead>
-                                                    <TableRow sx={{ bgcolor: "rgba(30,41,59,0.35)" }}>
-                                                        <TableCell>Operation</TableCell>
-                                                        <TableCell align="right">Unit Cost</TableCell>
-                                                        <TableCell align="right">Unit Cost (with Misc)</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {(summary.operations || []).map((opRes, idx) => {
-                                                        const opType = String(opRes?.inputs?.operation_type || opRes?.operation_type || "").trim();
-                                                        const label = opType
-                                                            ? opType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-                                                            : `Operation ${idx + 1}`;
-                                                        const unitCost = opRes?.cost_breakdown?.unit_cost;
-                                                        const unitWithMisc = opRes?.cost_breakdown?.total_unit_cost_with_misc;
-                                                        return (
-                                                            <TableRow key={`${summary.partId}-op-${idx}`}>
-                                                                <TableCell>{label}</TableCell>
-                                                                <TableCell align="right">{formatValue("total_cost", unitCost)}</TableCell>
-                                                                <TableCell align="right">{formatValue("total_cost", unitWithMisc)}</TableCell>
-                                                            </TableRow>
-                                                        );
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </Box>
-                                    </Card>
-                                );
-                            })}
-                        </Stack>
+                        <TableContainer
+                            component={Paper}
+                            variant="outlined"
+                            sx={{ bgcolor: "rgba(15,23,42,0.65)", borderColor: "rgba(148,163,184,0.25)", borderRadius: 2 }}
+                        >
+                            <Table size="small" sx={{ "& th, & td": { borderColor: "rgba(148,163,184,0.18)" } }}>
+                                <TableHead>
+                                    <TableRow sx={{ bgcolor: "rgba(30,41,59,0.85)" }}>
+                                        <TableCell>Part</TableCell>
+                                        <TableCell>Part Name</TableCell>
+                                        <TableCell align="right">Operations</TableCell>
+                                        <TableCell align="right">Final Unit Cost (with Misc)</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {partSummaries.map((s, idx) => (
+                                        <TableRow key={s.partId} sx={idx % 2 === 0 ? { bgcolor: "rgba(30,41,59,0.45)" } : undefined}>
+                                            <TableCell>{s.part?.part_number || "Unknown Part"}</TableCell>
+                                            <TableCell>{s.part?.part_name || "—"}</TableCell>
+                                            <TableCell align="right">{Array.isArray(s.operations) ? s.operations.length : 0}</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700, color: "#38bdf8" }}>
+                                                {formatValue("total_cost", s.combined_total_unit_cost_with_misc)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    <TableRow sx={{ bgcolor: "rgba(34,197,94,0.12)" }}>
+                                        <TableCell colSpan={2} sx={{ fontWeight: 800 }}>TOTAL</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 800 }}>{opCount}</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 800, color: "success.main" }}>
+                                            {formatValue("total_cost", partsTotalWithMisc)}
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
                     </Box>
                 </Stack>
             </CardContent>
