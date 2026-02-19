@@ -31,34 +31,39 @@ function DocumentsTab({ projectData, onViewFile }) {
                     <ListItem
                         key={doc.id}
                         sx={{
-                            bgcolor: "rgba(15, 23, 42, 0.6)",
+                            bgcolor: "#FFFFFF",
                             border: 1,
-                            borderColor: "rgba(30, 64, 175, 0.3)",
+                            borderColor: "#E2E8F0",
                             borderRadius: 2,
                             mb: 1,
-                            py: 1
+                            py: 1,
+                            "&:hover": { bgcolor: "#F8FAFC", borderColor: "#C7D2FE" },
                         }}
                         secondaryAction={
                             <Button
                                 size="small"
                                 onClick={() => onViewFile(doc.file_path, doc.filename)}
-                                sx={{ minWidth: "auto" }}
+                                sx={{
+                                    minWidth: "auto",
+                                    color: "#6366F1",
+                                    "&:hover": { bgcolor: "#EEF2FF" },
+                                }}
                             >
                                 View
                             </Button>
                         }
                     >
                         <ListItemIcon sx={{ minWidth: 40 }}>
-                            <InsertDriveFileIcon color="action" />
+                            <InsertDriveFileIcon sx={{ color: "#6366F1" }} />
                         </ListItemIcon>
                         <ListItemText
                             primary={
-                                <Typography variant="body2" fontWeight={500}>
+                                <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>
                                     {doc.filename}
                                 </Typography>
                             }
                             secondary={
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" sx={{ color: "#64748B" }}>
                                     Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
                                 </Typography>
                             }
@@ -72,7 +77,7 @@ function DocumentsTab({ projectData, onViewFile }) {
     return (
         <Stack spacing={4}>
             <Box>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom sx={{ color: "#0F172A", fontWeight: 600 }}>
                     Requirement Documents
                 </Typography>
                 <DocumentList
@@ -82,7 +87,7 @@ function DocumentsTab({ projectData, onViewFile }) {
             </Box>
 
             <Box>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom sx={{ color: "#0F172A", fontWeight: 600 }}>
                     Other Documents
                 </Typography>
                 <DocumentList

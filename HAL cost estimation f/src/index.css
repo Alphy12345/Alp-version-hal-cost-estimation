@@ -10,14 +10,13 @@ body {
     sans-serif;
 }
 
-/* Temporary dark-mode compatibility layer for Tailwind utility usage.
-   Remove once the Tailwind->MUI migration is complete. */
+/* Light mode theme */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .bg-white {
-  background-color: #0b1220 !important;
+  background-color: #ffffff !important;
 }
 
 .bg-slate-50,
@@ -26,26 +25,26 @@ body {
 .bg-gray-50,
 .bg-gray-100,
 .bg-gray-200 {
-  background-color: #0f172a !important;
+  background-color: #f8fafc !important;
 }
 
 .text-slate-900,
 .text-gray-900,
 .text-slate-800,
 .text-gray-800 {
-  color: #e5e7eb !important;
+  color: #1e293b !important;
 }
 
 .text-slate-700,
 .text-gray-700,
 .text-slate-600,
 .text-gray-600 {
-  color: #cbd5e1 !important;
+  color: #475569 !important;
 }
 
 .border-slate-200,
 .border-slate-100,
 .border-gray-200,
 .border-gray-100 {
-  border-color: rgba(148, 163, 184, 0.16) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
 }

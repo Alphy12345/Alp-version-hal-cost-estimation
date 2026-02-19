@@ -20,13 +20,19 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
     if (parts.length === 0) {
         return (
             <Box sx={{ textAlign: "center", py: 8 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 2, color: "#64748B" }}>
                     No parts added yet.
                 </Typography>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={onAddPart}
+                    sx={{
+                        bgcolor: "#6366F1",
+                        "&:hover": { bgcolor: "#4F46E5" },
+                        textTransform: "none",
+                        fontWeight: 600,
+                    }}
                 >
                     Add Your First Part
                 </Button>
@@ -37,7 +43,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
     return (
         <Stack spacing={2}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="h6" fontWeight={600}>
+                <Typography variant="h6" fontWeight={600} sx={{ color: "#0F172A" }}>
                     Project Parts
                 </Typography>
                 <Button
@@ -45,6 +51,12 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                     startIcon={<AddIcon />}
                     onClick={onAddPart}
                     size="small"
+                    sx={{
+                        bgcolor: "#6366F1",
+                        "&:hover": { bgcolor: "#4F46E5" },
+                        textTransform: "none",
+                        fontWeight: 600,
+                    }}
                 >
                     Add Part
                 </Button>
@@ -53,10 +65,10 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
             <Grid container spacing={2}>
                 {parts.map((part) => (
                     <Grid item xs={12} md={6} key={part.id}>
-                        <Card variant="outlined">
+                        <Card variant="outlined" sx={{ borderColor: "#C7D2FE", bgcolor: "#F5F7FF", "&:hover": { borderColor: "#6366F1", boxShadow: "0 4px 12px rgba(99,102,241,0.15)" } }}>
                             <CardHeader
                                 title={
-                                    <Typography variant="subtitle1" fontWeight={600}>
+                                    <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#0F172A" }}>
                                         Part {part.part_number}
                                     </Typography>
                                 }
@@ -66,14 +78,15 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                             size="small"
                                             onClick={() => onEditPart(part)}
                                             title="Edit Part"
+                                            sx={{ color: "#6366F1", "&:hover": { bgcolor: "#EEF2FF" } }}
                                         >
                                             <EditIcon fontSize="small" />
                                         </IconButton>
                                         <IconButton
                                             size="small"
-                                            color="error"
                                             onClick={() => onDeletePart(part.id)}
                                             title="Delete Part"
+                                            sx={{ color: "#EF4444", "&:hover": { bgcolor: "#FEE2E2" } }}
                                         >
                                             <DeleteIcon fontSize="small" />
                                         </IconButton>
@@ -84,24 +97,24 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                             <CardContent sx={{ pt: 0 }}>
                                 <Grid container spacing={1} sx={{ mb: 2 }}>
                                     <Grid item xs={6}>
-                                        <Typography variant="caption" color="text.secondary" display="block">
+                                        <Typography variant="caption" sx={{ color: "#64748B" }} display="block">
                                             Part Number
                                         </Typography>
-                                        <Typography variant="body2">
+                                        <Typography variant="body2" sx={{ color: "#0F172A" }}>
                                             {part.part_number || "—"}
                                         </Typography>
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography variant="caption" color="text.secondary" display="block">
+                                        <Typography variant="caption" sx={{ color: "#64748B" }} display="block">
                                             Part Name
                                         </Typography>
-                                        <Typography variant="body2">
+                                        <Typography variant="body2" sx={{ color: "#0F172A" }}>
                                             {part.part_name || "—"}
                                         </Typography>
                                     </Grid>
                                 </Grid>
 
-                                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ textTransform: "uppercase", display: "block", mb: 1 }}>
+                                <Typography variant="caption" fontWeight={600} sx={{ color: "#64748B", textTransform: "uppercase", display: "block", mb: 1 }}>
                                     Part Files
                                 </Typography>
 
@@ -113,17 +126,18 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                                 alignItems: "center",
                                                 justifyContent: "space-between",
                                                 border: 1,
-                                                borderColor: "divider",
+                                                borderColor: "#C7D2FE",
                                                 borderRadius: 1,
                                                 p: 1,
-                                                bgcolor: "background.paper"
+                                                bgcolor: "#FFFFFF",
+                                                "&:hover": { borderColor: "#6366F1", bgcolor: "#EEF2FF" },
                                             }}
                                         >
                                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                                <DescriptionIcon color="primary" fontSize="small" />
+                                                <DescriptionIcon sx={{ color: "#6366F1" }} fontSize="small" />
                                                 <Box>
-                                                    <Typography variant="body2" fontWeight={500}>2D Drawing</Typography>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                                    <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>2D Drawing</Typography>
+                                                    <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
                                                         {part.drawing_2d_path.split('\\').pop()}
                                                     </Typography>
                                                 </Box>
@@ -131,7 +145,11 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                             <Button
                                                 size="small"
                                                 onClick={() => onViewFile(part.drawing_2d_path, part.drawing_2d_path.split('\\').pop())}
-                                                sx={{ minWidth: "auto" }}
+                                                sx={{
+                                                    minWidth: "auto",
+                                                    color: "#6366F1",
+                                                    "&:hover": { bgcolor: "#EEF2FF" },
+                                                }}
                                             >
                                                 View
                                             </Button>
@@ -139,7 +157,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                     ) : null}
 
                                     {!part.drawing_2d_path && (
-                                        <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                                        <Typography variant="caption" sx={{ color: "#94A3B8" }} fontStyle="italic">
                                             No files uploaded for this part.
                                         </Typography>
                                     )}

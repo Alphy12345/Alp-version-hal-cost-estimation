@@ -169,15 +169,27 @@ function MhrPage() {
   return (
     <Stack spacing={4}>
       {/* Form Section */}
-      <Card variant="outlined">
+      <Card variant="outlined" sx={{ bgcolor: "#FFFFFF", borderColor: "#E2E8F0", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
         <CardHeader
           title={`MHR ${editingItem ? "Edit" : "Add"}`}
+          titleTypographyProps={{ 
+            sx: { 
+              color: "#6366F1", 
+              fontWeight: 700, 
+              fontSize: "24px" 
+            } 
+          }}
           action={loading && <CircularProgress size={20} />}
+          sx={{ 
+            bgcolor: "#F1F5F9", 
+            borderBottom: "1px solid #E2E8F0",
+            "& .MuiCardHeader-title": { color: "#0F172A", fontWeight: 700, fontSize: "24px" }
+          }}
         />
-        <Divider />
-        <CardContent>
+        <Divider sx={{ borderColor: "#E2E8F0" }} />
+        <CardContent sx={{ bgcolor: "#FFFFFF" }}>
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2, bgcolor: "#FEF2F2", color: "#EF4444", border: "1px solid #FECACA" }}>
               {error}
             </Alert>
           )}
@@ -194,27 +206,38 @@ function MhrPage() {
       </Card>
 
       {/* Table Section */}
-      <Card variant="outlined">
+      <Card variant="outlined" sx={{ bgcolor: "#FFFFFF", borderColor: "#E2E8F0", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
         <CardHeader
           title="MHR Records"
+          titleTypographyProps={{ 
+            sx: { 
+              color: "#6366F1", 
+              fontWeight: 700 
+            } 
+          }}
           action={loading && <CircularProgress size={20} />}
+          sx={{ 
+            bgcolor: "#F1F5F9", 
+            borderBottom: "1px solid #E2E8F0",
+            "& .MuiCardHeader-title": { color: "#0F172A", fontWeight: 700 }
+          }}
         />
-        <Divider />
-        <CardContent sx={{ p: 0 }}>
+        <Divider sx={{ borderColor: "#E2E8F0" }} />
+        <CardContent sx={{ p: 0, bgcolor: "#FFFFFF" }}>
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "#1e3a5f" }}>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Operation Type</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Duty</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Machine</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Investment Cost</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Power Rating</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Power Charges</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Available Hrs</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>Utilization Hrs</TableCell>
-                  <TableCell sx={{ color: "#38bdf8", fontWeight: 600 }}>MHR</TableCell>
-                  <TableCell align="right" sx={{ color: "#38bdf8", fontWeight: 600 }}>Actions</TableCell>
+                <TableRow sx={{ bgcolor: "#6366F1" }}>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operation Type</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Duty</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Machine</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Investment Cost</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Rating</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Charges</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Available Hrs</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Utilization Hrs</TableCell>
+                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>MHR</TableCell>
+                  <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -227,8 +250,15 @@ function MhrPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {items.map((item) => (
-                  <TableRow key={item.id} hover>
+                {items.map((item, index) => (
+                  <TableRow 
+                    key={item.id} 
+                    sx={{ 
+                      bgcolor: index % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                      "&:hover": { bgcolor: "#EEF2FF" },
+                      borderBottom: "1px solid #F1F5F9",
+                    }}
+                  >
                     {inlineEditingId === item.id ? (
                       <>
                         <TableCell>
@@ -355,29 +385,30 @@ function MhrPage() {
                       </>
                     ) : (
                       <>
-                        <TableCell>{getOperationTypeName(item.op_type_id)}</TableCell>
-                        <TableCell>{getDutyName(item.duty_id)}</TableCell>
-                        <TableCell>{getMachineName(item.machine_id)}</TableCell>
-                        <TableCell>{item.investment_cost || "-"}</TableCell>
-                        <TableCell>{item.elect_power_rating || "-"}</TableCell>
-                        <TableCell>{item.elect_power_charges || "-"}</TableCell>
-                        <TableCell>{item.available_hrs_per_annum || "-"}</TableCell>
-                        <TableCell>{item.utilization_hrs_year || "-"}</TableCell>
-                        <TableCell>{item.machine_hr_rate || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{getOperationTypeName(item.op_type_id)}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{getDutyName(item.duty_id)}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{getMachineName(item.machine_id)}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.investment_cost || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.elect_power_rating || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.elect_power_charges || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.available_hrs_per_annum || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.utilization_hrs_year || "-"}</TableCell>
+                        <TableCell sx={{ color: "#334155" }}>{item.machine_hr_rate || "-"}</TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <IconButton
                               size="small"
                               onClick={() => handleInlineEdit(item)}
                               title="Edit"
+                              sx={{ color: "#6366F1", "&:hover": { color: "#4F46E5", bgcolor: "#EEF2FF" } }}
                             >
                               <EditIcon fontSize="small" />
                             </IconButton>
                             <IconButton
                               size="small"
-                              color="error"
                               onClick={() => handleDelete(item.id)}
                               title="Delete"
+                              sx={{ color: "#EF4444", "&:hover": { color: "#DC2626", bgcolor: "#FEE2E2" } }}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

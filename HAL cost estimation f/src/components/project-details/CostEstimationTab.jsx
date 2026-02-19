@@ -65,11 +65,11 @@ function CostEstimationTab({
 
     return (
         <Stack spacing={4}>
-            <Card variant="outlined">
+            <Card variant="outlined" sx={{ borderColor: "#E2E8F0", bgcolor: "#FFFFFF" }}>
                 <CardHeader
                     title="Project Drawings & Cost Estimation"
                     subheader="View all project drawings and calculate manufacturing costs for each part"
-                    sx={{ bgcolor: "rgba(56,189,248,0.08)", borderBottom: 1, borderColor: "rgba(56,189,248,0.12)" }}
+                    sx={{ bgcolor: "#F59E0B", color: "#FFFFFF", borderBottom: 1, borderColor: "#F59E0B", "& .MuiCardHeader-subheader": { color: "#FFFFFF" } }}
                 />
                 <CardContent sx={{ p: 4 }}>
                     <Stack spacing={4}>
@@ -96,28 +96,26 @@ function CostEstimationTab({
                             ) : (
                                 <Stack spacing={2}>
                                     {parts.map(part => (
-                                        <Card key={part.id} variant="outlined">
+                                        <Card key={part.id} variant="outlined" sx={{ borderLeft: "4px solid #F59E0B", bgcolor: "#FFFBEB", borderColor: "#FCD34D" }}>
                                             <Box
                                                 sx={{
                                                     p: 2,
                                                     display: "flex",
                                                     justifyContent: "space-between",
                                                     alignItems: "center",
-                                                    bgcolor: "rgba(56,189,248,0.06)",
-                                                    borderTop: 1,
-                                                    borderColor: "rgba(56,189,248,0.10)",
+                                                    bgcolor: "#FFFBEB",
                                                 }}
                                             >
                                                 <Box>
-                                                    <Typography variant="subtitle2">{part.part_number}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">{part.part_name}</Typography>
+                                                    <Typography variant="subtitle2" sx={{ color: "#0F172A", fontWeight: 600 }}>{part.part_number}</Typography>
+                                                    <Typography variant="caption" sx={{ color: "#64748B" }}>{part.part_name}</Typography>
                                                 </Box>
 
                                                 <Stack direction="row" spacing={3} alignItems="center">
                                                     {costResults[part.id] && (
                                                         <Box sx={{ textAlign: "right" }}>
-                                                            <Typography variant="caption" display="block" color="text.secondary">Unit Cost (with Misc)</Typography>
-                                                            <Typography variant="body1" fontWeight="bold" color="primary">
+                                                            <Typography variant="caption" display="block" sx={{ color: "#64748B" }}>Unit Cost (with Misc)</Typography>
+                                                            <Typography variant="body1" fontWeight="bold" sx={{ color: "#10B981" }}>
                                                                 {formatValue(
                                                                     "total_cost",
                                                                     costResults[part.id]?.combined_total_unit_cost_with_misc ?? costResults[part.id]?.cost_breakdown?.total_unit_cost_with_misc
@@ -129,6 +127,12 @@ function CostEstimationTab({
                                                         variant="contained"
                                                         startIcon={<CalculateIcon />}
                                                         onClick={() => openCostModal(part.id)}
+                                                        sx={{
+                                                            bgcolor: "#6366F1",
+                                                            "&:hover": { bgcolor: "#4F46E5" },
+                                                            textTransform: "none",
+                                                            fontWeight: 600,
+                                                        }}
                                                     >
                                                         Calculate Cost
                                                     </Button>

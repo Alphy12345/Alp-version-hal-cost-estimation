@@ -195,7 +195,13 @@ function CrudTable({
                     variant="outlined"
                     onClick={resetForm}
                     size="small"
-                    sx={{ textTransform: "none" }}
+                    sx={{
+                      textTransform: "none",
+                      bgcolor: "#F1F5F9",
+                      borderColor: "#CBD5E1",
+                      color: "#334155",
+                      "&:hover": { bgcolor: "#E2E8F0", borderColor: "#CBD5E1" },
+                    }}
                   >
                     Cancel
                   </Button>
@@ -205,7 +211,12 @@ function CrudTable({
                   variant="contained"
                   disabled={loading}
                   size="small"
-                  sx={{ textTransform: "none", fontWeight: 600 }}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 600,
+                    bgcolor: "#6366F1",
+                    "&:hover": { bgcolor: "#4F46E5" },
+                  }}
                 >
                   Add
                 </Button>
@@ -227,8 +238,9 @@ function CrudTable({
               <TableRow
                 sx={{
                   "& th": {
-                    bgcolor: "rgba(56,189,248,0.12)",
-                    color: "primary.light",
+                    bgcolor: "#6366F1",
+                    color: "#FFFFFF",
+                    fontWeight: 600,
                   },
                   "& th:first-of-type": { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
                   "& th:last-of-type": { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
@@ -258,8 +270,10 @@ function CrudTable({
                 <TableRow
                   key={item.id}
                   sx={{
+                    bgcolor: index % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                    "&:hover": { bgcolor: "#EEF2FF" },
                     "& td": {
-                      bgcolor: "background.paper",
+                      borderColor: "#E2E8F0",
                     },
                     "& td:first-of-type": { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
                     "& td:last-of-type": { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
@@ -318,14 +332,15 @@ function CrudTable({
                           size="small"
                           onClick={() => handleInlineEdit(item)}
                           title="Edit"
+                          sx={{ color: "#6366F1" }}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
-                          color="error"
                           onClick={() => handleDelete(item.id)}
                           title="Delete"
+                          sx={{ color: "#EF4444" }}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>

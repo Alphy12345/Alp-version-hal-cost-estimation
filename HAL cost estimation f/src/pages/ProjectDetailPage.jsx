@@ -810,8 +810,24 @@ function ProjectDetailPage({ onChange, projectId }) {
         </Box>
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-          <Tabs value={activeTab} onChange={handleTabChange} aria-label="project details tabs">
+        <Box sx={{ borderBottom: 1, borderColor: "#E2E8F0" }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            aria-label="project details tabs"
+            textColor="primary"
+            indicatorColor="#6366F1"
+            sx={{
+              "& .MuiTab-root": {
+                color: "#64748B",
+                textTransform: "none",
+                fontWeight: 500,
+                "&:hover": { color: "#0F172A" },
+                "&.Mui-selected": { color: "#6366F1", fontWeight: 600 },
+              },
+              "& .MuiTabs-indicator": { backgroundColor: "#6366F1", height: 2 },
+            }}
+          >
             <Tab label="Documents" value="documents" />
             <Tab label="Parts" value="parts" />
             <Tab label="Cost Estimation" value="cost_estimation" />

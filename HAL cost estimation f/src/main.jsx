@@ -7,15 +7,15 @@ import App from './App.jsx'
 
 const theme = createTheme({
   palette: {
-    mode: 'dark',
-    primary: { main: '#38bdf8' },
-    secondary: { main: '#60a5fa' },
-    success: { main: '#38bdf8' },
+    mode: 'light',
+    primary: { main: '#1e3a5f' },
+    secondary: { main: '#d4af37' },
+    success: { main: '#22c55e' },
     background: {
-      default: '#070b14',
-      paper: '#0b1220',
+      default: '#e3f2fd',
+      paper: '#ffffff',
     },
-    text: { primary: '#e5e7eb', secondary: '#94a3b8' },
+    text: { primary: '#1e293b', secondary: '#64748b' },
   },
   shape: { borderRadius: 12 },
   typography: {
@@ -34,6 +34,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         },
       },
     },
@@ -42,13 +43,21 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 600,
+          borderRadius: 8,
+        },
+        contained: {
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: '0 2px 8px rgba(30,58,95,0.25)',
+          },
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderColor: 'rgba(148,163,184,0.12)',
+          borderColor: 'rgba(148,163,184,0.2)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         },
       },
     },
@@ -56,27 +65,39 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          border: '1px solid rgba(148,163,184,0.12)',
+          border: '1px solid rgba(148,163,184,0.2)',
+          backgroundColor: '#ffffff',
+        },
+      },
+    },
+    MuiTable: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         head: {
-          fontWeight: 800,
+          fontWeight: 700,
           letterSpacing: 0.2,
-          borderBottom: '1px solid rgba(148,163,184,0.16)',
+          borderBottom: '1px solid rgba(148,163,184,0.25)',
+          backgroundColor: '#f1f5f9',
+          color: '#1e3a5f',
         },
         body: {
-          borderBottom: '1px solid rgba(148,163,184,0.10)',
+          borderBottom: '1px solid rgba(148,163,184,0.15)',
+          color: '#334155',
         },
       },
     },
     MuiTableRow: {
       styleOverrides: {
         root: {
+          backgroundColor: '#ffffff',
           '&:hover': {
-            backgroundColor: 'rgba(56,189,248,0.06)',
+            backgroundColor: 'rgba(30,58,95,0.04)',
           },
         },
       },

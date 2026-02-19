@@ -460,7 +460,7 @@ function CostEstimationModal({
         const canvas = await html2canvas(element, {
             scale: 2,
             useCORS: true,
-            backgroundColor: "#020617",
+            backgroundColor: "#f8fafc",
             windowWidth: element.scrollWidth,
             windowHeight: element.scrollHeight,
         });
@@ -1056,32 +1056,34 @@ function CostEstimationModal({
             TransitionComponent={Transition}
             PaperProps={{
                 sx: {
-                    bgcolor: "#020617",
-                    backgroundImage: "radial-gradient(circle at top left, #1e293b 0, #020617 55%, #000 100%)",
+                    bgcolor: "#ffffff",
+                    backgroundImage: "linear-gradient(135deg, #f8fafc 0%, #e3f2fd 100%)",
                 },
             }}
         >
             <AppBar
                 sx={{
                     position: "relative",
-                    bgcolor: "transparent",
+                    bgcolor: "#0F172A",
                     boxShadow: "none",
-                    borderBottom: "1px solid rgba(148,163,184,0.25)",
-                    backgroundImage: "linear-gradient(90deg, rgba(15,23,42,0.98), rgba(37,99,235,0.95))",
+                    borderBottom: "1px solid #1E293B",
                 }}
             >
                 <Toolbar>
                     <IconButton
                         edge="start"
-                        color="inherit"
                         onClick={onClose}
                         aria-label="close"
+                        sx={{
+                            color: "#94A3B8",
+                            "&:hover": { color: "#FFFFFF", bgcolor: "#1E293B" },
+                        }}
                     >
                         <CloseIcon />
                     </IconButton>
-                    <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
+                    <Typography variant="h6" component="div" sx={{ ml: 2, flex: 1, color: "#FFFFFF" }}>
                         Part Cost Estimation – {part.part_number}
-                        <Typography variant="caption" display="block" color="inherit" sx={{ opacity: 0.8 }}>
+                        <Typography variant="caption" display="block" sx={{ color: "#94A3B8" }}>
                             {part.part_name}
                         </Typography>
                     </Typography>
@@ -1089,10 +1091,10 @@ function CostEstimationModal({
                     <Stack direction="row" spacing={2} alignItems="center">
                         {(costResult || Number.isFinite(Number(combinedTotal))) && (
                             <Box sx={{ textAlign: "right", mr: 2 }}>
-                                <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                                <Typography variant="caption" display="block" sx={{ color: "#94A3B8" }}>
                                     Final Part Cost
                                 </Typography>
-                                <Typography variant="h6" fontWeight="bold" color="#bbf7d0">
+                                <Typography variant="h6" fontWeight={700} color="#FFFFFF">
                                     {formatValue(
                                         "total_cost",
                                         Number.isFinite(Number(combinedTotal))
@@ -1103,21 +1105,29 @@ function CostEstimationModal({
                             </Box>
                         )}
                         <Button
-                            color="inherit"
                             onClick={handleOpenPdfPreview}
                             startIcon={<DownloadIcon />}
                             variant="contained"
                             sx={{
-                                bgcolor: "rgba(15,23,42,0.15)",
-                                borderColor: "rgba(255,255,255,0.35)",
+                                bgcolor: "#6366F1",
+                                color: "#FFFFFF",
                                 textTransform: "none",
-                                fontWeight: 800,
-                                "&:hover": { bgcolor: "rgba(15,23,42,0.25)" },
+                                fontWeight: 600,
+                                "&:hover": { bgcolor: "#4F46E5" },
                             }}
                         >
                             Download Report
                         </Button>
-                        <Button autoFocus color="inherit" onClick={onClose} sx={{ textTransform: "none", fontWeight: 700 }}>
+                        <Button
+                            onClick={onClose}
+                            sx={{
+                                textTransform: "none",
+                                fontWeight: 600,
+                                bgcolor: "#1E293B",
+                                color: "#94A3B8",
+                                "&:hover": { color: "#FFFFFF", bgcolor: "#334155" },
+                            }}
+                        >
                             Close
                         </Button>
                     </Stack>
@@ -1147,34 +1157,34 @@ function CostEstimationModal({
                                     flexDirection: "column",
                                     height: { xs: 560, lg: "calc(100vh - 360px)" },
                                     borderRadius: 3,
-                                    bgcolor: "rgba(15,23,42,0.98)",
-                                    borderColor: "rgba(30,64,175,0.7)",
-                                    boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
+                                    bgcolor: "#ffffff",
+                                    borderColor: "rgba(0,0,0,0.1)",
+                                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
                                 }}
                             >
                                 <Box
                                     sx={{
                                         px: 2.5,
                                         py: 1.75,
-                                        bgcolor: "rgba(15,23,42,0.98)",
+                                        bgcolor: "#f8fafc",
                                         borderBottom: 1,
-                                        borderColor: "rgba(30,64,175,0.7)",
+                                        borderColor: "rgba(0,0,0,0.1)",
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "center",
                                     }}
                                 >
-                                    <Typography variant="subtitle2" sx={{ color: "#e5e7eb", fontWeight: 700 }}>
+                                    <Typography variant="subtitle2" sx={{ color: "#1e293b", fontWeight: 700 }}>
                                         2D Drawing
                                     </Typography>
                                     <Stack direction="row" spacing={0.5}>
-                                        <IconButton size="small" onClick={onZoomOut} title="Zoom Out" sx={{ color: "#e5e7eb" }}>
+                                        <IconButton size="small" onClick={onZoomOut} title="Zoom Out" sx={{ color: "#64748b" }}>
                                             <ZoomOutIcon fontSize="small" />
                                         </IconButton>
-                                        <IconButton size="small" onClick={onResetZoom} title="Reset" sx={{ color: "#e5e7eb" }}>
+                                        <IconButton size="small" onClick={onResetZoom} title="Reset" sx={{ color: "#64748b" }}>
                                             <RestartAltIcon fontSize="small" />
                                         </IconButton>
-                                        <IconButton size="small" onClick={onZoomIn} title="Zoom In" sx={{ color: "#e5e7eb" }}>
+                                        <IconButton size="small" onClick={onZoomIn} title="Zoom In" sx={{ color: "#64748b" }}>
                                             <ZoomInIcon fontSize="small" />
                                         </IconButton>
                                     </Stack>
@@ -1187,12 +1197,12 @@ function CostEstimationModal({
                                     onMouseUp={handleMouseUp}
                                     onMouseLeave={handleMouseLeave}
                                     onMouseMove={handleMouseMove}
-                                    sx={{
-                                        p: 2,
-                                        bgcolor: "#020617",
-                                        flex: 1,
-                                        minHeight: 0,
-                                        overflow: "auto",
+                                        sx={{
+                                            p: 2,
+                                            bgcolor: "#f1f5f9",
+                                            flex: 1,
+                                            minHeight: 0,
+                                            overflow: "auto",
                                         cursor: part?.drawing_2d_path && !isPdfPath(part.drawing_2d_path) ? "grab" : "default",
                                     }}
                                 >
@@ -1247,17 +1257,17 @@ function CostEstimationModal({
                                 sx={{
                                     borderRadius: 3,
                                     overflow: "hidden",
-                                    bgcolor: "rgba(15,23,42,0.98)",
-                                    borderColor: "rgba(30,64,175,0.7)",
-                                    boxShadow: "0 22px 54px rgba(15,23,42,0.9)",
+                                    bgcolor: "#ffffff",
+                                    borderColor: "rgba(0,0,0,0.1)",
+                                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
                                 }}
                             >
-                                <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "rgba(30,64,175,0.7)", bgcolor: "rgba(15,23,42,0.98)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "#F59E0B", bgcolor: "#F59E0B", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <Box>
-                                        <Typography variant="h5" fontSize="1.4rem" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                        <Typography variant="h5" fontSize="1.4rem" fontWeight={900} sx={{ color: "#FFFFFF" }}>
                                             Machining Inputs
                                         </Typography>
-                                        <Typography variant="body1" sx={{ opacity: 0.9, color: "rgba(148,163,184,0.95)" }}>
+                                        <Typography variant="body1" sx={{ opacity: 0.9, color: "rgba(255,255,255,0.9)" }}>
                                             Fill the values and calculate
                                         </Typography>
                                     </Box>
@@ -1270,7 +1280,7 @@ function CostEstimationModal({
                                                 if (opsToRender.length === 0) {
                                                     return (
                                                         <Box sx={{ textAlign: 'center', py: 4 }}>
-                                                            <Typography variant="body1" sx={{ color: '#94a3b8', mb: 2 }}>
+                                                            <Typography variant="body1" sx={{ color: '#64748b', mb: 2 }}>
                                                                 No operations added
                                                             </Typography>
                                                         </Box>
@@ -1304,34 +1314,35 @@ function CostEstimationModal({
                                                             sx={{ 
                                                                 p: 2.5, 
                                                                 borderRadius: 2, 
-                                                                bgcolor: "rgba(2,6,23,0.55)", 
-                                                                borderColor: validationErrors[opIndex] ? "#ef4444" : "rgba(30,64,175,0.45)",
-                                                                boxShadow: validationErrors[opIndex] ? "0 0 0 1px #ef4444" : "none"
+                                                                bgcolor: "#FFFFFF", 
+                                                                borderColor: validationErrors[opIndex] ? "#EF4444" : "#E2E8F0",
+                                                                borderLeft: validationErrors[opIndex] ? "4px solid #EF4444" : "4px solid #6366F1",
+                                                                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                                                             }}
                                                         >
                                                             {validationErrors[opIndex] && (
-                                                                <Box sx={{ mb: 2, p: 1.5, bgcolor: "rgba(239,68,68,0.15)", borderRadius: 1, border: "1px solid rgba(239,68,68,0.3)" }}>
-                                                                    <Typography variant="body2" sx={{ color: "#ef4444", fontWeight: 700 }}>
+                                                                <Box sx={{ mb: 2, p: 1.5, bgcolor: "#FEF2F2", borderRadius: 1, border: "1px solid #FECACA" }}>
+                                                                    <Typography variant="body2" sx={{ color: "#EF4444", fontWeight: 700 }}>
                                                                         Missing: {validationErrors[opIndex].join(', ')}
                                                                     </Typography>
                                                                 </Box>
                                                             )}
                                                             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, gap: 2, flexWrap: "wrap" }}>
                                                                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                                    <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#0F172A" }}>
                                                                         Operation {opIndex + 1}
                                                                     </Typography>
                                                                     {opResult?.cost_breakdown?.total_unit_cost_with_misc && (
                                                                         <Typography 
                                                                             variant="body2" 
                                                                             sx={{ 
-                                                                                color: "#bbf7d0", 
+                                                                                color: "#16A34A", 
                                                                                 fontWeight: 700,
-                                                                                bgcolor: "rgba(187,247,208,0.15)",
-                                                                                px: 1.5,
-                                                                                py: 0.5,
-                                                                                borderRadius: 1,
-                                                                                border: "1px solid rgba(187,247,208,0.3)"
+                                                                                bgcolor: "#DCFCE7",
+                                                                                px: 1,
+                                                                                py: 0.25,
+                                                                                borderRadius: "6px",
+                                                                                border: "1px solid #86EFAC",
                                                                             }}
                                                                         >
                                                                             {formatValue("total_cost", opResult.cost_breakdown.total_unit_cost_with_misc)}
@@ -1349,7 +1360,7 @@ function CostEstimationModal({
                                                                             }}
                                                                             size="small"
                                                                             title={isExpanded ? "Hide cost breakdown" : "Show cost breakdown"}
-                                                                            sx={{ border: "1px solid rgba(148,163,184,0.35)", borderRadius: 1.25 }}
+                                                                            sx={{ border: "1px solid #E2E8F0", borderRadius: 1.25, color: "#64748B", "&:hover": { bgcolor: "#F8FAFC" } }}
                                                                         >
                                                                             {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                                                                         </IconButton>
@@ -1357,10 +1368,16 @@ function CostEstimationModal({
                                                                     <Button
                                                                         variant="outlined"
                                                                         size="small"
-                                                                        color="error"
                                                                         startIcon={<DeleteOutlineIcon />}
                                                                         onClick={() => onRemoveOperation && onRemoveOperation(part.id, opIndex)}
-                                                                        sx={{ textTransform: "none", fontWeight: 800 }}
+                                                                        sx={{ 
+                                                                            textTransform: "none", 
+                                                                            fontWeight: 600,
+                                                                            bgcolor: "#FEF2F2",
+                                                                            color: "#EF4444",
+                                                                            borderColor: "#FECACA",
+                                                                            "&:hover": { bgcolor: "#FEE2E2", borderColor: "#EF4444" },
+                                                                        }}
                                                                     >
                                                                         Remove
                                                                     </Button>
@@ -1568,7 +1585,13 @@ function CostEstimationModal({
                                                                                     minWidth: 120,
                                                                                     py: 1,
                                                                                     px: 2,
-                                                                                    fontSize: '0.9rem'
+                                                                                    fontSize: '0.9rem',
+                                                                                    bgcolor: "#6366F1",
+                                                                                    color: "#FFFFFF",
+                                                                                    textTransform: "none",
+                                                                                    fontWeight: 600,
+                                                                                    "&:hover": { bgcolor: "#4F46E5" },
+                                                                                    "&:disabled": { bgcolor: "#A5B4FC" },
                                                                                 }}
                                                                             >
                                                                                 {loading ? "Calculating..." : "Calculate Cost"}
@@ -1577,7 +1600,16 @@ function CostEstimationModal({
                                                                                 <Button
                                                                                     variant="outlined"
                                                                                     onClick={() => onClear(part.id)}
-                                                                                    sx={{ py: 1, px: 2 }}
+                                                                                    sx={{ 
+                                                                                        py: 1, 
+                                                                                        px: 2,
+                                                                                        textTransform: "none",
+                                                                                        fontWeight: 600,
+                                                                                        bgcolor: "#F1F5F9",
+                                                                                        color: "#64748B",
+                                                                                        borderColor: "#E2E8F0",
+                                                                                        "&:hover": { bgcolor: "#E2E8F0" },
+                                                                                    }}
                                                                                 >
                                                                                     Clear
                                                                                 </Button>
@@ -1593,8 +1625,8 @@ function CostEstimationModal({
                                                                         component={Paper}
                                                                         variant="outlined"
                                                                         sx={{
-                                                                            bgcolor: "#020617",
-                                                                            borderColor: "rgba(30,64,175,0.55)",
+                                                                            bgcolor: "#FFFFFF",
+                                                                            borderColor: "#E2E8F0",
                                                                             overflow: "hidden",
                                                                         }}
                                                                     >
@@ -1602,15 +1634,16 @@ function CostEstimationModal({
                                                                             sx={{
                                                                                 fontSize: "1.02rem",
                                                                                 "& th": {
-                                                                                    bgcolor: "rgba(15,23,42,0.98)",
-                                                                                    color: "#e5e7eb",
-                                                                                    borderBottomColor: "rgba(30,64,175,0.8)",
+                                                                                    bgcolor: "#F1F5F9",
+                                                                                    color: "#0F172A",
+                                                                                    borderBottomColor: "#E2E8F0",
                                                                                     fontSize: "1.05rem",
                                                                                     py: 1.6,
+                                                                                    fontWeight: 700,
                                                                                 },
                                                                                 "& td": {
-                                                                                    borderBottomColor: "rgba(30,64,175,0.45)",
-                                                                                    color: "#e5e7eb",
+                                                                                    borderBottomColor: "#E2E8F0",
+                                                                                    color: "#0F172A",
                                                                                     fontSize: "1.02rem",
                                                                                     py: 1.45,
                                                                                 },
@@ -1618,8 +1651,8 @@ function CostEstimationModal({
                                                                         >
                                                                             <TableHead>
                                                                                 <TableRow>
-                                                                                    <TableCell sx={{ fontWeight: 900 }}>Item</TableCell>
-                                                                                    <TableCell sx={{ fontWeight: 900 }} align="right">
+                                                                                    <TableCell sx={{ fontWeight: 700 }}>Item</TableCell>
+                                                                                    <TableCell sx={{ fontWeight: 700 }} align="right">
                                                                                         Value
                                                                                     </TableCell>
                                                                                 </TableRow>
@@ -1665,9 +1698,9 @@ function CostEstimationModal({
                                                                                         {formatValue("wage_rate", opResult?.cost_breakdown?.wage_rate)}
                                                                                     </TableCell>
                                                                                 </TableRow>
-                                                                                <TableRow selected>
-                                                                                    <TableCell sx={{ fontWeight: 950, fontSize: "1.12rem", py: 1.7 }}>Final Part Cost</TableCell>
-                                                                                    <TableCell align="right" sx={{ fontWeight: 950, fontSize: "1.15rem", color: "primary.main", py: 1.7 }}>
+                                                                                <TableRow selected sx={{ bgcolor: "#EEF2FF !important" }}>
+                                                                                    <TableCell sx={{ fontWeight: 700, fontSize: "1.12rem", py: 1.7, color: "#6366F1" }}>Final Part Cost</TableCell>
+                                                                                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#6366F1", py: 1.7 }}>
                                                                                         {formatValue("total_cost", opResult?.cost_breakdown?.total_unit_cost_with_misc)}
                                                                                     </TableCell>
                                                                                 </TableRow>
@@ -1680,9 +1713,9 @@ function CostEstimationModal({
                                                     );
                                                 });
                                             })()}
-                                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
+                                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "#ffffff", borderColor: "rgba(0,0,0,0.1)" }}>
                                                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#1e293b" }}>
                                                         Miscellaneous Costs
                                                     </Typography>
                                                     <Button
@@ -1744,10 +1777,10 @@ function CostEstimationModal({
                                                 </Stack>
 
                                                 <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end", gap: 3, alignItems: "center" }}>
-                                                    <Typography variant="body2" fontWeight={700} sx={{ color: "rgba(148,163,184,0.95)" }}>
+                                                    <Typography variant="body2" fontWeight={700} sx={{ color: "#64748b" }}>
                                                         Miscellaneous Total:
                                                     </Typography>
-                                                    <Typography variant="body1" fontWeight={900} sx={{ color: "#e5e7eb" }}>
+                                                    <Typography variant="body1" fontWeight={900} sx={{ color: "#1e293b" }}>
                                                         {formatValue("miscellaneous_amount", partMiscTotal)}
                                                     </Typography>
                                                 </Box>
@@ -1844,37 +1877,37 @@ function CostEstimationModal({
                                 </Paper>
 
                                 {operationSummaryRows.length > 0 && (
-                                    <Paper variant="outlined" sx={{ overflow: "hidden", bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.7)" }}>
-                                        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "rgba(30,64,175,0.7)", bgcolor: "rgba(15,23,42,0.98)" }}>
-                                            <Typography variant="h6" fontSize="1rem" sx={{ color: "#e5e7eb", fontWeight: 900 }}>Operations Summary</Typography>
+                                    <Paper variant="outlined" sx={{ overflow: "hidden", bgcolor: "#ffffff", borderColor: "rgba(0,0,0,0.1)" }}>
+                                        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "rgba(0,0,0,0.1)", bgcolor: "#f8fafc" }}>
+                                            <Typography variant="h6" fontSize="1rem" sx={{ color: "#1e293b", fontWeight: 900 }}>Operations Summary</Typography>
                                         </Box>
                                         <Box sx={{ p: 3 }}>
-                                            <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "rgba(15,23,42,0.98)", borderColor: "rgba(30,64,175,0.6)" }}>
+                                            <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#ffffff", borderColor: "rgba(0,0,0,0.1)" }}>
                                                 <Table>
                                                     <TableHead>
-                                                        <TableRow sx={{ bgcolor: "rgba(30,64,175,0.15)" }}>
-                                                            <TableCell sx={{ fontWeight: 900, color: "#e5e7eb" }}>Operation</TableCell>
-                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#e5e7eb" }}>Total Cost</TableCell>
+                                                        <TableRow sx={{ bgcolor: "#6366F1" }}>
+                                                            <TableCell sx={{ fontWeight: 900, color: "#FFFFFF" }}>Operation</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF" }}>Total Cost</TableCell>
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
                                                         {operationSummaryRows.map((row) => (
                                                             <TableRow key={row.idx}>
-                                                                <TableCell sx={{ color: "#e5e7eb" }}>{row.label}</TableCell>
-                                                                <TableCell align="right" sx={{ color: "#e5e7eb" }}>{formatValue("total_cost", row.value)}</TableCell>
+                                                                <TableCell sx={{ color: "#1e293b" }}>{row.label}</TableCell>
+                                                                <TableCell align="right" sx={{ color: "#1e293b" }}>{formatValue("total_cost", row.value)}</TableCell>
                                                             </TableRow>
                                                         ))}
                                                         {partMiscTotal > 0 && (
                                                             <TableRow sx={{ bgcolor: "rgba(30,64,175,0.08)" }}>
-                                                                <TableCell sx={{ color: "#38bdf8", fontWeight: 800 }}>Miscellaneous</TableCell>
-                                                                <TableCell align="right" sx={{ color: "#38bdf8", fontWeight: 800 }}>
+                                                                <TableCell sx={{ color: "#1e3a5f", fontWeight: 800 }}>Miscellaneous</TableCell>
+                                                                <TableCell align="right" sx={{ color: "#1e3a5f", fontWeight: 800 }}>
                                                                     {formatValue("miscellaneous_amount", partMiscTotal)}
                                                                 </TableCell>
                                                             </TableRow>
                                                         )}
-                                                        <TableRow sx={{ bgcolor: "rgba(30,64,175,0.15)" }}>
-                                                            <TableCell sx={{ fontWeight: 900, color: "#e5e7eb", fontSize: "1.05rem" }}>Grand Total</TableCell>
-                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8", fontSize: "1.05rem" }}>
+                                                        <TableRow sx={{ bgcolor: "#6366F1" }}>
+                                                            <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "1.05rem" }}>Grand Total</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "1.05rem" }}>
                                                                 {formatValue(
                                                                     "total_cost",
                                                                     (Number.isFinite(Number(combinedTotal)) ? Number(combinedTotal) : operationSummaryTotal) + partMiscTotal
@@ -1897,12 +1930,12 @@ function CostEstimationModal({
                     elevation={0}
                     sx={{
                         width: { xs: 360, md: 420, lg: 460 },
-                        borderLeft: "1px solid rgba(30,64,175,0.6)",
+                        borderLeft: "1px solid #E2E8F0",
                         height: "100%",
                         display: "flex",
                         flexDirection: "column",
                         overflowY: "auto",
-                        bgcolor: "rgba(15,23,42,0.96)",
+                        bgcolor: "#F8FAFC",
                         flexShrink: 0,
                     }}
                 >
@@ -1912,24 +1945,32 @@ function CostEstimationModal({
                         variant="outlined"
                         sx={{
                             p: 2.5,
-                            borderRadius: 2.5,
-                            bgcolor: "rgba(15,23,42,0.98)",
-                            borderColor: "rgba(30,64,175,0.65)",
+                            borderRadius: 2,
+                            bgcolor: "#EEF2FF",
+                            borderColor: "#C7D2FE",
                         }}
                     >
-                        <Typography variant="overline" sx={{ letterSpacing: 1, fontSize: "0.75rem" }} color="rgba(148,163,184,0.9)">
+                        <Typography
+                            variant="overline"
+                            sx={{
+                                color: "#6366F1",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                letterSpacing: "0.1em",
+                            }}
+                        >
                             PROJECT
                         </Typography>
-                        <Typography variant="h5" fontWeight={900} gutterBottom sx={{ color: "#e5e7eb" }}>
+                        <Typography variant="h6" fontWeight={700} gutterBottom sx={{ color: "#0F172A" }}>
                             {projectData?.project_name || "Untitled Project"}
                         </Typography>
-                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                        <Typography variant="body2" display="block" sx={{ color: "#64748B" }}>
                             PO/Ref: {projectData?.po_reference_number || "N/A"}
                         </Typography>
-                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                        <Typography variant="body2" display="block" sx={{ color: "#64748B" }}>
                             Customer: {projectData?.customer_name || "N/A"}
                         </Typography>
-                        <Typography variant="body1" display="block" sx={{ lineHeight: 1.45, color: "rgba(148,163,184,0.95)" }}>
+                        <Typography variant="body2" display="block" sx={{ color: "#64748B" }}>
                             Date: {projectData?.project_date || "N/A"}
                         </Typography>
 
@@ -1945,11 +1986,11 @@ function CostEstimationModal({
                                 mt: 2,
                                 textTransform: "none",
                                 fontWeight: 600,
-                                borderRadius: 2,
-                                background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
+                                bgcolor: "#6366F1",
+                                "&:hover": { bgcolor: "#4F46E5" },
                             }}
                         >
-                            {importLoading ? "Uploading..." : "Import operations"}
+                            {importLoading ? "Uploading..." : "Import Operations"}
                         </Button>
                         <input
                             type="file"
@@ -1967,48 +2008,48 @@ function CostEstimationModal({
                             overflow: "hidden",
                             display: "flex",
                             flexDirection: "column",
-                            bgcolor: "rgba(15,23,42,0.98)",
-                            borderColor: "rgba(30,64,175,0.7)",
+                            bgcolor: "#FFFFFF",
+                            borderColor: "#E2E8F0",
                         }}
                     >
-                        <Box sx={{ px: 2, py: 1.5, bgcolor: "rgba(15,23,42,0.98)", borderBottom: 1, borderColor: "rgba(30,64,175,0.7)" }}>
-                            <Typography variant="subtitle2" sx={{ color: "#e5e7eb" }}>
+                        <Box sx={{ px: 2, py: 1.5, bgcolor: "#6366F1", borderBottom: 1, borderColor: "#6366F1" }}>
+                            <Typography variant="subtitle2" sx={{ color: "#6366F1", fontWeight: 600 }}>
                                 Operation Details
                             </Typography>
                         </Box>
                         <Box sx={{ p: 2.5 }}>
                             {!costResult ? (
-                                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.9)" }}>
+                                <Typography variant="caption" sx={{ color: "#64748B" }}>
                                     Calculate cost to see the details.
                                 </Typography>
                             ) : (
-                                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#020617", borderColor: "rgba(30,64,175,0.6)" }}>
+                                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#FFFFFF", borderColor: "#E2E8F0" }}>
                                     <Table size="small">
                                         <TableBody>
                                             <TableRow>
-                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Operation</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.operation_type}</TableCell>
+                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Operation</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.operation_type}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Machine</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.selected_machine?.name}</TableCell>
+                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Machine</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.selected_machine?.name}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Material</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.material}</TableCell>
+                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Material</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.material}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Duty Category</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.duty_category}</TableCell>
+                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Duty Category</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.duty_category}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Shape</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "1rem", py: 1.25 }}>{costResult.shape}</TableCell>
+                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Shape</TableCell>
+                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.shape}</TableCell>
                                             </TableRow>
                                             {costResult.volume ? (
                                                 <TableRow>
-                                                    <TableCell sx={{ color: "rgba(148,163,184,0.95)", fontSize: "0.9rem", py: 1.25 }}>Volume</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25 }}>{costResult.volume.toFixed(2)} mm³</TableCell>
+                                                    <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Volume</TableCell>
+                                                    <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.volume.toFixed(2)} mm³</TableCell>
                                                 </TableRow>
                                             ) : null}
                                         </TableBody>
@@ -2024,15 +2065,15 @@ function CostEstimationModal({
                             variant="outlined"
                             sx={{
                                 p: 2.5,
-                                borderRadius: 2.5,
-                                bgcolor: "rgba(56,189,248,0.12)",
-                                borderColor: "rgba(56,189,248,0.45)",
+                                borderRadius: 2,
+                                bgcolor: "#FFFBEB",
+                                borderColor: "#FCD34D",
                             }}
                         >
-                            <Typography variant="subtitle2" sx={{ color: "#38bdf8", mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ color: "#0F172A", mb: 1, fontWeight: 600 }}>
                                 Miscellaneous
                             </Typography>
-                            <Typography variant="h6" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                            <Typography variant="h6" fontWeight={700} sx={{ color: "#F59E0B" }}>
                                 {formatValue("miscellaneous_amount", partMiscTotal)}
                             </Typography>
                         </Paper>
@@ -2065,7 +2106,7 @@ function CostEstimationModal({
                     <Box
                         ref={pdfPreviewRef}
                         sx={{
-                            bgcolor: "#020617",
+                            bgcolor: "#ffffff",
                             color: "#e5e7eb",
                             width: "min(794px, 100%)",
                             minHeight: "1123px",
@@ -2081,33 +2122,33 @@ function CostEstimationModal({
                         {/* PAGE 1 */}
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
                             <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="h5" fontWeight={900} sx={{ color: "#e5e7eb", lineHeight: 1.1, fontSize: "1.6em" }}>
+                                <Typography variant="h5" fontWeight={900} sx={{ color: "#1e293b", lineHeight: 1.1, fontSize: "1.6em" }}>
                                     {projectData?.project_name || "Untitled Project"}
                                 </Typography>
                                 <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 1.5, rowGap: 0.5, maxWidth: 640 }}>
-                                    <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>PO/Ref</Typography>
-                                    <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.po_reference_number || "N/A"}</Typography>
-                                    <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>Customer</Typography>
-                                    <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.customer_name || "N/A"}</Typography>
-                                    <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.85)" }}>Date</Typography>
-                                    <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.85)" }}>{projectData?.project_date || "N/A"}</Typography>
+                                    <Typography variant="body2" fontWeight={800} sx={{ color: "#64748b" }}>PO/Ref</Typography>
+                                    <Typography variant="body2" sx={{ color: "#64748b" }}>{projectData?.po_reference_number || "N/A"}</Typography>
+                                    <Typography variant="body2" fontWeight={800} sx={{ color: "#64748b" }}>Customer</Typography>
+                                    <Typography variant="body2" sx={{ color: "#64748b" }}>{projectData?.customer_name || "N/A"}</Typography>
+                                    <Typography variant="body2" fontWeight={800} sx={{ color: "#64748b" }}>Date</Typography>
+                                    <Typography variant="body2" sx={{ color: "#64748b" }}>{projectData?.project_date || "N/A"}</Typography>
                                 </Box>
                             </Box>
                             <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                                <Typography variant="h6" fontWeight={900} sx={{ color: "#e5e7eb", fontSize: "1.25em" }}>
+                                <Typography variant="h6" fontWeight={900} sx={{ color: "#1e293b", fontSize: "1.25em" }}>
                                     HAL Cost Estimation
                                 </Typography>
-                                <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(229,231,235,0.75)" }}>
+                                <Typography variant="body2" sx={{ mt: 0.5, color: "#64748b" }}>
                                     Part: {part?.part_number || "N/A"}
                                 </Typography>
                             </Box>
                         </Box>
 
-                        <Box sx={{ mt: 2.5, height: 4, bgcolor: "#38bdf8", borderRadius: 999 }} />
+                        <Box sx={{ mt: 2.5, height: 4, bgcolor: "#1e3a5f", borderRadius: 999 }} />
 
                         <Box sx={{ mt: 2.5 }}>
-                            <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5 }}>
-                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                            <Box sx={{ px: 1.5, py: 1, bgcolor: "#e3f2fd", border: "1px solid rgba(30,64,175,0.3)", borderRadius: 1.5 }}>
+                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#1e3a5f" }}>
                                     2D Drawing
                                 </Typography>
                             </Box>
@@ -2121,7 +2162,7 @@ function CostEstimationModal({
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    bgcolor: "#0b1220",
+                                    bgcolor: "#f8fafc",
                                 }}
                             >
                                 {part?.drawing_2d_path ? (
@@ -2140,7 +2181,7 @@ function CostEstimationModal({
                                         />
                                     )
                                 ) : (
-                                    <Typography variant="body2" sx={{ color: "rgba(229,231,235,0.75)" }}>
+                                    <Typography variant="body2" sx={{ color: "#64748b" }}>
                                         No 2D drawing uploaded.
                                     </Typography>
                                 )}
@@ -2311,7 +2352,7 @@ function CostEstimationModal({
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ bgcolor: "transparent", px: 0, pb: 0, pt: 2, justifyContent: "space-between" }}>
-                    <Button onClick={() => setPdfPreviewOpen(false)} sx={{ textTransform: "none", fontWeight: 800, color: "#e5e7eb" }}>
+                    <Button onClick={() => setPdfPreviewOpen(false)} sx={{ textTransform: "none", fontWeight: 800, color: "#1e293b" }}>
                         Close
                     </Button>
                     <Button

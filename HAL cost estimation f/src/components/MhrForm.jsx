@@ -149,17 +149,27 @@ function MhrForm({
   const isUtilizationHoursAutoCalculated = form.available_hrs_per_annum && (!form.utilization_hrs_year || form.utilization_hrs_year === "");
 
   return (
-    <Box component="form" onSubmit={handleSubmit}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ bgcolor: "#FFFFFF", p: 2, borderRadius: "12px", border: "1px solid #E2E8F0" }}>
       <Stack spacing={3}>
         <Grid container spacing={2}>
           {/* Operation Type */}
           <Grid item xs={12} sm={6} lg={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Operation Type</InputLabel>
+            <FormControl fullWidth size="small" sx={{ 
+              "& .MuiInputBase-root": { 
+                bgcolor: "#F8FAFC", 
+                borderColor: "#E2E8F0",
+              },
+              "& .MuiOutlinedInput-root": {
+                "&:hover fieldset": { borderColor: "#CBD5E1" },
+                "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+              }
+            }}>
+              <InputLabel sx={{ color: "#64748B", fontSize: "11px" }}>Operation Type</InputLabel>
               <Select
                 value={form.op_type_id}
                 onChange={(e) => handleChange("op_type_id", e.target.value)}
                 label="Operation Type"
+                sx={{ bgcolor: "#F8FAFC", "& .MuiSelect-select": { color: "#334155" } }}
               >
                 <MenuItem value="">Select Operation Type</MenuItem>
                 {operationTypes.map((ot) => (
@@ -173,12 +183,22 @@ function MhrForm({
 
           {/* Duty */}
           <Grid item xs={12} sm={6} lg={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Duty</InputLabel>
+            <FormControl fullWidth size="small" sx={{ 
+              "& .MuiInputBase-root": { 
+                bgcolor: "#F8FAFC", 
+                borderColor: "#E2E8F0",
+              },
+              "& .MuiOutlinedInput-root": {
+                "&:hover fieldset": { borderColor: "#CBD5E1" },
+                "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+              }
+            }}>
+              <InputLabel sx={{ color: "#64748B", fontSize: "11px" }}>Duty</InputLabel>
               <Select
                 value={form.duty_id}
                 onChange={(e) => handleChange("duty_id", e.target.value)}
                 label="Duty"
+                sx={{ bgcolor: "#F8FAFC", "& .MuiSelect-select": { color: "#334155" } }}
               >
                 <MenuItem value="">Select Duty</MenuItem>
                 {duties.map((du) => (
@@ -192,12 +212,22 @@ function MhrForm({
 
           {/* Machine */}
           <Grid item xs={12} sm={6} lg={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Machine</InputLabel>
+            <FormControl fullWidth size="small" sx={{ 
+              "& .MuiInputBase-root": { 
+                bgcolor: "#F8FAFC", 
+                borderColor: "#E2E8F0",
+              },
+              "& .MuiOutlinedInput-root": {
+                "&:hover fieldset": { borderColor: "#CBD5E1" },
+                "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+              }
+            }}>
+              <InputLabel sx={{ color: "#64748B", fontSize: "11px" }}>Machine</InputLabel>
               <Select
                 value={form.machine_id}
                 onChange={(e) => handleChange("machine_id", e.target.value)}
                 label="Machine"
+                sx={{ bgcolor: "#F8FAFC", "& .MuiSelect-select": { color: "#334155" } }}
               >
                 <MenuItem value="">Select Machine</MenuItem>
                 {machines.map((m) => (
@@ -220,6 +250,16 @@ function MhrForm({
               placeholder="Enter investment cost"
               fullWidth
               size="small"
+              sx={{
+                "& .MuiInputBase-root": { 
+                  bgcolor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
+              }}
             />
           </Grid>
 
@@ -234,6 +274,16 @@ function MhrForm({
               placeholder="Enter power rating in kW"
               fullWidth
               size="small"
+              sx={{
+                "& .MuiInputBase-root": { 
+                  bgcolor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
+              }}
             />
           </Grid>
 
@@ -244,7 +294,7 @@ function MhrForm({
                 <Box component="span">
                   Electrical Power Charges
                   {isElectPowerChargesAutoCalculated && (
-                    <Box component="span" sx={{ color: "primary.main", ml: 0.5, fontSize: "0.75rem" }}>
+                    <Box component="span" sx={{ color: "#6366F1", ml: 0.5, fontSize: "0.75rem" }}>
                       ✓ Auto-calculated
                     </Box>
                   )}
@@ -260,15 +310,20 @@ function MhrForm({
               sx={{
                 "& .MuiInputBase-root": isElectPowerChargesAutoCalculated
                   ? {
-                      bgcolor: "rgba(56,189,248,0.08)",
-                      "& fieldset": {
-                        borderColor: "rgba(56,189,248,0.35)",
-                      },
+                      bgcolor: "#EEF2FF",
+                      "& fieldset": { borderColor: "#6366F1" },
                     }
-                  : {}
+                  : {
+                      bgcolor: "#F8FAFC",
+                      "& fieldset": { borderColor: "#E2E8F0" },
+                      "&:hover fieldset": { borderColor: "#CBD5E1" },
+                      "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                    },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
               }}
               helperText={isElectPowerChargesAutoCalculated && (
-                <Typography variant="caption" color="primary.main">
+                <Typography variant="caption" sx={{ color: "#6366F1" }}>
                   Formula: {form.elect_power_rating} kW × 5.0 = {(parseFloat(form.elect_power_rating) * 5).toFixed(2)}
                 </Typography>
               )}
@@ -286,6 +341,16 @@ function MhrForm({
               placeholder="Enter available hours per annum"
               fullWidth
               size="small"
+              sx={{
+                "& .MuiInputBase-root": { 
+                  bgcolor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
+              }}
             />
           </Grid>
 
@@ -296,7 +361,7 @@ function MhrForm({
                 <Box component="span">
                   Utilization Hrs/Year
                   {isUtilizationHoursAutoCalculated && (
-                    <Box component="span" sx={{ color: "primary.main", ml: 0.5, fontSize: "0.75rem" }}>
+                    <Box component="span" sx={{ color: "#6366F1", ml: 0.5, fontSize: "0.75rem" }}>
                       ✓ Auto-calculated
                     </Box>
                   )}
@@ -312,12 +377,17 @@ function MhrForm({
               sx={{
                 "& .MuiInputBase-root": isUtilizationHoursAutoCalculated
                   ? {
-                      bgcolor: "rgba(56,189,248,0.08)",
-                      "& fieldset": {
-                        borderColor: "rgba(56,189,248,0.35)",
-                      },
+                      bgcolor: "#EEF2FF",
+                      "& fieldset": { borderColor: "#6366F1" },
                     }
-                  : {}
+                  : {
+                      bgcolor: "#F8FAFC",
+                      "& fieldset": { borderColor: "#E2E8F0" },
+                      "&:hover fieldset": { borderColor: "#CBD5E1" },
+                      "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                    },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
               }}
               helperText={isUtilizationHoursAutoCalculated && (() => {
                 // Get machine type for display
@@ -333,7 +403,7 @@ function MhrForm({
                 const utilizationHours = (parseFloat(form.available_hrs_per_annum) - parseFloat(downtimeHours)).toFixed(2);
 
                 return (
-                  <Typography variant="caption" color="primary.main">
+                  <Typography variant="caption" sx={{ color: "#6366F1" }}>
                     Formula: {form.available_hrs_per_annum} - {downtimeHours} ({downtimePercentage}% downtime) = {utilizationHours}
                   </Typography>
                 );
@@ -352,6 +422,16 @@ function MhrForm({
               placeholder="Enter reference MHR"
               fullWidth
               size="small"
+              sx={{
+                "& .MuiInputBase-root": { 
+                  bgcolor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#6366F1" },
+                },
+                "& .MuiInputLabel-root": { color: "#64748B", fontSize: "11px" },
+                "& .MuiInputBase-input": { color: "#334155" },
+              }}
             />
           </Grid>
         </Grid>
@@ -362,6 +442,13 @@ function MhrForm({
               variant="outlined"
               onClick={handleReset}
               size="small"
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderColor: "#E2E8F0",
+                color: "#64748B",
+                "&:hover": { bgcolor: "#F1F5F9", borderColor: "#CBD5E1" },
+              }}
             >
               Cancel
             </Button>
@@ -371,6 +458,14 @@ function MhrForm({
             variant="contained"
             disabled={loading}
             size="small"
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              bgcolor: "#6366F1",
+              borderRadius: "8px",
+              "&:hover": { bgcolor: "#4F46E5" },
+              "&:disabled": { bgcolor: "#A5B4FC" },
+            }}
           >
             {loading ? "Saving..." : (initialData.id ? "Update" : "Add")}
           </Button>
