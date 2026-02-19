@@ -227,17 +227,17 @@ function MhrPage() {
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "#6366F1" }}>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operation Type</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Duty</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Machine</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Investment Cost</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Rating</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Charges</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Available Hrs</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Utilization Hrs</TableCell>
-                  <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>MHR</TableCell>
-                  <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</TableCell>
+                <TableRow sx={{ bgcolor: "#6366F1 !important" }}>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Operation Type</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Duty</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Machine</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Investment Cost</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Rating</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Power Charges</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Available Hrs</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Utilization Hrs</TableCell>
+                  <TableCell sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>MHR</TableCell>
+                  <TableCell align="right" sx={{ bgcolor: "#6366F1 !important", color: "#FFFFFF !important", fontWeight: 600, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

@@ -253,10 +253,10 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    <TableRow sx={{ bgcolor: "#0F172A" }}>
-                                        <TableCell colSpan={2} sx={{ color: "#FFFFFF", fontWeight: 800 }}>TOTAL</TableCell>
-                                        <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 800 }}>{opCount}</TableCell>
-                                        <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
+                                    <TableRow>
+                                        <TableCell colSpan={2} sx={{ color: "#0F172A", fontWeight: 800 }}>TOTAL</TableCell>
+                                        <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 800 }}>{opCount}</TableCell>
+                                        <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 800 }}>
                                             {formatValue("total_cost", partsTotalWithMisc)}
                                         </TableCell>
                                     </TableRow>

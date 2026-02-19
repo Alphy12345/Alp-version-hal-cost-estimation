@@ -1064,9 +1064,9 @@ function CostEstimationModal({
             <AppBar
                 sx={{
                     position: "relative",
-                    bgcolor: "#0F172A",
+                    bgcolor: "#16A34A",
                     boxShadow: "none",
-                    borderBottom: "1px solid #1E293B",
+                    borderBottom: "1px solid #16A34A",
                 }}
             >
                 <Toolbar>
@@ -1075,15 +1075,15 @@ function CostEstimationModal({
                         onClick={onClose}
                         aria-label="close"
                         sx={{
-                            color: "#94A3B8",
-                            "&:hover": { color: "#FFFFFF", bgcolor: "#1E293B" },
+                            color: "#FFFFFF",
+                            "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255,255,255,0.2)" },
                         }}
                     >
                         <CloseIcon />
                     </IconButton>
                     <Typography variant="h6" component="div" sx={{ ml: 2, flex: 1, color: "#FFFFFF" }}>
                         Part Cost Estimation – {part.part_number}
-                        <Typography variant="caption" display="block" sx={{ color: "#94A3B8" }}>
+                        <Typography variant="caption" display="block" sx={{ color: "rgba(255,255,255,0.7)" }}>
                             {part.part_name}
                         </Typography>
                     </Typography>
@@ -1091,7 +1091,7 @@ function CostEstimationModal({
                     <Stack direction="row" spacing={2} alignItems="center">
                         {(costResult || Number.isFinite(Number(combinedTotal))) && (
                             <Box sx={{ textAlign: "right", mr: 2 }}>
-                                <Typography variant="caption" display="block" sx={{ color: "#94A3B8" }}>
+                                <Typography variant="caption" display="block" sx={{ color: "rgba(255,255,255,0.8)" }}>
                                     Final Part Cost
                                 </Typography>
                                 <Typography variant="h6" fontWeight={700} color="#FFFFFF">
@@ -1123,9 +1123,9 @@ function CostEstimationModal({
                             sx={{
                                 textTransform: "none",
                                 fontWeight: 600,
-                                bgcolor: "#1E293B",
-                                color: "#94A3B8",
-                                "&:hover": { color: "#FFFFFF", bgcolor: "#334155" },
+                                bgcolor: "rgba(255,255,255,0.2)",
+                                color: "#FFFFFF",
+                                "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255,255,255,0.3)" },
                             }}
                         >
                             Close
@@ -1262,7 +1262,7 @@ function CostEstimationModal({
                                     boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
                                 }}
                             >
-                                <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "#F59E0B", bgcolor: "#F59E0B", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <Box sx={{ px: 3.5, py: 2.75, borderBottom: 1, borderColor: "#6366F1", bgcolor: "#6366F1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <Box>
                                         <Typography variant="h5" fontSize="1.4rem" fontWeight={900} sx={{ color: "#FFFFFF" }}>
                                             Machining Inputs
@@ -1885,16 +1885,16 @@ function CostEstimationModal({
                                             <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#ffffff", borderColor: "rgba(0,0,0,0.1)" }}>
                                                 <Table>
                                                     <TableHead>
-                                                        <TableRow sx={{ bgcolor: "#6366F1" }}>
-                                                            <TableCell sx={{ fontWeight: 900, color: "#FFFFFF" }}>Operation</TableCell>
-                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF" }}>Total Cost</TableCell>
+                                                        <TableRow>
+                                                            <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#16A34A !important" }}>Operation</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#16A34A !important" }}>Total Cost</TableCell>
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
                                                         {operationSummaryRows.map((row) => (
                                                             <TableRow key={row.idx}>
-                                                                <TableCell sx={{ color: "#1e293b" }}>{row.label}</TableCell>
-                                                                <TableCell align="right" sx={{ color: "#1e293b" }}>{formatValue("total_cost", row.value)}</TableCell>
+                                                                <TableCell sx={{ color: "#000000", fontWeight: 700 }}>{row.label}</TableCell>
+                                                                <TableCell align="right" sx={{ color: "#000000", fontWeight: 700 }}>{formatValue("total_cost", row.value)}</TableCell>
                                                             </TableRow>
                                                         ))}
                                                         {partMiscTotal > 0 && (
@@ -1905,7 +1905,7 @@ function CostEstimationModal({
                                                                 </TableCell>
                                                             </TableRow>
                                                         )}
-                                                        <TableRow sx={{ bgcolor: "#6366F1" }}>
+                                                        <TableRow sx={{ bgcolor: "#6366F1 !important" }}>
                                                             <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "1.05rem" }}>Grand Total</TableCell>
                                                             <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "1.05rem" }}>
                                                                 {formatValue(
@@ -2001,64 +2001,6 @@ function CostEstimationModal({
                         />
                     </Paper>
 
-                    {/* Operation Details */}
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            overflow: "hidden",
-                            display: "flex",
-                            flexDirection: "column",
-                            bgcolor: "#FFFFFF",
-                            borderColor: "#E2E8F0",
-                        }}
-                    >
-                        <Box sx={{ px: 2, py: 1.5, bgcolor: "#6366F1", borderBottom: 1, borderColor: "#6366F1" }}>
-                            <Typography variant="subtitle2" sx={{ color: "#6366F1", fontWeight: 600 }}>
-                                Operation Details
-                            </Typography>
-                        </Box>
-                        <Box sx={{ p: 2.5 }}>
-                            {!costResult ? (
-                                <Typography variant="caption" sx={{ color: "#64748B" }}>
-                                    Calculate cost to see the details.
-                                </Typography>
-                            ) : (
-                                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: "#FFFFFF", borderColor: "#E2E8F0" }}>
-                                    <Table size="small">
-                                        <TableBody>
-                                            <TableRow>
-                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Operation</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.operation_type}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Machine</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.selected_machine?.name}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Material</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.material}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Duty Category</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.duty_category}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Shape</TableCell>
-                                                <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.shape}</TableCell>
-                                            </TableRow>
-                                            {costResult.volume ? (
-                                                <TableRow>
-                                                    <TableCell sx={{ color: "#64748B", fontSize: "0.9rem", py: 1.25 }}>Volume</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: "0.9rem", py: 1.25, color: "#0F172A" }}>{costResult.volume.toFixed(2)} mm³</TableCell>
-                                                </TableRow>
-                                            ) : null}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            )}
-                        </Box>
-                    </Paper>
-
                     {/* Miscellaneous Summary */}
                     {partMiscTotal > 0 && (
                         <Paper
@@ -2147,8 +2089,8 @@ function CostEstimationModal({
                         <Box sx={{ mt: 2.5, height: 4, bgcolor: "#1e3a5f", borderRadius: 999 }} />
 
                         <Box sx={{ mt: 2.5 }}>
-                            <Box sx={{ px: 1.5, py: 1, bgcolor: "#e3f2fd", border: "1px solid rgba(30,64,175,0.3)", borderRadius: 1.5 }}>
-                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#1e3a5f" }}>
+                            <Box sx={{ px: 1.5, py: 1, bgcolor: "#BE185D", border: "1px solid #9D174D", borderRadius: 1.5 }}>
+                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#FFFFFF" }}>
                                     2D Drawing
                                 </Typography>
                             </Box>
