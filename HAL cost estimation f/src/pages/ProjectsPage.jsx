@@ -15,6 +15,8 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Pagination,
+  Stack,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -27,6 +29,8 @@ function ProjectsPage({ onChange }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const projectsPerPage = 5;
 
   useEffect(() => {
     fetchProjects();
@@ -67,60 +71,94 @@ function ProjectsPage({ onChange }) {
     [projects]
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(projects.length / projectsPerPage);
+  const currentProjects = projects.slice((page - 1) * projectsPerPage, page * projectsPerPage);
+
+  const handlePageChange = (event, value) => {
+    setPage(value);
+  };
+
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ width: "100%", maxWidth: "100%" }}>
+      {/* Professional Software Header - Full Width */}
       <Paper
         sx={{
-          borderRadius: 3,
-          background: "#6366F1",
+          borderRadius: 0,
+          background: "linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%)",
           color: "#FFFFFF",
-          p: 3,
-          mb: 3,
+          px: 4,
+          py: 2.5,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+          borderBottom: "4px solid #d4af37",
         }}
       >
-        <Typography variant="h4" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-          Cost Estimation Software
-        </Typography>
-        <Typography variant="body1" sx={{ color: "#C7D2FE", mt: 0.5 }}>
-          Manage and track your cost estimation projects
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Box
+            component="img"
+            src="/assets/download (2).jpg"
+            alt="HAL Logo"
+            sx={{
+              height: 60,
+              objectFit: "contain",
+              borderRadius: 1,
+              bgcolor: "#FFFFFF",
+              p: 0.5,
+            }}
+          />
+          <Box>
+            <Typography 
+              variant="h4" 
+              fontWeight={800} 
+              sx={{ 
+                letterSpacing: 1, 
+                fontSize: "1.8rem",
+                color: "#d4af37",
+                textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+              }}
+            >
+              Manufacturing Cost Estimation Software
+            </Typography>
+          </Box>
+        </Box>
       </Paper>
 
-      <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-start" }}>
+      {/* Create New Project Button - Below Header Right Side */}
+      <Box sx={{ mb: 3, px: 4, pt: 2, display: "flex", justifyContent: "flex-end" }}>
         <Button
-          size="small"
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => onChange("create_project")}
           sx={{
-            bgcolor: "#6366F1",
+            bgcolor: "#2563eb",
+            color: "#ffffff",
             textTransform: "none",
             fontWeight: 700,
-            fontSize: "0.85rem",
+            fontSize: "1rem",
+            px: 4,
+            py: 1.2,
             borderRadius: 2,
-            "&:hover": { bgcolor: "#4F46E5" },
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            "&:hover": { 
+              bgcolor: "#1d4ed8",
+              transform: "translateY(-2px)",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
+            },
+            transition: "all 0.2s ease",
           }}
         >
           Create New Project
         </Button>
       </Box>
 
+      {/* Existing Projects Section - Clean heading without background */}
       <Paper sx={{ borderRadius: 3, overflow: "hidden", bgcolor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-        <Box
-          sx={{
-            px: 3,
-            py: 2,
-            background: "#6366F1",
-            color: "#FFFFFF",
-            borderBottom: 1,
-            borderColor: "#E2E8F0",
-          }}
-        >
-          <Typography variant="h6" fontWeight={700} sx={{ color: "#FFFFFF" }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "#E2E8F0" }}>
+          <Typography variant="h5" fontWeight={800} sx={{ color: "#0F172A", fontSize: "1.4rem" }}>
             Existing Projects
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#C7D2FE" }}>
-            Manage and track your cost estimation projects
           </Typography>
         </Box>
 
@@ -170,7 +208,7 @@ function ProjectsPage({ onChange }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                projects.map((p) => (
+                currentProjects.map((p) => (
                   <TableRow 
                     key={p.id} 
                     hover
@@ -287,29 +325,33 @@ function ProjectsPage({ onChange }) {
           </Table>
         </TableContainer>
 
-        <Box
-          sx={{
-            px: 3,
-            py: 2,
-            borderTop: 1,
-            borderColor: "divider",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Showing {projects.length} projects
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button size="small" variant="outlined">
-              Previous
-            </Button>
-            <Button size="small" variant="outlined">
-              Next
-            </Button>
+        {/* Pagination Footer */}
+        {projects.length > 0 && (
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              borderTop: 1,
+              borderColor: "divider",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Showing {Math.min((page - 1) * projectsPerPage + 1, projects.length)} - {Math.min(page * projectsPerPage, projects.length)} of {projects.length} projects
+            </Typography>
+            <Pagination 
+              count={totalPages} 
+              page={page} 
+              onChange={handlePageChange}
+              color="primary"
+              size="small"
+              showFirstButton
+              showLastButton
+            />
           </Box>
-        </Box>
+        )}
       </Paper>
     </Box>
   );

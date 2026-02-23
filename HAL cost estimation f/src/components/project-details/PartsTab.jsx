@@ -64,8 +64,18 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
 
             <Grid container spacing={2}>
                 {parts.map((part) => (
-                    <Grid item xs={12} md={6} key={part.id}>
-                        <Card variant="outlined" sx={{ borderColor: "#C7D2FE", bgcolor: "#F5F7FF", "&:hover": { borderColor: "#6366F1", boxShadow: "0 4px 12px rgba(99,102,241,0.15)" } }}>
+                    <Grid item xs={12} md={6} lg={4} key={part.id}>
+                        <Card 
+                            variant="outlined" 
+                            sx={{ 
+                                borderColor: "#C7D2FE", 
+                                bgcolor: "#F5F7FF", 
+                                height: 280,
+                                display: "flex",
+                                flexDirection: "column",
+                                "&:hover": { borderColor: "#6366F1", boxShadow: "0 4px 12px rgba(99,102,241,0.15)" } 
+                            }}
+                        >
                             <CardHeader
                                 title={
                                     <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#0F172A" }}>
@@ -94,7 +104,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                 }
                                 sx={{ pb: 1 }}
                             />
-                            <CardContent sx={{ pt: 0 }}>
+                            <CardContent sx={{ pt: 0, flex: 1, display: "flex", flexDirection: "column" }}>
                                 <Grid container spacing={1} sx={{ mb: 2 }}>
                                     <Grid item xs={6}>
                                         <Typography variant="caption" sx={{ color: "#64748B" }} display="block">
@@ -118,7 +128,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                     Part Files
                                 </Typography>
 
-                                <Stack spacing={1}>
+                                <Stack spacing={1} sx={{ flex: 1 }}>
                                     {part.drawing_2d_path ? (
                                         <Box
                                             sx={{
@@ -133,11 +143,22 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                                 "&:hover": { borderColor: "#6366F1", bgcolor: "#EEF2FF" },
                                             }}
                                         >
-                                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                                <DescriptionIcon sx={{ color: "#6366F1" }} fontSize="small" />
-                                                <Box>
+                                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                                                <DescriptionIcon sx={{ color: "#6366F1", flexShrink: 0 }} fontSize="small" />
+                                                <Box sx={{ minWidth: 0, flex: 1 }}>
                                                     <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>2D Drawing</Typography>
-                                                    <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                                                    <Typography 
+                                                        variant="caption" 
+                                                        sx={{ 
+                                                            color: "#64748B", 
+                                                            display: "block",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap",
+                                                            maxWidth: "100%",
+                                                        }}
+                                                        title={part.drawing_2d_path.split('\\').pop()}
+                                                    >
                                                         {part.drawing_2d_path.split('\\').pop()}
                                                     </Typography>
                                                 </Box>
@@ -149,6 +170,7 @@ function PartsTab({ parts, onAddPart, onEditPart, onDeletePart, onViewFile }) {
                                                     minWidth: "auto",
                                                     color: "#6366F1",
                                                     "&:hover": { bgcolor: "#EEF2FF" },
+                                                    flexShrink: 0,
                                                 }}
                                             >
                                                 View

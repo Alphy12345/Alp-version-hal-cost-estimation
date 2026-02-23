@@ -37,9 +37,19 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import api from "../../api/client";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+// Set PDF.js worker source
+if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+}
 
 // Import the new professional PDF export component
 import PdfReportExport from "../PdfReportExport";
@@ -81,6 +91,95 @@ function CostEstimationModal({
 }) {
     const [importLoading, setImportLoading] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Helper function to extract text from PDF and parse Setup Time / Cycle Time
+    const extractPdfText = async (arrayBuffer) => {
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const allOperations = [];
+        
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const text = textContent.items.map(item => item.str).join(" ");
+            
+            console.log(`PDF Page ${pageNum} text:`, text.substring(0, 800));
+            
+            // Parse operations from text - look for patterns like "Operation 1", "Operation 2", etc.
+            // Use a regex that captures the position of each match
+            const opRegex = /Operation\s*(\d+)[:\s-]*([^]*?)(?=Operation\s*\d+[:\s-]|$)/gi;
+            let match;
+            const pageOperations = [];
+            
+            while ((match = opRegex.exec(text)) !== null) {
+                const opNum = parseInt(match[1], 10);
+                const opSection = match[0]; // Full matched text including "Operation X"
+                
+                console.log(`Found Operation ${opNum} on page ${pageNum}:`, opSection.substring(0, 200));
+                
+                // Extract Setup Time (hrs) - look for various patterns
+                let setupTime = "";
+                const setupPatterns = [
+                    /Setup\s*Time\s*\(hrs\)[:\s]*([\d.]+)/i,
+                    /Setup\s*Time[:\s]*([\d.]+)\s*(?:hrs?|hours?)/i,
+                    /Setup[:\s]*([\d.]+)\s*(?:hrs?|hours?)/i,
+                ];
+                for (const pattern of setupPatterns) {
+                    const stMatch = opSection.match(pattern);
+                    if (stMatch) {
+                        setupTime = stMatch[1];
+                        break;
+                    }
+                }
+                
+                // Extract Cycle Time (hrs) - look for various patterns
+                let cycleTime = "";
+                const cyclePatterns = [
+                    /Cycle\s*Time\s*\(hrs\)[:\s]*([\d.]+)/i,
+                    /Cycle\s*Time[:\s]*([\d.]+)\s*(?:hrs?|hours?)/i,
+                    /Cycle[:\s]*([\d.]+)\s*(?:hrs?|hours?)/i,
+                ];
+                for (const pattern of cyclePatterns) {
+                    const ctMatch = opSection.match(pattern);
+                    if (ctMatch) {
+                        cycleTime = ctMatch[1];
+                        break;
+                    }
+                }
+                
+                console.log(`Operation ${opNum} - Setup: ${setupTime}, Cycle: ${cycleTime}`);
+                
+                // Only add if we found at least one time value
+                if (setupTime || cycleTime) {
+                    pageOperations.push({
+                        operation_number: opNum,
+                        setup_time: setupTime,
+                        cycle_time: cycleTime,
+                    });
+                }
+            }
+            
+            // If no operations found with the regex, try a simpler approach
+            if (pageOperations.length === 0) {
+                // Look for Setup Time and Cycle Time anywhere on the page
+                const setupMatch = text.match(/Setup\s*Time\s*\(hrs\)[:\s]*([\d.]+)/i);
+                const cycleMatch = text.match(/Cycle\s*Time\s*\(hrs\)[:\s]*([\d.]+)/i);
+                
+                if (setupMatch || cycleMatch) {
+                    console.log(`Found times on page ${pageNum} without Operation header`);
+                    pageOperations.push({
+                        operation_number: allOperations.length + 1,
+                        setup_time: setupMatch ? setupMatch[1] : "",
+                        cycle_time: cycleMatch ? cycleMatch[1] : "",
+                    });
+                }
+            }
+            
+            allOperations.push(...pageOperations);
+        }
+        
+        console.log("Total extracted operations:", allOperations);
+        return allOperations;
+    };
 
     const fillOperationsFromImportedData = async (validOperations, sourceLabel) => {
         if (!Array.isArray(validOperations) || validOperations.length === 0) {
@@ -138,6 +237,21 @@ function CostEstimationModal({
                 onChangeForm(part.id, newOpIndex, "man_hours_per_unit", opData.man_hours);
                 fields.push("man_hours_per_unit");
             }
+
+            if (opData.setup_time !== null && opData.setup_time !== undefined && opData.setup_time !== "") {
+                const n = Number(opData.setup_time);
+                const v = Number.isFinite(n) ? n.toFixed(2) : opData.setup_time;
+                onChangeForm(part.id, newOpIndex, "setup_time", v);
+                fields.push("setup_time");
+            }
+
+            if (opData.cycle_time !== null && opData.cycle_time !== undefined && opData.cycle_time !== "") {
+                const n = Number(opData.cycle_time);
+                const v = Number.isFinite(n) ? n.toFixed(2) : opData.cycle_time;
+                onChangeForm(part.id, newOpIndex, "cycle_time", v);
+                fields.push("cycle_time");
+            }
+
             if (opData.duty_category) {
                 onChangeForm(part.id, newOpIndex, "duty_category", opData.duty_category);
                 fields.push("duty_category");
@@ -228,7 +342,6 @@ function CostEstimationModal({
                     String(h || "")
                         .trim()
                         .toLowerCase()
-                        .replace(/\(.*?\)/g, "")
                         .replace(/[^a-z0-9]+/g, "_")
                         .replace(/^_+|_+$/g, "");
 
@@ -250,6 +363,29 @@ function CostEstimationModal({
                     return "";
                 };
 
+                const getFieldWithKey = (row, candidates) => {
+                    const keys = Object.keys(row || {});
+                    for (const c of candidates) {
+                        const normC = normalizeHeader(c);
+                        const foundKey = keys.find((k) => normalizeHeader(k) === normC);
+                        if (foundKey) return { key: foundKey, value: row[foundKey] };
+                    }
+                    return { key: "", value: "" };
+                };
+
+                const toHoursFromPossiblyMinutes = (value, headerKey) => {
+                    if (value === null || value === undefined) return "";
+                    const raw = String(value).trim();
+                    if (!raw) return "";
+                    const n = Number(raw);
+                    if (!Number.isFinite(n)) return raw;
+
+                    const key = String(headerKey || "").toLowerCase();
+                    const looksLikeMinutes = key.includes("min") || key.includes("mins") || key.includes("minute");
+                    const hours = looksLikeMinutes ? n / 60 : n;
+                    return Number.isFinite(hours) ? hours.toFixed(2) : hours;
+                };
+
                 const normalizeOpTypeValue = (v) => {
                     const raw = String(v || "").trim();
                     if (!raw) return "";
@@ -269,6 +405,28 @@ function CostEstimationModal({
                         const machine = getField(row, ["machine", "machine_name", "machine name"]);
                         const duty = getField(row, ["duty", "duty_category", "duty category"]);
                         const manHours = getField(row, ["man_hours", "man hours", "man hours/unit", "work_hours", "work hours", "hours"]);
+
+                        const setupMeta = getFieldWithKey(row, [
+                            "setup_time",
+                            "setup time",
+                            "setup time (hrs)",
+                            "setup time (hr)",
+                            "setup time (hours)",
+                            "setup time (min)",
+                            "setup time (mins)",
+                            "setup",
+                        ]);
+                        const cycleMeta = getFieldWithKey(row, [
+                            "cycle_time",
+                            "cycle time",
+                            "cycle time (hrs)",
+                            "cycle time (hr)",
+                            "cycle time (hours)",
+                            "cycle time (min)",
+                            "cycle time (mins)",
+                            "cycle",
+                        ]);
+
                         const diameter = getField(row, ["diameter"]);
                         const length = getField(row, ["length"]);
                         const breadth = getField(row, ["breadth", "width"]);
@@ -281,6 +439,8 @@ function CostEstimationModal({
                             material: String(material || "").trim() || "",
                             machine: String(machine || "").trim() || "",
                             man_hours: toNumberOrEmpty(manHours),
+                            setup_time: toNumberOrEmpty(toHoursFromPossiblyMinutes(setupMeta.value, setupMeta.key)),
+                            cycle_time: toNumberOrEmpty(toHoursFromPossiblyMinutes(cycleMeta.value, cycleMeta.key)),
                             duty_category: String(duty || "").trim() || "",
                             diameter: toNumberOrEmpty(diameter),
                             length: toNumberOrEmpty(length),
@@ -301,6 +461,20 @@ function CostEstimationModal({
                 return;
             }
 
+            // For PDF files, extract text client-side first to get Setup Time and Cycle Time
+            // The backend doesn't properly extract these fields
+            let clientSideOperations = [];
+            if (ext === "pdf") {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfData = await extractPdfText(arrayBuffer);
+                    clientSideOperations = pdfData;
+                    console.log("PDF Client-side extraction:", clientSideOperations);
+                } catch (pdfErr) {
+                    console.error("Client-side PDF parsing failed:", pdfErr);
+                }
+            }
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("project_id", projectData?.id);
@@ -311,12 +485,69 @@ function CostEstimationModal({
             });
 
             const extractedData = response.data?.extracted_data;
+            console.log("PDF Import - Backend extracted_data:", extractedData);
             const operationsArray = extractedData?.operations || [];
-            const validOperations = operationsArray.filter(
+            console.log("PDF Import - Backend operations array:", operationsArray);
+            
+            // Merge client-side extracted data (Setup Time, Cycle Time) with backend data
+            const mergedOperations = operationsArray.map((backendOp, idx) => {
+                const clientOp = clientSideOperations[idx] || {};
+                return {
+                    ...backendOp,
+                    // Use client-side extracted values if backend didn't provide them
+                    setup_time: backendOp.setup_time || clientOp.setup_time || "",
+                    cycle_time: backendOp.cycle_time || clientOp.cycle_time || "",
+                };
+            });
+            
+            console.log("PDF Import - Merged operations:", mergedOperations);
+            console.log("PDF Import - first operation keys:", mergedOperations[0] ? Object.keys(mergedOperations[0]) : "No operations");
+            const validOperations = mergedOperations.filter(
                 (op) => op && Object.keys(op).some((k) => op[k] !== null && op[k] !== undefined)
             );
 
-            await fillOperationsFromImportedData(validOperations, "PDF");
+            // Helper to get value from various possible field names
+            const getFieldValue = (op, possibleKeys) => {
+                for (const key of possibleKeys) {
+                    if (op[key] !== null && op[key] !== undefined && op[key] !== "") {
+                        return op[key];
+                    }
+                }
+                return null;
+            };
+
+            const normalizePdfTimeToHours = (v) => {
+                if (v === null || v === undefined) return "";
+                const raw = String(v).trim();
+                if (!raw) return "";
+
+                const lower = raw.toLowerCase();
+                const n = Number(raw.replace(/[^0-9.+-]/g, ""));
+                if (!Number.isFinite(n)) return raw;
+
+                // PDF values are already in hours; just round them properly.
+                return n.toFixed(2);
+            };
+
+            // Map operations with support for various field name variations
+            const normalizedPdfOps = validOperations.map((op) => {
+                const setupTimeValue = getFieldValue(op, [
+                    "setup_time", "setupTime", "setup", "setupTimeHours", "setup_time_hours",
+                    "setup_time_hrs", "setup_hrs", "setup_hr", "setup_time_hr"
+                ]);
+                const cycleTimeValue = getFieldValue(op, [
+                    "cycle_time", "cycleTime", "cycle", "cycleTimeHours", "cycle_time_hours",
+                    "cycle_time_hrs", "cycle_hrs", "cycle_hr", "cycle_time_hr"
+                ]);
+
+                return {
+                    ...op,
+                    setup_time: normalizePdfTimeToHours(setupTimeValue),
+                    cycle_time: normalizePdfTimeToHours(cycleTimeValue),
+                };
+            });
+
+            await fillOperationsFromImportedData(normalizedPdfOps, "PDF");
         } catch (err) {
             console.error("Upload failed:", err);
             alert("Failed to upload file: " + (err?.response?.data?.detail || err.message));
@@ -336,6 +567,20 @@ function CostEstimationModal({
     const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
     const [pdfExportOpen, setPdfExportOpen] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
+    const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+
+    const NRC_MISC_OPTIONS = useMemo(
+        () => [
+            { value: "tooling_cost", label: "Tooling cost" },
+            { value: "development_cost", label: "Development cost" },
+            { value: "cnc_programming_cost", label: "CNC programming cost" },
+            { value: "heat_treat_cost", label: "Cost of Heat treat" },
+            { value: "surface_treatment_cost", label: "Cost of Surface treatments" },
+            { value: "welding_cost", label: "Welding cost" },
+            { value: "other_costs", label: "Other costs" },
+        ],
+        []
+    );
 
     const operationTypeOptions = useMemo(() => {
         const toOpValue = (name) => {
@@ -409,6 +654,12 @@ function CostEstimationModal({
         return [{ description: "", amount: "" }];
     }, [costForms, part?.id]);
 
+    const partQuantity = useMemo(() => {
+        const partForm = costForms?.[part?.id];
+        const q = Number(partForm?.quantity);
+        return Number.isFinite(q) && q >= 1 ? Math.trunc(q) : 1;
+    }, [costForms, part?.id]);
+
     const partMiscTotal = useMemo(() => {
         return partMiscItems.reduce((sum, it) => {
             const n = Number(it?.amount);
@@ -418,6 +669,12 @@ function CostEstimationModal({
 
     const updatePartMiscItems = (next) => {
         onChangeForm(part.id, -1, "miscellaneous_items", next);
+    };
+
+    const updatePartQuantity = (nextQuantity) => {
+        const n = Number(nextQuantity);
+        const q = Number.isFinite(n) ? Math.max(1, Math.trunc(n)) : 1;
+        onChangeForm(part.id, -1, "quantity", q);
     };
 
     const handleMouseDown = (e) => {
@@ -730,7 +987,14 @@ function CostEstimationModal({
             if (!opState?.operation_type) opErrors.push('Operation Type');
             if (!opState?.material) opErrors.push('Material');
             if (!opState?.machine_name) opErrors.push('Machine');
-            if (!opState?.man_hours_per_unit && opState?.man_hours_per_unit !== 0) opErrors.push('Man Hours');
+            if (!opState?.man_hours_per_unit && opState?.man_hours_per_unit !== 0) {
+                const setupTime = Number(opState?.setup_time);
+                const cycleTime = Number(opState?.cycle_time);
+                const derivedManHours = (Number.isFinite(setupTime) ? setupTime : 0) + (Number.isFinite(cycleTime) ? cycleTime : 0);
+                if (!(Number.isFinite(derivedManHours) && derivedManHours > 0)) {
+                    opErrors.push('Man Hours');
+                }
+            }
             if (!opState?.duty_category) opErrors.push('Duty Category');
             
             // Dimension checks - ONLY milling requires length/breadth/height
@@ -788,13 +1052,20 @@ function CostEstimationModal({
                 Material: op?.material || "-",
                 Machine: op?.machine_name || "-",
                 "Man Hours/Unit": op?.man_hours_per_unit !== undefined ? op.man_hours_per_unit : "-",
+                "Setup Time (hrs)": op?.setup_time !== undefined ? op.setup_time : "-",
+                "Cycle Time (hrs)": op?.cycle_time !== undefined ? op.cycle_time : "-",
                 "Duty Category": op?.duty_category || "-",
                 Diameter: op?.diameter !== undefined ? op.diameter : "-",
                 Length: op?.length !== undefined ? op.length : "-",
                 Breadth: op?.breadth !== undefined ? op.breadth : "-",
                 Height: op?.height !== undefined ? op.height : "-",
-                Shape: op?.shape || "-",
-                "Total Cost": opResult?.total_cost !== undefined ? `₹${opResult.total_cost.toFixed(2)}` : "-",
+                "Unit Cost": opResult?.cost_breakdown?.total_unit_cost_with_misc !== undefined 
+                    ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(opResult.cost_breakdown.total_unit_cost_with_misc)
+                    : "-",
+                "Quantity": partQuantity,
+                "Total Cost": opResult?.cost_breakdown?.total_unit_cost_with_misc !== undefined 
+                    ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(opResult.cost_breakdown.total_unit_cost_with_misc * partQuantity)
+                    : "-",
             };
         });
 
@@ -949,6 +1220,10 @@ function CostEstimationModal({
                 { left: ["Material:", op?.material || "-"], right: ["Machine:", op?.machine_name || "-"] },
                 {
                     left: ["Man Hours/Unit:", op?.man_hours_per_unit !== undefined ? String(op.man_hours_per_unit) : "-"],
+                    right: ["Setup Time (hrs):", op?.setup_time !== undefined ? String(op.setup_time) : "-"],
+                },
+                {
+                    left: ["Cycle Time (hrs):", op?.cycle_time !== undefined ? String(op.cycle_time) : "-"],
                     right: ["Duty Category:", op?.duty_category || "-"],
                 },
             ];
@@ -968,8 +1243,6 @@ function CostEstimationModal({
                     right: ["Length:", op?.length !== undefined ? String(op.length) : "-"],
                 });
             }
-
-            detailRows.push({ left: ["Shape:", op?.shape || "-"], right: null });
 
             const tableHeight = detailRows.length * rowHeight + linePadding * 2;
 
@@ -1089,21 +1362,6 @@ function CostEstimationModal({
                     </Typography>
 
                     <Stack direction="row" spacing={2} alignItems="center">
-                        {(costResult || Number.isFinite(Number(combinedTotal))) && (
-                            <Box sx={{ textAlign: "right", mr: 2 }}>
-                                <Typography variant="caption" display="block" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                                    Final Part Cost
-                                </Typography>
-                                <Typography variant="h6" fontWeight={700} color="#FFFFFF">
-                                    {formatValue(
-                                        "total_cost",
-                                        Number.isFinite(Number(combinedTotal))
-                                            ? Number(combinedTotal)
-                                            : costResult?.cost_breakdown?.total_unit_cost_with_misc
-                                    )}
-                                </Typography>
-                            </Box>
-                        )}
                         <Button
                             onClick={handleOpenPdfPreview}
                             startIcon={<DownloadIcon />}
@@ -1464,7 +1722,47 @@ function CostEstimationModal({
                                                                             onChange={(e) => onChangeForm(part.id, opIndex, "man_hours_per_unit", e.target.value)}
                                                                             fullWidth
                                                                             size="small"
-                                                                            required
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                        />
+                                                                        {/* Info note about auto-calculation */}
+                                                                        <Typography 
+                                                                            variant="caption" 
+                                                                            sx={{ 
+                                                                                color: "#64748B", 
+                                                                                display: "block",
+                                                                                fontStyle: "italic",
+                                                                                fontSize: "0.7rem",
+                                                                                mt: 0.5,
+                                                                            }}
+                                                                        >
+                                                                            * If Man Hours is empty, it will be taken as (Setup + Cycle) hrs when calculating
+                                                                        </Typography>
+                                                                    </Grid>
+
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
+                                                                        <TextField
+                                                                            label="Setup Time (hrs)"
+                                                                            type="number"
+                                                                            inputProps={{ step: "0.01" }}
+                                                                            value={opState?.setup_time || ""}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "setup_time", e.target.value)}
+                                                                            fullWidth
+                                                                            size="small"
+                                                                            InputLabelProps={{ shrink: true }}
+                                                                            sx={{ '& .MuiInputBase-root': { height: '36px' } }}
+                                                                        />
+                                                                    </Grid>
+
+                                                                    <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
+                                                                        <TextField
+                                                                            label="Cycle Time (hrs)"
+                                                                            type="number"
+                                                                            inputProps={{ step: "0.01" }}
+                                                                            value={opState?.cycle_time || ""}
+                                                                            onChange={(e) => onChangeForm(part.id, opIndex, "cycle_time", e.target.value)}
+                                                                            fullWidth
+                                                                            size="small"
                                                                             InputLabelProps={{ shrink: true }}
                                                                             sx={{ '& .MuiInputBase-root': { height: '36px' } }}
                                                                         />
@@ -1488,24 +1786,6 @@ function CostEstimationModal({
                                                                             <MenuItem value="heavy" sx={{ fontSize: '0.8rem' }}>Heavy</MenuItem>
                                                                         </TextField>
                                                                     </Grid>
-
-                                                                    {showRoundDims && (
-                                                                        <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
-                                                                            <TextField
-                                                                                select
-                                                                                label="Shape"
-                                                                                value={shapeValueForOp}
-                                                                                onChange={(e) => onChangeForm(part.id, opIndex, "shape", e.target.value)}
-                                                                                fullWidth
-                                                                                size="small"
-                                                                                InputLabelProps={{ shrink: true }}
-                                                                                sx={{ '& .MuiInputBase-root': { height: '36px' }, '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                                                                            >
-                                                                                <MenuItem value="round" sx={{ fontSize: '0.8rem' }}>Round</MenuItem>
-                                                                                <MenuItem value="rectangular" sx={{ fontSize: '0.8rem' }}>Rectangular</MenuItem>
-                                                                            </TextField>
-                                                                        </Grid>
-                                                                    )}
 
                                                                     <Grid item sx={{ flex: "1 1 0", minWidth: 0 }}>
                                                                         <TextField
@@ -1736,16 +2016,47 @@ function CostEstimationModal({
                                                     {partMiscItems.map((item, idx) => (
                                                         <Grid container spacing={1.5} key={idx} alignItems="center">
                                                             <Grid item xs={12} md={7}>
-                                                                <TextField
-                                                                    label="Description"
-                                                                    value={item?.description || ""}
-                                                                    onChange={(e) => {
-                                                                        const next = partMiscItems.map((x, i) => i === idx ? { ...x, description: e.target.value } : x);
-                                                                        updatePartMiscItems(next);
-                                                                    }}
-                                                                    fullWidth
-                                                                    size="medium"
-                                                                />
+                                                                <Stack spacing={1}>
+                                                                    <TextField
+                                                                        select
+                                                                        label="Description"
+                                                                        value={item?.type || ""}
+                                                                        onChange={(e) => {
+                                                                            const nextType = e.target.value;
+                                                                            const next = partMiscItems.map((x, i) => {
+                                                                                if (i !== idx) return x;
+                                                                                return {
+                                                                                    ...x,
+                                                                                    type: nextType,
+                                                                                    description: nextType === "other_costs" ? (x?.description || "") : "",
+                                                                                };
+                                                                            });
+                                                                            updatePartMiscItems(next);
+                                                                        }}
+                                                                        fullWidth
+                                                                        size="medium"
+                                                                    >
+                                                                        {NRC_MISC_OPTIONS.map((opt) => (
+                                                                            <MenuItem key={opt.value} value={opt.value}>
+                                                                                {opt.label}
+                                                                            </MenuItem>
+                                                                        ))}
+                                                                    </TextField>
+                                                                    {String(item?.type || "") === "other_costs" && (
+                                                                        <TextField
+                                                                            label="Other (please specify)"
+                                                                            value={item?.description || ""}
+                                                                            onChange={(e) => {
+                                                                                const next = partMiscItems.map((x, i) =>
+                                                                                    i === idx ? { ...x, description: e.target.value } : x
+                                                                                );
+                                                                                updatePartMiscItems(next);
+                                                                            }}
+                                                                            fullWidth
+                                                                            size="medium"
+                                                                        />
+                                                                    )}
+                                                                </Stack>
                                                             </Grid>
                                                             <Grid item xs={10} md={4}>
                                                                 <TextField
@@ -1784,6 +2095,31 @@ function CostEstimationModal({
                                                         {formatValue("miscellaneous_amount", partMiscTotal)}
                                                     </Typography>
                                                 </Box>
+                                            </Paper>
+
+                                            {/* Quantity Section - Below Miscellaneous Costs */}
+                                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: "#F0FDF4", borderColor: "#86EFAC" }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                                                    <Inventory2Icon sx={{ color: "#16A34A" }} />
+                                                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#0F172A" }}>
+                                                        Quantity
+                                                    </Typography>
+                                                </Box>
+                                                <TextField
+                                                    type="number"
+                                                    inputProps={{ min: 1, step: 1 }}
+                                                    value={partQuantity}
+                                                    onChange={(e) => updatePartQuantity(parseInt(e.target.value) || 1)}
+                                                    fullWidth
+                                                    size="small"
+                                                    sx={{ 
+                                                        '& .MuiInputBase-root': { bgcolor: '#FFFFFF' },
+                                                        mb: 1 
+                                                    }}
+                                                />
+                                                <Typography variant="caption" sx={{ color: "#64748B" }}>
+                                                    Total cost will be multiplied by {partQuantity}
+                                                </Typography>
                                             </Paper>
 
                                             {/* Add Operation, Remove All, and Calculate All Buttons */}
@@ -1926,6 +2262,7 @@ function CostEstimationModal({
                 </Box>
 
                 {/* Right Sidebar - Project Info */}
+                {!rightPanelCollapsed ? (
                 <Paper
                     elevation={0}
                     sx={{
@@ -1937,9 +2274,32 @@ function CostEstimationModal({
                         overflowY: "auto",
                         bgcolor: "#F8FAFC",
                         flexShrink: 0,
+                        position: "relative",
                     }}
                 >
-                <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
+                    {/* Toggle Button - Collapse - Above Project Info */}
+                    <IconButton
+                        onClick={() => setRightPanelCollapsed(true)}
+                        sx={{
+                            position: "absolute",
+                            left: "50%",
+                            top: 8,
+                            transform: "translateX(-50%)",
+                            bgcolor: "#16A34A",
+                            border: "2px solid #FFFFFF",
+                            borderRadius: "50%",
+                            width: 36,
+                            height: 36,
+                            zIndex: 100,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                            "&:hover": { bgcolor: "#15803d" },
+                        }}
+                        title="Collapse Panel"
+                    >
+                        <ChevronRightIcon sx={{ color: "#FFFFFF", fontSize: 20 }} />
+                    </IconButton>
+
+                <Box sx={{ p: 3, pt: 5, display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
                     {/* Project Info Card */}
                     <Paper
                         variant="outlined"
@@ -2020,9 +2380,57 @@ function CostEstimationModal({
                             </Typography>
                         </Paper>
                     )}
+
+                    {/* Final Total - At bottom of right panel */}
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 3,
+                            borderRadius: 2,
+                            bgcolor: "#EEF2FF",
+                            borderColor: "#6366F1",
+                            borderWidth: 2,
+                            mt: "auto",
+                        }}
+                    >
+                        <Typography variant="subtitle1" sx={{ color: "#0F172A", mb: 1, fontWeight: 700 }}>
+                            Final Total Cost
+                        </Typography>
+                        <Typography variant="h4" fontWeight={900} sx={{ color: "#6366F1", mb: 1 }}>
+                            {formatValue(
+                                "total_cost",
+                                ((Number.isFinite(Number(combinedTotal)) ? Number(combinedTotal) : operationSummaryTotal) + partMiscTotal) * partQuantity
+                            )}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                            {partQuantity} {partQuantity === 1 ? 'unit' : 'units'} × Unit Cost
+                        </Typography>
+                    </Paper>
                 </Box>
-            </Paper>
-        </Box>
+                </Paper>
+                ) : (
+                    // Collapsed state - show expand button
+                    <IconButton
+                        onClick={() => setRightPanelCollapsed(false)}
+                        sx={{
+                            position: "fixed",
+                            right: 12,
+                            top: 90,
+                            bgcolor: "#16A34A",
+                            border: "2px solid #FFFFFF",
+                            borderRadius: "50%",
+                            width: 40,
+                            height: 40,
+                            zIndex: 100,
+                            boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+                            "&:hover": { bgcolor: "#15803d" },
+                        }}
+                        title="Expand Panel"
+                    >
+                        <ChevronLeftIcon sx={{ color: "#FFFFFF", fontSize: 24 }} />
+                    </IconButton>
+                )}
+            </Box>
 
         <Dialog
                 open={pdfPreviewOpen}
@@ -2049,16 +2457,16 @@ function CostEstimationModal({
                         ref={pdfPreviewRef}
                         sx={{
                             bgcolor: "#ffffff",
-                            color: "#e5e7eb",
+                            color: "#1e293b",
                             width: "min(794px, 100%)",
                             minHeight: "1123px",
                             p: 4,
                             borderRadius: 2,
                             border: "1px solid rgba(148,163,184,0.18)",
-                            fontSize: "14px",
-                            lineHeight: 1.35,
+                            fontSize: "16px",
+                            lineHeight: 1.5,
                             "& .MuiTypography-root": { fontSize: "1em" },
-                            "& .MuiTableCell-root": { fontSize: "0.95em" },
+                            "& .MuiTableCell-root": { fontSize: "1em" },
                         }}
                     >
                         {/* PAGE 1 */}
@@ -2130,25 +2538,31 @@ function CostEstimationModal({
                             </Box>
                         </Box>
 
-                        <Box sx={{ mt: 2.5 }}>
-                            <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5 }}>
-                                <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
-                                    Operation Totals
+                        <Box sx={{ mt: 3 }}>
+                            <Box sx={{ px: 2, py: 1.5, bgcolor: "#0EA5E9", borderRadius: 1.5 }}>
+                                <Typography variant="h6" fontWeight={900} sx={{ color: "#FFFFFF", fontSize: "1.2em" }}>
+                                    Operation Summary
                                 </Typography>
                             </Box>
-                            <TableContainer sx={{ mt: 1.5, border: "1px solid rgba(148,163,184,0.18)", borderRadius: 1.5, overflow: "hidden" }}>
-                                <Table size="small" sx={{ "& th, & td": { borderColor: "rgba(148,163,184,0.18)", color: "rgba(229,231,235,0.9)" } }}>
+                            <TableContainer sx={{ mt: 2, border: "1px solid rgba(148,163,184,0.3)", borderRadius: 1.5, overflow: "hidden" }}>
+                                <Table sx={{ "& th, & td": { borderColor: "rgba(148,163,184,0.3)", color: "#1e293b", fontSize: "1em" } }}>
                                     <TableHead>
-                                        <TableRow sx={{ bgcolor: "rgba(56,189,248,0.14)" }}>
-                                            <TableCell sx={{ fontWeight: 900, color: "#38bdf8" }}>Operation</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8" }}>Total (with Misc)</TableCell>
+                                        <TableRow sx={{ bgcolor: "#E0F2FE" }}>
+                                            <TableCell sx={{ fontWeight: 900, color: "#0369A1", fontSize: "1.05em" }}>Operation</TableCell>
+                                            <TableCell align="center" sx={{ fontWeight: 900, color: "#0369A1", fontSize: "1.05em" }}>Setup Time (hrs)</TableCell>
+                                            <TableCell align="center" sx={{ fontWeight: 900, color: "#0369A1", fontSize: "1.05em" }}>Cycle Time (hrs)</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#0369A1", fontSize: "1.05em" }}>Unit Cost</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 900, color: "#0369A1", fontSize: "1.05em" }}>Total ({partQuantity} {partQuantity === 1 ? 'unit' : 'units'})</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {operationSummaryRows.map((r) => (
+                                        {operationSummaryRows.map((r, idx) => (
                                             <TableRow key={`op-total-${r.idx}`}>
-                                                <TableCell sx={{ fontWeight: 800, color: "#e5e7eb" }}>{r.label}</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{r.label}</TableCell>
+                                                <TableCell align="center">{operations[idx]?.setup_time || "-"}</TableCell>
+                                                <TableCell align="center">{operations[idx]?.cycle_time || "-"}</TableCell>
                                                 <TableCell align="right">{formatValue("total_cost", r.value)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: "#0369A1" }}>{formatValue("total_cost", r.value * partQuantity)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -2174,17 +2588,25 @@ function CostEstimationModal({
                                         </TableHead>
                                         <TableBody>
                                             {partMiscItems
-                                                .filter((item) => String(item?.description || "").trim() || Number(item?.amount) > 0)
-                                                .map((item, idx) => (
+                                                .filter((item) => String(item?.type || "").trim() || String(item?.description || "").trim() || Number(item?.amount) > 0)
+                                                .map((item, idx) => {
+                                                    const type = String(item?.type || "").trim();
+                                                    const typeLabel = NRC_MISC_OPTIONS.find((o) => o.value === type)?.label;
+                                                    const label = type === "other_costs"
+                                                        ? (String(item?.description || "").trim() || "Other costs")
+                                                        : (typeLabel || String(item?.description || "").trim() || "Miscellaneous");
+
+                                                    return (
                                                     <TableRow key={`pdf-misc-${idx}`}>
                                                         <TableCell sx={{ color: "#e5e7eb" }}>
-                                                            {String(item?.description || "").trim() || "Miscellaneous"}
+                                                            {label}
                                                         </TableCell>
                                                         <TableCell align="right">
                                                             {formatValue("miscellaneous_amount", Number(item?.amount) || 0)}
                                                         </TableCell>
                                                     </TableRow>
-                                                ))}
+                                                    );
+                                                })}
                                             <TableRow sx={{ bgcolor: "rgba(56,189,248,0.06)" }}>
                                                 <TableCell sx={{ fontWeight: 900, color: "#38bdf8" }}>Miscellaneous Total</TableCell>
                                                 <TableCell align="right" sx={{ fontWeight: 900, color: "#38bdf8" }}>
@@ -2197,18 +2619,35 @@ function CostEstimationModal({
                             </Box>
                         )}
 
-                        <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
-                            <Box sx={{ minWidth: 320, border: "1px solid rgba(56,189,248,0.35)", borderRadius: 1.5, overflow: "hidden" }}>
-                                <Box sx={{ px: 1.5, py: 1, bgcolor: "rgba(56,189,248,0.14)" }}>
-                                    <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#38bdf8" }}>
+                        <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+                            <Box sx={{ minWidth: 380, border: "2px solid #0EA5E9", borderRadius: 1.5, overflow: "hidden" }}>
+                                <Box sx={{ px: 2, py: 1.5, bgcolor: "#E0F2FE" }}>
+                                    <Typography variant="h6" fontWeight={900} sx={{ color: "#0369A1", fontSize: "1.15em" }}>
                                         Final Total
                                     </Typography>
                                 </Box>
-                                <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Typography variant="body2" fontWeight={800} sx={{ color: "rgba(229,231,235,0.75)" }}>
-                                        Total (with Misc)
-                                    </Typography>
-                                    <Typography variant="h6" fontWeight={900} sx={{ color: "#38bdf8" }}>{formatValue("total_cost", operationSummaryTotal)}</Typography>
+                                <Box sx={{ p: 2 }}>
+                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                                        <Typography variant="body1" fontWeight={700} sx={{ color: "#64748b" }}>
+                                            Quantity
+                                        </Typography>
+                                        <Typography variant="h6" fontWeight={800} sx={{ color: "#1e293b" }}>{partQuantity}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                                        <Typography variant="body1" fontWeight={700} sx={{ color: "#64748b" }}>
+                                            Unit Cost (with Misc)
+                                        </Typography>
+                                        <Typography variant="h6" fontWeight={800} sx={{ color: "#1e293b" }}>{formatValue("total_cost", operationSummaryTotal)}</Typography>
+                                    </Box>
+                                    <Box sx={{ height: 2, bgcolor: "#E2E8F0", my: 1.5 }} />
+                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <Typography variant="h6" fontWeight={900} sx={{ color: "#0369A1" }}>
+                                            Grand Total
+                                        </Typography>
+                                        <Typography variant="h4" fontWeight={900} sx={{ color: "#0369A1" }}>
+                                            {formatValue("total_cost", operationSummaryTotal * partQuantity)}
+                                        </Typography>
+                                    </Box>
                                 </Box>
                             </Box>
                         </Box>

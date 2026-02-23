@@ -17,7 +17,7 @@ import {
     Typography
 } from "@mui/material";
 
-function TotalCostTab({ costResults, parts, formatValue }) {
+function TotalCostTab({ costResults, parts, formatValue, costForms = {} }) {
     const costEntries = costResults && typeof costResults === "object" ? Object.entries(costResults) : [];
     const partSummaries = costEntries
         .map(([partId, value]) => {
@@ -33,11 +33,18 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                     return sum + (Number.isFinite(n) ? n : 0);
                 }, 0);
 
+            // Get quantity for this part from costForms, default to 1
+            const partForm = costForms?.[partId];
+            const q = Number(partForm?.quantity);
+            const partQuantity = Number.isFinite(q) && q >= 1 ? Math.trunc(q) : 1;
+
             return {
                 partId,
                 part: (Array.isArray(parts) ? parts : []).find((p) => String(p?.id) === String(partId)) || null,
                 operations: ops,
                 combined_total_unit_cost_with_misc: combinedValue,
+                quantity: partQuantity,
+                totalCost: combinedValue * partQuantity,
             };
         })
         .filter((x) => (x.operations && x.operations.length > 0) || Number(x.combined_total_unit_cost_with_misc) > 0);
@@ -76,29 +83,32 @@ function TotalCostTab({ costResults, parts, formatValue }) {
         man_hours_total: 0
     };
 
+    // Calculate totals using per-part quantities
     partSummaries.forEach((summary) => {
+        const partQty = summary.quantity || 1;
         (summary.operations || []).forEach((result) => {
             const breakdown = result?.cost_breakdown;
             if (!breakdown) return;
 
-            totalCosts.basic_cost += Number(breakdown?.basic_cost_per_unit) || 0;
-            totalCosts.overheads += Number(breakdown?.overheads_per_unit) || 0;
-            totalCosts.profit += Number(breakdown?.profit_per_unit) || 0;
-            totalCosts.packing_forwarding += Number(breakdown?.packing_forwarding_per_unit) || 0;
-            totalCosts.unit_cost += Number(breakdown?.unit_cost) || 0;
-            totalCosts.total_unit_cost_with_misc += Number(breakdown?.total_unit_cost_with_misc) || 0;
-            totalCosts.miscellaneous_amount += Number(breakdown?.miscellaneous_amount) || 0;
+            totalCosts.basic_cost += (Number(breakdown?.basic_cost_per_unit) || 0) * partQty;
+            totalCosts.overheads += (Number(breakdown?.overheads_per_unit) || 0) * partQty;
+            totalCosts.profit += (Number(breakdown?.profit_per_unit) || 0) * partQty;
+            totalCosts.packing_forwarding += (Number(breakdown?.packing_forwarding_per_unit) || 0) * partQty;
+            totalCosts.unit_cost += (Number(breakdown?.unit_cost) || 0) * partQty;
+            totalCosts.total_unit_cost_with_misc += (Number(breakdown?.total_unit_cost_with_misc) || 0) * partQty;
+            totalCosts.miscellaneous_amount += (Number(breakdown?.miscellaneous_amount) || 0) * partQty;
             totalCosts.machine_hour_rate += Number(breakdown?.machine_hour_rate) || 0;
             totalCosts.wage_rate += Number(breakdown?.wage_rate) || 0;
             totalCosts.outsourcing_mhr += Number(breakdown?.outsourcing_mhr) || 0;
-            totalCosts.man_hours_total += Number(breakdown?.man_hours_per_unit) || 0;
+            totalCosts.man_hours_total += (Number(breakdown?.man_hours_per_unit) || 0) * partQty;
         });
     });
 
     const partCount = partSummaries.length;
     const opCount = partSummaries.reduce((sum, s) => sum + (Array.isArray(s.operations) ? s.operations.length : 0), 0);
+    const totalQuantity = partSummaries.reduce((sum, s) => sum + (s.quantity || 1), 0);
 
-    const partsTotalWithMisc = partSummaries.reduce((sum, s) => sum + (Number(s.combined_total_unit_cost_with_misc) || 0), 0);
+    const partsTotalWithMisc = partSummaries.reduce((sum, s) => sum + (Number(s.totalCost) || 0), 0);
 
     return (
         <Card
@@ -133,6 +143,7 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                     <Stack spacing={1}>
                                         <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Total Parts:</Box> {partCount}</Typography>
                                         <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Total Operations:</Box> {opCount}</Typography>
+                                        <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Total Quantity (all parts):</Box> {totalQuantity}</Typography>
                                         <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Total Man Hours:</Box> {totalCosts.man_hours_total.toFixed(2)}</Typography>
                                         <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Avg Machine Hour Rate:</Box> {formatValue("machine_hour_rate", totalCosts.machine_hour_rate / partCount)}</Typography>
                                         <Typography variant="body2" sx={{ color: "#0F172A" }}><Box component="span" fontWeight={500} sx={{ color: "#64748B" }}>Avg Wage Rate:</Box> {formatValue("wage_rate", totalCosts.wage_rate / partCount)}</Typography>
@@ -150,10 +161,10 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                         <Divider sx={{ my: 1, borderColor: "#E2E8F0" }} />
 
                                         <Typography variant="h6" sx={{ color: "#6366F1", fontSize: "1.1rem", fontWeight: 700 }}>
-                                            <Box component="span" fontWeight={600} sx={{ color: "#0F172A" }}>Total Project Cost:</Box> {formatValue("total_cost", totalCosts.unit_cost)}
+                                            <Box component="span" fontWeight={600} sx={{ color: "#0F172A" }}>Total Project Cost ({totalQuantity} units):</Box> {formatValue("total_cost", totalCosts.unit_cost)}
                                         </Typography>
                                         <Typography variant="body1" sx={{ color: "#6366F1", fontWeight: 600 }}>
-                                            <Box component="span" sx={{ color: "#64748B", fontWeight: 400 }}>Total with Miscellaneous:</Box> {formatValue("total_cost", totalCosts.total_unit_cost_with_misc)}
+                                            <Box component="span" sx={{ color: "#64748B", fontWeight: 400 }}>Total with Miscellaneous ({totalQuantity} units):</Box> {formatValue("total_cost", totalCosts.total_unit_cost_with_misc)}
                                         </Typography>
                                     </Stack>
                                 </Grid>
@@ -179,7 +190,7 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    <TableRow>
+                                    <TableRow sx={{ bgcolor: "#F8FAFC" }}>
                                         <TableCell sx={{ color: "#0F172A" }}>Total Man Hours</TableCell>
                                         <TableCell sx={{ color: "#0F172A" }}>{totalCosts.man_hours_total.toFixed(2)}</TableCell>
                                     </TableRow>
@@ -239,7 +250,9 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                         <TableCell sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Part</TableCell>
                                         <TableCell sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Part Name</TableCell>
                                         <TableCell align="right" sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Operations</TableCell>
-                                        <TableCell align="right" sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Final Unit Cost (with Misc)</TableCell>
+                                        <TableCell align="right" sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Quantity</TableCell>
+                                        <TableCell align="right" sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Unit Cost (with Misc)</TableCell>
+                                        <TableCell align="right" sx={{ color: "#7F1D1D", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>Total Cost</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -248,14 +261,20 @@ function TotalCostTab({ costResults, parts, formatValue }) {
                                             <TableCell sx={{ color: "#0F172A" }}>{s.part?.part_number || "Unknown Part"}</TableCell>
                                             <TableCell sx={{ color: "#0F172A" }}>{s.part?.part_name || "—"}</TableCell>
                                             <TableCell align="right" sx={{ color: "#0F172A" }}>{Array.isArray(s.operations) ? s.operations.length : 0}</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 700, color: "#6366F1" }}>
+                                            <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 600 }}>{s.quantity}</TableCell>
+                                            <TableCell align="right" sx={{ color: "#0F172A" }}>
                                                 {formatValue("total_cost", s.combined_total_unit_cost_with_misc)}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700, color: "#6366F1" }}>
+                                                {formatValue("total_cost", s.totalCost)}
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     <TableRow>
                                         <TableCell colSpan={2} sx={{ color: "#0F172A", fontWeight: 800 }}>TOTAL</TableCell>
                                         <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 800 }}>{opCount}</TableCell>
+                                        <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 800 }}>{totalQuantity}</TableCell>
+                                        <TableCell align="right" sx={{ color: "#0F172A" }}>—</TableCell>
                                         <TableCell align="right" sx={{ color: "#0F172A", fontWeight: 800 }}>
                                             {formatValue("total_cost", partsTotalWithMisc)}
                                         </TableCell>

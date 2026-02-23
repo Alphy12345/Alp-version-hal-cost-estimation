@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 function CreateProjectPage({ onChange, onCreate }) {
   const [projectName, setProjectName] = useState("");
@@ -185,18 +186,38 @@ function CreateProjectPage({ onChange, onCreate }) {
   };
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+    <Box sx={{ width: "100%", maxWidth: "100%" }}>
+      {/* Back Button */}
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => onChange("projects")}
+        sx={{ 
+          textTransform: "none", 
+          fontWeight: 700, 
+          mb: 2,
+          color: "#6366F1",
+          "&:hover": { bgcolor: "#EEF2FF" }
+        }}
+      >
+        Back to Projects
+      </Button>
+
       <Stack spacing={3}>
-        <Card variant="outlined">
-          <CardHeader title={<Typography sx={{ fontWeight: 800 }}>Create New Project</Typography>} />
-        </Card>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ fontSize: "1.75rem" }}>
+            Create New Project
+          </Typography>
+        </Box>
 
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={3}>
             {error && <Alert severity="error">{error}</Alert>}
 
-            <Card variant="outlined">
-              <CardHeader title="Project Information" />
+            <Card variant="outlined" sx={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
+              <CardHeader 
+                title="Project Information" 
+                sx={{ bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}
+              />
               <Divider />
               <CardContent>
                 <Grid container spacing={2}>
@@ -245,9 +266,10 @@ function CreateProjectPage({ onChange, onCreate }) {
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card variant="outlined" sx={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
               <CardHeader
                 title="Additional Fields"
+                sx={{ bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}
                 action={
                   <Button startIcon={<AddIcon />} onClick={addCustomField} sx={{ textTransform: "none", fontWeight: 700 }}>
                     Add Field
@@ -294,8 +316,11 @@ function CreateProjectPage({ onChange, onCreate }) {
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
-              <CardHeader title="Documents" />
+            <Card variant="outlined" sx={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
+              <CardHeader 
+                title="Documents" 
+                sx={{ bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}
+              />
               <Divider />
               <CardContent>
                 <Stack spacing={3}>
@@ -415,9 +440,10 @@ function CreateProjectPage({ onChange, onCreate }) {
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card variant="outlined" sx={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
               <CardHeader
                 title="Parts"
+                sx={{ bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}
                 action={
                   <Button
                     startIcon={<AddIcon />}
@@ -541,10 +567,7 @@ function CreateProjectPage({ onChange, onCreate }) {
               </CardContent>
             </Card>
 
-            <Stack direction="row" spacing={2} justifyContent="space-between">
-              <Button variant="text" onClick={() => onChange("projects")} sx={{ textTransform: "none", fontWeight: 700 }}>
-                ← Back
-              </Button>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
                 type="submit"
                 variant="contained"

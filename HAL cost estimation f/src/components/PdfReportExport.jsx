@@ -322,13 +322,13 @@ const PdfReportExport = ({
         >
           {/* PAGE 1: Header + Full 2D Drawing only */}
           <Box data-page="1" sx={{ minHeight: "1123px", bgcolor: "#ffffff", display: "flex", flexDirection: "column" }}>
-            {/* HEADER SECTION */}
+            {/* HEADER SECTION - Extended to fill more space */}
             <Box
               sx={{
-                p: "15mm",
-                pb: "10mm",
+                p: "20mm 15mm 15mm 15mm",
                 bgcolor: "#1e3a5f",
                 borderBottom: "4pt solid #d4af37",
+                flex: "0 0 auto",
               }}
             >
               {/* Title Row */}
@@ -337,24 +337,24 @@ const PdfReportExport = ({
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "flex-start",
-                  mb: 2,
+                  mb: 3,
                 }}
               >
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Typography
                     sx={{
-                      fontSize: "24pt",
+                      fontSize: "28pt",
                       fontWeight: "bold",
                       color: "#ffffff",
                       letterSpacing: "0.5pt",
-                      mb: 0.5,
+                      mb: 1,
                     }}
                   >
                     {title}
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "12pt",
+                      fontSize: "14pt",
                       color: "#94a3b8",
                       fontWeight: 500,
                     }}
@@ -362,20 +362,20 @@ const PdfReportExport = ({
                     Project: {projectData?.project_name || "Untitled Project"}
                   </Typography>
                 </Box>
-                <Box sx={{ textAlign: "right" }}>
+                <Box sx={{ textAlign: "right", minWidth: "150px" }}>
                   <Box
                     sx={{
                       bgcolor: "#d4af37",
                       color: "#1e3a5f",
-                      px: "12pt",
-                      py: "6pt",
+                      px: "16pt",
+                      py: "8pt",
                       borderRadius: "4pt",
                       mb: 1,
                     }}
                   >
                     <Typography
                       sx={{
-                        fontSize: "10pt",
+                        fontSize: "12pt",
                         fontWeight: "bold",
                       }}
                     >
@@ -384,7 +384,7 @@ const PdfReportExport = ({
                   </Box>
                   <Typography
                     sx={{
-                      fontSize: "9pt",
+                      fontSize: "10pt",
                       color: "#94a3b8",
                     }}
                   >
@@ -393,14 +393,14 @@ const PdfReportExport = ({
                 </Box>
               </Box>
 
-              {/* Project Info Grid */}
+              {/* Project Info Grid - Extended */}
               <Box
                 sx={{
                   display: "grid",
                   gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: 2,
-                  mt: 2,
-                  p: "8pt",
+                  gap: 3,
+                  mt: 3,
+                  p: "12pt",
                   bgcolor: "rgba(255,255,255,0.1)",
                   borderRadius: "4pt",
                   border: "1pt solid rgba(212,175,55,0.5)",
@@ -409,7 +409,7 @@ const PdfReportExport = ({
                 <Box>
                   <Typography
                     sx={{
-                      fontSize: "8pt",
+                      fontSize: "9pt",
                       color: "#d4af37",
                       textTransform: "uppercase",
                       letterSpacing: "0.5pt",
@@ -420,7 +420,7 @@ const PdfReportExport = ({
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "10pt",
+                      fontSize: "11pt",
                       fontWeight: "bold",
                       color: "#ffffff",
                     }}
@@ -431,7 +431,7 @@ const PdfReportExport = ({
                 <Box>
                   <Typography
                     sx={{
-                      fontSize: "8pt",
+                      fontSize: "9pt",
                       color: "#d4af37",
                       textTransform: "uppercase",
                       letterSpacing: "0.5pt",
@@ -442,7 +442,7 @@ const PdfReportExport = ({
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "10pt",
+                      fontSize: "11pt",
                       fontWeight: "bold",
                       color: "#ffffff",
                     }}
@@ -453,7 +453,7 @@ const PdfReportExport = ({
                 <Box>
                   <Typography
                     sx={{
-                      fontSize: "8pt",
+                      fontSize: "9pt",
                       color: "#d4af37",
                       textTransform: "uppercase",
                       letterSpacing: "0.5pt",
@@ -464,7 +464,7 @@ const PdfReportExport = ({
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "10pt",
+                      fontSize: "11pt",
                       fontWeight: "bold",
                       color: "#ffffff",
                     }}
@@ -476,10 +476,10 @@ const PdfReportExport = ({
             </Box>
 
             {/* 2D DRAWING SECTION - Full Page */}
-            <Box sx={{ p: "15mm", pt: "12mm", flex: 1, display: "flex", flexDirection: "column" }}>
+            <Box sx={{ p: "8mm 15mm 15mm 15mm", flex: 1, display: "flex", flexDirection: "column" }}>
               <Box
                 sx={{
-                  mb: 3,
+                  mb: 2,
                 }}
               >
                 <Typography
@@ -542,13 +542,12 @@ const PdfReportExport = ({
               </Box>
             </Box>
 
-            {/* PAGE 1 FOOTER */}
+            {/* PAGE 1 FOOTER - Thin */}
             <Box
               sx={{
                 mt: "auto",
-                p: "15mm",
-                pt: "8mm",
-                borderTop: "3pt solid #d4af37",
+                p: "4mm 15mm",
+                borderTop: "2pt solid #d4af37",
                 bgcolor: "#1e3a5f",
               }}
             >
@@ -620,7 +619,7 @@ const PdfReportExport = ({
                   <Box sx={{ mb: 3 }}>
                     <Typography
                       sx={{
-                        fontSize: "13pt",
+                        fontSize: "14pt",
                         fontWeight: "bold",
                         color: "#1e3a5f",
                         textAlign: "center",
@@ -634,55 +633,57 @@ const PdfReportExport = ({
                     </Typography>
                   </Box>
 
-                  {/* Summary Table */}
+                  {/* Summary Table - Larger */}
                   <Box
                     sx={{
-                      border: "1pt solid #d4af37",
+                      border: "2pt solid #d4af37",
                       overflow: "hidden",
-                      boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                      boxShadow: "0 3pt 6pt rgba(0,0,0,0.15)",
                       width: "100%",
+                      minHeight: "60vh",
                     }}
                   >
-                    {/* Table Header */}
+                    {/* Table Header - 5 columns (removed Setup and Cycle) */}
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                        gridTemplateColumns: "80px 2fr 1.2fr 1fr 1.2fr",
                         bgcolor: "#1e3a5f",
                         color: "#d4af37",
                         alignItems: "center",
+                        p: "6pt 0",
                       }}
                     >
-                  <Box sx={{ p: "8pt", textAlign: "center" }}>
-                    <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
+                  <Box sx={{ p: "10pt", textAlign: "center" }}>
+                    <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                       S.No
                     </Typography>
                   </Box>
-                  <Box sx={{ p: "8pt" }}>
-                    <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
+                  <Box sx={{ p: "10pt" }}>
+                    <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                       Operation
                     </Typography>
                   </Box>
-                  <Box sx={{ p: "8pt", textAlign: "right" }}>
-                    <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
+                  <Box sx={{ p: "10pt", textAlign: "right" }}>
+                    <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                       Base Cost
                     </Typography>
                   </Box>
-                  <Box sx={{ p: "8pt", textAlign: "right" }}>
-                    <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
+                  <Box sx={{ p: "10pt", textAlign: "right" }}>
+                    <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                       Misc Cost
                     </Typography>
                   </Box>
-                  <Box sx={{ p: "8pt", textAlign: "right" }}>
-                    <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#d4af37" }}>
+                  <Box sx={{ p: "10pt", textAlign: "right" }}>
+                    <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                       Total Cost
                     </Typography>
                   </Box>
                 </Box>
-                    {/* Table Body */}
+                    {/* Table Body - 5 columns - Larger */}
                     {pageRows.length === 0 ? (
-                      <Box sx={{ p: "12pt", textAlign: "center", bgcolor: "#f8fafc" }}>
-                        <Typography sx={{ color: "#64748b", fontSize: "10pt" }}>
+                      <Box sx={{ p: "14pt", textAlign: "center", bgcolor: "#f8fafc" }}>
+                        <Typography sx={{ color: "#64748b", fontSize: "11pt" }}>
                           No operations calculated yet
                         </Typography>
                       </Box>
@@ -696,21 +697,22 @@ const PdfReportExport = ({
                             key={row.idx}
                             sx={{
                               display: "grid",
-                              gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                              gridTemplateColumns: "80px 2fr 1.2fr 1fr 1.2fr",
                               bgcolor: serialNo % 2 === 1 ? "#ffffff" : "#f1f5f9",
                               borderTop: "1pt solid #e2e8f0",
                               alignItems: "center",
+                              p: "6pt 0",
                             }}
                           >
-                            <Box sx={{ p: "8pt", textAlign: "center" }}>
-                              <Typography sx={{ fontSize: "10pt", color: "#475569", fontWeight: 600 }}>
+                            <Box sx={{ p: "10pt", textAlign: "center" }}>
+                              <Typography sx={{ fontSize: "11pt", color: "#475569", fontWeight: 600 }}>
                                 {serialNo}
                               </Typography>
                             </Box>
-                            <Box sx={{ p: "8pt", minWidth: 0 }}>
+                            <Box sx={{ p: "10pt", minWidth: 0 }}>
                               <Typography
                                 sx={{
-                                  fontSize: "10pt",
+                                  fontSize: "11pt",
                                   color: "#1e293b",
                                   fontWeight: 600,
                                   whiteSpace: "nowrap",
@@ -721,15 +723,15 @@ const PdfReportExport = ({
                                 {row.label}
                               </Typography>
                             </Box>
-                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                            <Box sx={{ p: "10pt", textAlign: "right" }}>
                               <Typography sx={{ fontSize: "10pt", color: "#475569", fontFamily: "monospace" }}>
                                 {formatCurrency(baseCost)}
                               </Typography>
                             </Box>
-                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                            <Box sx={{ p: "10pt", textAlign: "right" }}>
                               <Typography sx={{ fontSize: "10pt", color: "#1e3a5f", fontWeight: 600 }}>—</Typography>
                             </Box>
-                            <Box sx={{ p: "8pt", textAlign: "right" }}>
+                            <Box sx={{ p: "10pt", textAlign: "right" }}>
                               <Typography
                                 sx={{
                                   fontSize: "10pt",
@@ -746,33 +748,34 @@ const PdfReportExport = ({
                       })
                     )}
 
-                    {/* Misc + Grand total only on last summary page */}
+                    {/* Misc + Grand total only on last summary page - 5 columns - Larger */}
                     {isLastSummaryPage && partMiscTotal > 0 && summaryRows.length > 0 && (
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                          gridTemplateColumns: "80px 2fr 1.2fr 1fr 1.2fr",
                           bgcolor: "#fef3c7",
                           borderTop: "2pt solid #d4af37",
                           alignItems: "center",
+                          p: "8pt 0",
                         }}
                       >
-                        <Box sx={{ p: "8pt" }}></Box>
-                        <Box sx={{ p: "8pt" }}>
-                          <Typography sx={{ fontSize: "9pt", fontWeight: "bold", color: "#92400e" }}>
+                        <Box sx={{ p: "10pt" }}></Box>
+                        <Box sx={{ p: "10pt" }}>
+                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#92400e" }}>
                             MISCELLANEOUS TOTAL
                           </Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "10pt", color: "#92400e" }}>—</Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#92400e", fontFamily: "monospace" }}>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "11pt", fontWeight: "bold", color: "#92400e", fontFamily: "monospace" }}>
                             {formatCurrency(partMiscTotal)}
                           </Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "9pt", color: "#92400e" }}>—</Typography>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "10pt", color: "#92400e" }}>—</Typography>
                         </Box>
                       </Box>
                     )}
@@ -781,31 +784,32 @@ const PdfReportExport = ({
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: "60px 2.5fr 1.2fr 1fr 1.2fr",
+                          gridTemplateColumns: "80px 2fr 1.2fr 1fr 1.2fr",
                           bgcolor: "#1e3a5f",
                           color: "#ffffff",
                           borderTop: "3pt solid #d4af37",
                           alignItems: "center",
+                          p: "8pt 0",
                         }}
                       >
-                        <Box sx={{ p: "8pt" }}></Box>
-                        <Box sx={{ p: "8pt" }}>
-                          <Typography sx={{ fontSize: "11pt", fontWeight: "bold", color: "#d4af37" }}>
+                        <Box sx={{ p: "10pt" }}></Box>
+                        <Box sx={{ p: "10pt" }}>
+                          <Typography sx={{ fontSize: "12pt", fontWeight: "bold", color: "#d4af37" }}>
                             GRAND TOTAL
                           </Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "9pt", color: "#94a3b8", fontFamily: "monospace" }}>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "10pt", color: "#94a3b8", fontFamily: "monospace" }}>
                             {formatCurrency(totalUnitCost)}
                           </Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "11pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
                             {formatCurrency(partMiscTotal)}
                           </Typography>
                         </Box>
-                        <Box sx={{ p: "8pt", textAlign: "right" }}>
-                          <Typography sx={{ fontSize: "12pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
+                        <Box sx={{ p: "10pt", textAlign: "right" }}>
+                          <Typography sx={{ fontSize: "13pt", fontWeight: "bold", color: "#d4af37", fontFamily: "monospace" }}>
                             {formatCurrency(totalUnitCost + partMiscTotal)}
                           </Typography>
                         </Box>
@@ -814,13 +818,12 @@ const PdfReportExport = ({
                   </Box>
                 </Box>
 
-                {/* Footer */}
+                {/* Footer - Thin */}
                 <Box
                   sx={{
                     mt: "auto",
-                    p: "15mm",
-                    pt: "8mm",
-                    borderTop: "3pt solid #d4af37",
+                    p: "4mm 15mm",
+                    borderTop: "2pt solid #d4af37",
                     bgcolor: "#1e3a5f",
                   }}
                 >
@@ -914,32 +917,34 @@ const PdfReportExport = ({
                     </Typography>
                   </Box>
 
-                  {/* Metrics Table */}
+                  {/* Metrics Table - Increased size to fill page */}
                   <Box 
                     sx={{ 
-                      border: "1pt solid #d4af37",
+                      border: "2pt solid #d4af37",
                       overflow: "hidden",
-                      boxShadow: "0 2pt 4pt rgba(0,0,0,0.1)",
+                      boxShadow: "0 3pt 6pt rgba(0,0,0,0.15)",
                       width: "100%",
+                      minHeight: "60vh",
                     }}
                   >
-                    {/* Header */}
+                    {/* Header - Larger */}
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
+                        gridTemplateColumns: `minmax(250px, 2fr) repeat(${chunkOps.length}, 1fr)`,
                         bgcolor: "#1e3a5f",
                         color: "#d4af37",
+                        p: "10pt 8pt",
                       }}
                     >
-                      <Box sx={{ p: "6pt" }}>
-                        <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
+                      <Box sx={{ p: "8pt 12pt" }}>
+                        <Typography sx={{ fontSize: "11pt", fontWeight: "bold", color: "#d4af37" }}>
                           COST COMPONENT
                         </Typography>
                       </Box>
                       {chunkOps.map((op) => (
-                        <Box key={op.idx} sx={{ p: "6pt", textAlign: "center" }}>
-                          <Typography sx={{ fontSize: "8pt", fontWeight: "bold", color: "#d4af37" }}>
+                        <Box key={op.idx} sx={{ p: "8pt 6pt", textAlign: "center" }}>
+                          <Typography sx={{ fontSize: "10pt", fontWeight: "bold", color: "#d4af37" }}>
                             {op.label}
                           </Typography>
                         </Box>
@@ -947,20 +952,106 @@ const PdfReportExport = ({
                     </Box>
 
                     {/* Body with Alternating Colors */}
+                    
+                    {/* Setup Time Row - Larger */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: `minmax(250px, 2fr) repeat(${chunkOps.length}, 1fr)`,
+                        bgcolor: "#ffffff",
+                        borderTop: "1pt solid #e2e8f0",
+                        p: "6pt 0",
+                      }}
+                    >
+                      <Box sx={{ p: "8pt 12pt", bgcolor: "#f8fafc" }}>
+                        <Typography
+                          sx={{
+                            fontSize: "10pt",
+                            color: "#1e3a5f",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Setup Time (hrs)
+                        </Typography>
+                      </Box>
+                      {chunkOps.map((op) => {
+                        const setupTime = operations?.[op.idx]?.setup_time;
+                        return (
+                          <Box
+                            key={`setup-${op.idx}`}
+                            sx={{ p: "8pt 6pt", textAlign: "right" }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: "9pt",
+                                color: "#475569",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {setupTime ?? "-"}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+
+                    {/* Cycle Time Row - Larger */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: `minmax(250px, 2fr) repeat(${chunkOps.length}, 1fr)`,
+                        bgcolor: "#f1f5f9",
+                        borderTop: "1pt solid #e2e8f0",
+                        p: "6pt 0",
+                      }}
+                    >
+                      <Box sx={{ p: "8pt 12pt", bgcolor: "#f8fafc" }}>
+                        <Typography
+                          sx={{
+                            fontSize: "10pt",
+                            color: "#1e3a5f",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Cycle Time (hrs)
+                        </Typography>
+                      </Box>
+                      {chunkOps.map((op) => {
+                        const cycleTime = operations?.[op.idx]?.cycle_time;
+                        return (
+                          <Box
+                            key={`cycle-${op.idx}`}
+                            sx={{ p: "8pt 6pt", textAlign: "right" }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: "9pt",
+                                color: "#475569",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {cycleTime ?? "-"}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+
                     {filteredMetricKeys.map((k, idx) => (
                       <Box
                         key={k}
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
+                          gridTemplateColumns: `minmax(250px, 2fr) repeat(${chunkOps.length}, 1fr)`,
                           bgcolor: idx % 2 === 0 ? "#ffffff" : "#f1f5f9",
                           borderTop: "1pt solid #e2e8f0",
+                          p: "6pt 0",
                         }}
                       >
-                        <Box sx={{ p: "5pt 6pt", bgcolor: "#f8fafc" }}>
+                        <Box sx={{ p: "8pt 12pt", bgcolor: "#f8fafc" }}>
                           <Typography
                             sx={{
-                              fontSize: "8pt",
+                              fontSize: "10pt",
                               color: "#1e3a5f",
                               fontWeight: 600,
                             }}
@@ -971,11 +1062,11 @@ const PdfReportExport = ({
                         {chunkOps.map((op) => (
                           <Box
                             key={`${k}-${op.idx}`}
-                            sx={{ p: "5pt 6pt", textAlign: "right" }}
+                            sx={{ p: "8pt 6pt", textAlign: "right" }}
                           >
                             <Typography
                               sx={{
-                                fontSize: "8pt",
+                                fontSize: "9pt",
                                 color: "#475569",
                                 fontFamily: "monospace",
                               }}
@@ -987,20 +1078,21 @@ const PdfReportExport = ({
                       </Box>
                     ))}
                     
-                    {/* Miscellaneous Costs - Gold Highlight */}
+                    {/* Miscellaneous Costs - Gold Highlight - Larger */}
                     {partMiscTotal > 0 && (
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: `minmax(200px, 1.5fr) repeat(${chunkOps.length}, 1fr)`,
+                          gridTemplateColumns: `minmax(250px, 2fr) repeat(${chunkOps.length}, 1fr)`,
                           bgcolor: "#fef3c7",
                           borderTop: "2pt solid #d4af37",
+                          p: "8pt 0",
                         }}
                       >
-                        <Box sx={{ p: "6pt", bgcolor: "#fcd34d" }}>
+                        <Box sx={{ p: "8pt 12pt", bgcolor: "#fcd34d" }}>
                           <Typography
                             sx={{
-                              fontSize: "9pt",
+                              fontSize: "10pt",
                               color: "#92400e",
                               fontWeight: "bold",
                             }}
@@ -1011,11 +1103,11 @@ const PdfReportExport = ({
                         {chunkOps.map((op) => (
                           <Box
                             key={`misc-${op.idx}`}
-                            sx={{ p: "6pt", textAlign: "right" }}
+                            sx={{ p: "8pt 6pt", textAlign: "right" }}
                           >
                             <Typography
                               sx={{
-                                fontSize: "9pt",
+                                fontSize: "10pt",
                                 color: "#92400e",
                                 fontFamily: "monospace",
                                 fontWeight: "bold",
@@ -1072,13 +1164,12 @@ const PdfReportExport = ({
                   )}
                 </Box>
 
-                {/* Page Footer */}
+                {/* Page Footer - Thin */}
                 <Box
                   sx={{
                     mt: "auto",
-                    p: "15mm",
-                    pt: "8mm",
-                    borderTop: "3pt solid #d4af37",
+                    p: "4mm 15mm",
+                    borderTop: "2pt solid #d4af37",
                     bgcolor: "#1e3a5f",
                   }}
                 >

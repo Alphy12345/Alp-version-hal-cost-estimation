@@ -8,13 +8,25 @@ import {
     ListItemIcon,
     Button,
     Stack,
-    Paper
+    Paper,
+    Chip
 } from "@mui/material";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ImageIcon from "@mui/icons-material/Image";
+import DescriptionIcon from "@mui/icons-material/Description";
 
 function DocumentsTab({ projectData, onViewFile }) {
     const requirementDocs = projectData?.documents?.filter(doc => doc.document_type === 'requirement') || [];
     const otherDocs = projectData?.documents?.filter(doc => doc.document_type === 'other') || [];
+
+    const getFileIcon = (filename) => {
+        if (!filename) return <InsertDriveFileIcon sx={{ color: "#6366F1" }} fontSize="small" />;
+        const lowerName = filename.toLowerCase();
+        if (lowerName.endsWith('.pdf')) return <PictureAsPdfIcon sx={{ color: "#EF4444" }} fontSize="small" />;
+        if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) return <ImageIcon sx={{ color: "#10B981" }} fontSize="small" />;
+        return <DescriptionIcon sx={{ color: "#6366F1" }} fontSize="small" />;
+    };
 
     const DocumentList = ({ docs, emptyMessage }) => {
         if (docs.length === 0) {
@@ -26,60 +38,70 @@ function DocumentsTab({ projectData, onViewFile }) {
         }
 
         return (
-            <List disablePadding>
+            <Stack spacing={1}>
                 {docs.map((doc) => (
-                    <ListItem
+                    <Paper
                         key={doc.id}
+                        variant="outlined"
                         sx={{
-                            bgcolor: "#FFFFFF",
-                            border: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            px: 2,
+                            py: 0.75,
                             borderColor: "#E2E8F0",
-                            borderRadius: 2,
-                            mb: 1,
-                            py: 1,
+                            borderRadius: 1,
                             "&:hover": { bgcolor: "#F8FAFC", borderColor: "#C7D2FE" },
                         }}
-                        secondaryAction={
-                            <Button
-                                size="small"
-                                onClick={() => onViewFile(doc.file_path, doc.filename)}
-                                sx={{
-                                    minWidth: "auto",
-                                    color: "#6366F1",
-                                    "&:hover": { bgcolor: "#EEF2FF" },
-                                }}
-                            >
-                                View
-                            </Button>
-                        }
                     >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                            <InsertDriveFileIcon sx={{ color: "#6366F1" }} />
-                        </ListItemIcon>
-                        <ListItemText
-                            primary={
-                                <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, overflow: "hidden" }}>
+                            {getFileIcon(doc.filename)}
+                            <Box sx={{ overflow: "hidden" }}>
+                                <Typography variant="body2" fontWeight={500} noWrap sx={{ color: "#0F172A" }}>
                                     {doc.filename}
                                 </Typography>
-                            }
-                            secondary={
                                 <Typography variant="caption" sx={{ color: "#64748B" }}>
-                                    Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
+                                    {new Date(doc.uploaded_at).toLocaleDateString()}
                                 </Typography>
-                            }
-                        />
-                    </ListItem>
+                            </Box>
+                        </Box>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => onViewFile(doc.file_path, doc.filename)}
+                            sx={{
+                                minWidth: "auto",
+                                color: "#6366F1",
+                                borderColor: "#C7D2FE",
+                                fontSize: "0.75rem",
+                                textTransform: "none",
+                                fontWeight: 600,
+                                "&:hover": { bgcolor: "#EEF2FF", borderColor: "#6366F1" },
+                            }}
+                        >
+                            View
+                        </Button>
+                    </Paper>
                 ))}
-            </List>
+            </Stack>
         );
     };
 
     return (
-        <Stack spacing={4}>
+        <Stack spacing={3}>
             <Box>
-                <Typography variant="h6" gutterBottom sx={{ color: "#0F172A", fontWeight: 600 }}>
-                    Requirement Documents
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#0F172A" }}>
+                        Requirement Documents
+                    </Typography>
+                    {requirementDocs.length > 0 && (
+                        <Chip 
+                            label={requirementDocs.length} 
+                            size="small" 
+                            sx={{ bgcolor: "#EEF2FF", color: "#4338CA", fontWeight: 600, fontSize: "0.75rem" }}
+                        />
+                    )}
+                </Box>
                 <DocumentList
                     docs={requirementDocs}
                     emptyMessage="No requirement documents uploaded."
@@ -87,9 +109,18 @@ function DocumentsTab({ projectData, onViewFile }) {
             </Box>
 
             <Box>
-                <Typography variant="h6" gutterBottom sx={{ color: "#0F172A", fontWeight: 600 }}>
-                    Other Documents
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#0F172A" }}>
+                        Other Documents
+                    </Typography>
+                    {otherDocs.length > 0 && (
+                        <Chip 
+                            label={otherDocs.length} 
+                            size="small" 
+                            sx={{ bgcolor: "#F1F5F9", color: "#64748B", fontWeight: 600, fontSize: "0.75rem" }}
+                        />
+                    )}
+                </Box>
                 <DocumentList
                     docs={otherDocs}
                     emptyMessage="No other documents uploaded."

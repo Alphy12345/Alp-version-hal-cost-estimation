@@ -13,6 +13,10 @@ import {
   Link
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DescriptionIcon from "@mui/icons-material/Description";
+import BuildIcon from "@mui/icons-material/Build";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { getProject, getProjectParts, deleteProjectPart, addProjectPart, updatePart, getPartCostForm, savePartCostForm } from "../api/projects";
 import AddPartModal from "../components/AddPartModal";
 import FileViewerModal from "../components/FileViewerModal";
@@ -95,6 +99,7 @@ function ProjectDetailPage({ onChange, projectId }) {
               activeOperationIndex: 0,
               operations: [{ ...defaultOperation }],
               miscellaneous_items: [{ description: "", amount: "" }],
+              quantity: 1,
             };
           });
 
@@ -271,6 +276,7 @@ function ProjectDetailPage({ onChange, projectId }) {
           },
         ],
         miscellaneous_items: [{ description: "", amount: "" }],
+        quantity: 1,
       }
     }));
   };
@@ -479,7 +485,15 @@ function ProjectDetailPage({ onChange, projectId }) {
       throw new Error("Selected machine does not match the operation type. Please re-select the machine.");
     }
 
-    const manHours = Number(formData.man_hours_per_unit);
+    let manHours = Number(formData.man_hours_per_unit);
+    if (!Number.isFinite(manHours) || manHours <= 0) {
+      const setupTime = Number(formData.setup_time);
+      const cycleTime = Number(formData.cycle_time);
+      const derivedManHours = (Number.isFinite(setupTime) ? setupTime : 0) + (Number.isFinite(cycleTime) ? cycleTime : 0);
+      if (Number.isFinite(derivedManHours) && derivedManHours > 0) {
+        manHours = derivedManHours;
+      }
+    }
     
     // Get global miscellaneous items from part level
     const globalMiscItems = partForm?.miscellaneous_items;
@@ -785,7 +799,7 @@ function ProjectDetailPage({ onChange, projectId }) {
 
   return (
     <Box sx={{ width: "100%", pb: 8 }}>
-      <Stack spacing={3} sx={{ maxWidth: "1600px", mx: "auto" }}>
+      <Stack spacing={2} sx={{ width: "100%", maxWidth: "100%" }}>
         {/* Header */}
         <Box>
           <Button
@@ -822,16 +836,37 @@ function ProjectDetailPage({ onChange, projectId }) {
                 color: "#64748B",
                 textTransform: "none",
                 fontWeight: 500,
+                minHeight: 48,
                 "&:hover": { color: "#0F172A" },
                 "&.Mui-selected": { color: "#6366F1", fontWeight: 600 },
               },
               "& .MuiTabs-indicator": { backgroundColor: "#6366F1", height: 2 },
             }}
           >
-            <Tab label="Documents" value="documents" />
-            <Tab label="Parts" value="parts" />
-            <Tab label="Cost Estimation" value="cost_estimation" />
-            <Tab label="Total Cost" value="total_cost" />
+            <Tab 
+              label="Documents" 
+              value="documents" 
+              icon={<DescriptionIcon fontSize="small" />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Parts" 
+              value="parts" 
+              icon={<BuildIcon fontSize="small" />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Cost Estimation" 
+              value="cost_estimation" 
+              icon={<CalculateIcon fontSize="small" />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Total Cost" 
+              value="total_cost" 
+              icon={<AttachMoneyIcon fontSize="small" />}
+              iconPosition="start"
+            />
           </Tabs>
         </Box>
 
@@ -883,6 +918,7 @@ function ProjectDetailPage({ onChange, projectId }) {
               costResults={costResults}
               parts={parts}
               formatValue={formatValue}
+              costForms={costForms}
             />
           )}
         </Box>
