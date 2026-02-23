@@ -15,17 +15,12 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-  ArrowForward as ArrowForwardIcon,
 } from "@mui/icons-material";
 
 function ProjectsPage({ onChange }) {
@@ -73,7 +68,7 @@ function ProjectsPage({ onChange }) {
   );
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <Paper
         sx={{
           borderRadius: 3,
@@ -83,72 +78,32 @@ function ProjectsPage({ onChange }) {
           mb: 3,
         }}
       >
-        <Typography variant="h4" fontWeight={600} sx={{ letterSpacing: 0.5 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
           Cost Estimation Software
         </Typography>
-        <Typography variant="body2" sx={{ color: "#C7D2FE", mt: 0.5 }}>
+        <Typography variant="body1" sx={{ color: "#C7D2FE", mt: 0.5 }}>
           Manage and track your cost estimation projects
         </Typography>
       </Paper>
 
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} lg={6}>
-          <Card sx={{ borderRadius: 3, height: "100%", bgcolor: "#FFFFFF", border: "1px solid #E2E8F0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    bgcolor: "#6366F1",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    "&:hover": {
-                      transform: "scale(1.05)",
-                      boxShadow: 3,
-                      bgcolor: "#4F46E5",
-                    },
-                  }}
-                  onClick={() => onChange("create_project")}
-                  role="button"
-                  aria-label="Create New Project"
-                >
-                  <AddIcon sx={{ color: "#FFFFFF", fontSize: 28 }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Create New Project
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Start a new cost estimation project
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-                Initialize a new project with parts, drawings, and specifications for comprehensive cost analysis and estimation.
-                Upload technical documents and manage project details efficiently.
-              </Typography>
-
-              <Button
-                onClick={() => onChange("create_project")}
-                endIcon={<ArrowForwardIcon />}
-                sx={{
-                  fontWeight: 600,
-                  color: "#6366F1",
-                  "&:hover": { bgcolor: "#EEF2FF" },
-                }}
-              >
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-start" }}>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => onChange("create_project")}
+          sx={{
+            bgcolor: "#6366F1",
+            textTransform: "none",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            borderRadius: 2,
+            "&:hover": { bgcolor: "#4F46E5" },
+          }}
+        >
+          Create New Project
+        </Button>
+      </Box>
 
       <Paper sx={{ borderRadius: 3, overflow: "hidden", bgcolor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
         <Box
@@ -173,19 +128,19 @@ function ProjectsPage({ onChange }) {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: "#6366F1", "& > *": { bgcolor: "#6366F1 !important" } }}>
-                <TableCell sx={{ fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.75rem", bgcolor: "#6366F1" }}>
+                <TableCell sx={{ fontWeight: 800, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.85rem", bgcolor: "#6366F1" }}>
                   Project Name
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.75rem", bgcolor: "#6366F1" }}>
+                <TableCell sx={{ fontWeight: 800, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.85rem", bgcolor: "#6366F1" }}>
                   Customer Name
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.75rem", bgcolor: "#6366F1" }}>
+                <TableCell sx={{ fontWeight: 800, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.85rem", bgcolor: "#6366F1" }}>
                   Created Date
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.75rem", bgcolor: "#6366F1" }}>
+                <TableCell sx={{ fontWeight: 800, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.85rem", bgcolor: "#6366F1" }}>
                   Number of Parts
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.75rem", bgcolor: "#6366F1" }}>
+                <TableCell sx={{ fontWeight: 800, color: "#FFFFFF", textTransform: "uppercase", fontSize: "0.85rem", bgcolor: "#6366F1" }}>
                   Actions
                 </TableCell>
               </TableRow>
@@ -222,7 +177,7 @@ function ProjectsPage({ onChange }) {
                     sx={{
                       bgcolor: "#FFFFFF",
                       "&:hover": { bgcolor: "#F8FAFC" },
-                      "& td": { color: "#0F172A", borderBottom: "1px solid #E2E8F0" }
+                      "& td": { color: "#0F172A", borderBottom: "1px solid #E2E8F0", fontSize: "0.95rem" }
                     }}
                   >
                     <TableCell>
@@ -237,28 +192,28 @@ function ProjectsPage({ onChange }) {
                           }}
                         />
                         <Box>
-                          <Typography variant="body2" fontWeight={600} sx={{ color: "#0F172A" }}>
+                          <Typography variant="body1" fontWeight={700} sx={{ color: "#0F172A" }}>
                             {p.project_name}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                          <Typography variant="body2" sx={{ color: "#94A3B8" }}>
                             ID: {p.id}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>
+                      <Typography variant="body1" fontWeight={600} sx={{ color: "#0F172A" }}>
                         {p.customer_name}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>
                         Customer
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500} sx={{ color: "#0F172A" }}>
+                      <Typography variant="body1" fontWeight={600} sx={{ color: "#0F172A" }}>
                         {formatDate(p.created_at)}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>
                         Creation Date
                       </Typography>
                     </TableCell>
@@ -267,8 +222,8 @@ function ProjectsPage({ onChange }) {
                         label={`${p.parts?.length || 0} Parts`}
                         size="small"
                         sx={{ 
-                          fontWeight: 600, 
-                          fontSize: "0.7rem",
+                          fontWeight: 700, 
+                          fontSize: "0.85rem",
                           bgcolor: "#EEF2FF",
                           color: "#4338CA",
                           borderColor: "#C7D2FE",
@@ -288,7 +243,7 @@ function ProjectsPage({ onChange }) {
                             bgcolor: "#6366F1",
                             textTransform: "none",
                             fontWeight: 600,
-                            fontSize: "0.75rem",
+                            fontSize: "0.85rem",
                             "&:hover": { bgcolor: "#4F46E5" },
                           }}
                         >
@@ -300,7 +255,7 @@ function ProjectsPage({ onChange }) {
                           sx={{ 
                             textTransform: "none", 
                             fontWeight: 600, 
-                            fontSize: "0.75rem",
+                            fontSize: "0.85rem",
                             bgcolor: "#F1F5F9",
                             borderColor: "#CBD5E1",
                             color: "#334155",
